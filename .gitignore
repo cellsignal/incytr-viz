@@ -1,0 +1,5 @@
+local
+.vscode
+data
+**/__pycache__
+**/.env

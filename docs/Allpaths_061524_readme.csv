@@ -1,0 +1,66 @@
+Colume name,Definition
+Ligand,gene symbol (from the gene input of the Sender group)
+Receptor,gene symbol (from the gene input of the Receiver group)
+EM,gene symbol (from the gene input of the Receiver group)
+Target,gene symbol (from the gene input of the Receiver group)
+Sender.group,cluster name of the Sender group
+Receiver.group,cluster name of the Receiver group
+Ligand_sclog2FC,"log2FC between two conditions (calculated using ""DESeq2"") in the Sender group"
+Receptor_sclog2FC,"log2FC between two conditions (calculated using ""DESeq2"") in the Receiver group"
+EM_sclog2FC,"log2FC between two conditions (calculated using ""DESeq2"") in the Receiver group"
+Target_sclog2FC,"log2FC between two conditions (calculated using ""DESeq2"") in the Receiver group"
+Path,the complete name for the 4-step path
+SigWeight_5X,signaling weight of the path in the 5X condition
+SigWeight_WT,signaling weight of the path in the WT condition
+log2FC,log2FC of the SigWeight between two conditions
+adjlog2FC,adjlog2FC of the SigWeight between two conditions
+Ligand_pr_log2FC,log2FC of the Ligand's proteomics data between two conditions in the Sender group
+Ligand_pr_adjlog2FC,adjlog2FC of the Ligand's proteomics data between two conditions in the Sender group
+Receptor_pr_log2FC,log2FC of the Receptor's proteomics data between two conditions in the Receiver group
+Receptor_pr_adjlog2FC,adjlog2FC of the Receptor's proteomics data between two conditions in the Receiver group
+EM_pr_log2FC,log2FC of the EM's proteomics data between two conditions in the Receiver group
+EM_pr_adjlog2FC,adjlog2FC of the EM's proteomics data between two conditions in the Receiver group
+Target_pr_log2FC,log2FC of the Target's proteomics data between two conditions in the Receiver group
+Target_pr_adjlog2FC,adjlog2FC of the Target's proteomics data between two conditions in the Receiver group
+Ligand_ps_log2FC,log2FC of the Ligand's ps data between two conditions in the Sender group
+Ligand_ps_adjlog2FC,adjlog2FC of the Ligand's ps data between two conditions in the Sender group
+Receptor_ps_log2FC,log2FC of the Receptor's ps data between two conditions in the Receiver group
+Receptor_ps_adjlog2FC,adjlog2FC of the Receptor's ps data between two conditions in the Receiver group
+EM_ps_log2FC,log2FC of the EM's ps data between two conditions in the Receiver group
+EM_ps_adjlog2FC,adjlog2FC of the EM's ps data between two conditions in the Receiver group
+Target_ps_log2FC,log2FC of the Target's ps data between two conditions in the Receiver group
+Target_ps_adjlog2FC,adjlog2FC of the Target's ps data between two conditions in the Receiver group
+Ligand_py_log2FC,log2FC of the Ligand's py data between two conditions in the Sender group
+Ligand_py_adjlog2FC,adjlog2FC of the Ligand's py data between two conditions in the Sender group
+Receptor_py_log2FC,log2FC of the Receptor's py data between two conditions in the Receiver group
+Receptor_py_adjlog2FC,adjlog2FC of the Receptor's py data between two conditions in the Receiver group
+EM_py_log2FC,log2FC of the EM's py data between two conditions in the Receiver group
+EM_py_adjlog2FC,adjlog2FC of the EM's py data between two conditions in the Receiver group
+Target_py_log2FC,log2FC of the Target's py data between two conditions in the Receiver group
+Target_py_adjlog2FC,adjlog2FC of the Target's py data between two conditions in the Receiver group
+sc_up,number of components that are up-regulated (log2FC>0) in the 5X condition based on the scRNA-seq data
+sc_down,number of components that are down-regulated (log2FC<0) in the 5X condition based on the scRNA-seq data
+pr_up,number of components that are up-regulated (log2FC>0) in the 5X condition based on the proteomics data
+pr_down,number of components that are down-regulated (log2FC<0) in the 5X condition based on the proteomics data
+ps_up,number of components that are up-regulated (log2FC>0) in the 5X condition based on the ps data
+ps_down,number of components that are down-regulated (log2FC<0) in the 5X condition based on the ps data
+py_up,number of components that are up-regulated (log2FC>0) in the 5X condition based on the py data
+py_down,number of components that are down-regulated (log2FC<0) in the 5X condition based on the py data
+RNA_score,evaluation score of the path only using the scRNA-seq data
+pr_score,evaluation score of the path only using the proteomics data
+ps_score,evaluation score of the path only using the ps data
+py_score,evaluation score of the path only using the py data
+final_score,the combined final score of the previous four parts
+final_score_wKinase,final score + kinase evalualtion score
+Kinase_R_of_EM,Receptor's gene symbol if it is a kinase of the EM
+Kinase_R_of_T,Receptor's gene symbol if it is a kinase of the target
+Kinase_EM_of_T,EM's gene symbol if it is a kinase of the target
+Kinase_R_of_EM_EIcondition1,"If ""Kinase_R_of_EM"" is true, then this column is for the receptor's exclusiveness index (EI) in the Receiver group in condition1 (5X)"
+Kinase_R_of_EM_EIcondition2,"If ""Kinase_R_of_EM"" is true, then this column is for the receptor's exclusiveness index (EI) in the Receiver group in condition2 (WT)"
+Kinase_R_of_T_EIcondition1,"If ""Kinase_R_of_T"" is true, then this column is for the receptor's exclusiveness index (EI) in the Receiver group in condition1 (5X)"
+Kinase_R_of_T_EIcondition2,"If ""Kinase_R_of_T"" is true, then this column is for the receptor's exclusiveness index (EI) in the Receiver group in condition2 (WT)"
+Kinase_EM_of_T_EIcondition1,"If ""Kinase_EM_of_T"" is true, then this column is for the EM's exclusiveness index (EI) in the Receiver group in condition1 (5X)"
+Kinase_EM_of_T_EIcondition2,"If ""Kinase_EM_of_T"" is true, then this column is for the EM's exclusiveness index (EI) in the Receiver group in condition2 (WT)"
+Kinase_score_5X,Kinase evaluation score of the 5X condition
+Kinase_score_WT,Kinase evaluation score of the WT condition
+Path.ID,Path name + Sender group + Receiver group
