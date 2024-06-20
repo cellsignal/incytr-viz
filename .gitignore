@@ -1,5 +1,6 @@
 local
 .vscode
-data
+data/**
 **/__pycache__
 **/.env
+!.gitkeep

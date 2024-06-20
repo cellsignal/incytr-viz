@@ -1,19 +1,13 @@
-import os
-import pdb
-import math
 import random
 import logging
 
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 
-from dash import Dash, html
+from dash import html, dcc
 import dash_cytoscape as cyto
-from dash.dependencies import Input, Output
 
-import dtypes
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +51,7 @@ def edge_width_map(pathways: int, max_paths: int, max_width_px: int = 5):
 #     ]
 
 
-def load_nodes(clusters_filepath) -> dict:
+def load_nodes(clusters_df) -> dict:
     """{'cluster_name': count}
 
     Args:
@@ -69,16 +63,12 @@ def load_nodes(clusters_filepath) -> dict:
 
     nodes = []
 
-    clusters = pd.read_csv(
-        clusters_filepath, dtype={"Type": str, "Population": int}
-    ).reset_index(drop=True)
+    # TODO clean clusters_df
+    # clusters_df = clean_clusters_df(clusters_df)
 
-    # TODO clean clusters
-    # clusters = clean_clusters(clusters)
+    total_cells = clusters_df["Population"].sum()
 
-    total_cells = clusters["Population"].sum()
-
-    for _, s in clusters.iterrows():
+    for _, s in clusters_df.iterrows():
 
         data, style = {}, {}
         data["id"] = s.Type
@@ -93,7 +83,7 @@ def load_nodes(clusters_filepath) -> dict:
 
 
 def load_edges(
-    pathways_file: str,
+    pathways_df: str,
     direction: Optional[str] = None,
     threshold: Optional[float] = None,
 ):
@@ -101,7 +91,7 @@ def load_edges(
 
     edges = []
 
-    df = pd.read_csv(pathways_file)
+    df = pathways_df
 
     if direction == "up":
         df = df[df["final_score"] > 0]
@@ -136,7 +126,7 @@ def load_edges(
     return edges
 
 
-def incytr_cytoscape_app(nodes, edges, layout_name="circle"):
+def cytoscape_container(full_pathways_df, clusters_df, layout_name="circle"):
 
     stylesheet = [
         {
@@ -160,9 +150,23 @@ def incytr_cytoscape_app(nodes, edges, layout_name="circle"):
         },
     ]
 
-    app = Dash(__name__)
-    app.layout = html.Div(
+    nodes, edges = load_nodes(clusters_df), load_edges(full_pathways_df)
+    return html.Div(
         [
+            dcc.Dropdown(
+                id="cyto-sender-select",
+                multi=True,
+                clearable=True,
+                placeholder="filter senders",
+                options=full_pathways_df["Sender.group"].unique(),
+            ),
+            dcc.Dropdown(
+                id="cyto-receiver-select",
+                multi=True,
+                clearable=True,
+                placeholder="filter receivers",
+                options=full_pathways_df["Receiver.group"].unique(),
+            ),
             cyto.Cytoscape(
                 id="cytoscape-clusters-graph",
                 elements=nodes + edges,
@@ -172,40 +176,6 @@ def incytr_cytoscape_app(nodes, edges, layout_name="circle"):
             ),
             html.P(id="cytoscape-tapNodeData-output"),
             html.P(id="cytoscape-tapEdgeData-output"),
-        ]
+        ],
+        id="cytoscape-container",
     )
-
-    @app.callback(
-        Output("cytoscape-tapNodeData-output", "children"),
-        Input("cytoscape-clusters-graph", "tapNodeData"),
-    )
-    def displayTapNodeData(data):
-        if data:
-            return "Cluster: " + data["label"] + "\nSize: " + str(data["cluster_size"])
-
-    @app.callback(
-        Output("cytoscape-tapEdgeData-output", "children"),
-        Input("cytoscape-clusters-graph", "tapEdgeData"),
-    )
-    def displayTapEdgeData(data):
-        if data:
-            return (
-                "Source: "
-                + data["source"]
-                + "\nTarget: "
-                + data["target"]
-                + "\nPathways: "
-                + str(data["weight"])
-            )
-
-    return app
-
-
-if __name__ == "__main__":
-
-    CLUSTERS_PATH = "data/cluster_pop.csv"
-    PATHWAYS_FILE = "data/Allpaths_061524.csv"
-
-    nodes, edges = load_nodes(CLUSTERS_PATH), load_edges(PATHWAYS_FILE)
-
-    incytr_cytoscape_app(nodes, edges).run(debug=True)
