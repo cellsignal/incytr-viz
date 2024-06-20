@@ -2,7 +2,7 @@
 
 Requires python >= 3.11
 
-`conda env create <choose environment name>` or install the following as you see fit:
+Dependencies:
 
 - pandas
 - numpy
@@ -12,5 +12,5 @@ Requires python >= 3.11
 
 ## Run
 
-python sankey.py --> opens app in browser
-python clusters_graph.py --> opens app in browser
+1. Open main.ipynb and update CLUSTERS_FILE and PATHWAYS_FILE to appropriate file paths. Examples in docs/ folder
+2. Run notebook

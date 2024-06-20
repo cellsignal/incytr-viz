@@ -3,7 +3,7 @@ import pandas as pd
 from dash import html, dcc
 
 
-def prep_sankey_data(
+def pathways_df_to_sankey(
     sankey_df: pd.DataFrame,
     always_include_target_genes: bool = False,
 ) -> tuple:
