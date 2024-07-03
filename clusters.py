@@ -4,12 +4,61 @@ import logging
 from typing import Optional
 
 import pandas as pd
+import pdb
 
 from dash import html, dcc
 import dash_cytoscape as cyto
-
+from dash.dependencies import Input, Output, State
+from util import *
 
 logger = logging.getLogger(__name__)
+
+
+def apply_cytoscape_callbacks(app, full_pathways: pd.DataFrame, clusters: pd.DataFrame):
+    @app.callback(
+        Output("cytoscape-tapNodeData-output", "children"),
+        Input("cytoscape-figure", "tapNodeData"),
+    )
+    def displayTapNodeData(data):
+        if data:
+            return "Cluster: " + data["label"] + "\nSize: " + str(data["cluster_size"])
+
+    @app.callback(
+        Output("cytoscape-figure", "elements"),
+        Input("sender-select", "value"),
+        Input("receiver-select", "value"),
+        Input("ligand-select", "value"),
+        Input("receptor-select", "value"),
+        Input("em-select", "value"),
+        Input("target-select", "value"),
+        Input("threshold-slider", "value"),
+        Input("direction-select", "value"),
+    )
+    def update_cytoscape(
+        sender_select,
+        receiver_select,
+        ligand_select,
+        receptor_select,
+        em_select,
+        target_select,
+        threshold,
+        direction_select,
+    ):
+
+        filtered_pathways = filter_pathways(
+            full_pathways,
+            filter_senders=sender_select,
+            filter_receivers=receiver_select,
+            filter_ligands=ligand_select,
+            filter_receptors=receptor_select,
+            filter_em=em_select,
+            filter_target_genes=target_select,
+            threshold=threshold,
+            direction=direction_select,
+        )
+        nodes, edges = load_nodes(clusters), load_edges(filtered_pathways)
+        print([e for e in edges if e["data"]["id"] == "MicrogliaMicroglia"])
+        return nodes + edges
 
 
 def random_color():
@@ -36,22 +85,7 @@ def edge_width_map(pathways: int, max_paths: int, max_width_px: int = 5):
     return str(pathways / max_paths * max_width_px) + "px"
 
 
-# def get_pathway_files(paths_dir: str):
-#     """get all csvs in a directory"""
-#     return [
-#         os.path.join(paths_dir, obj)
-#         for obj in os.listdir(paths_dir)
-#         if obj.endswith(
-#             (
-#                 ".csv",
-#                 ".tsv",
-#             )
-#         )
-#         and os.path.isfile(os.path.join(paths_dir, obj))
-#     ]
-
-
-def load_nodes(clusters_df) -> dict:
+def load_nodes(clusters: pd.DataFrame) -> dict:
     """{'cluster_name': count}
 
     Args:
@@ -63,12 +97,12 @@ def load_nodes(clusters_df) -> dict:
 
     nodes = []
 
-    # TODO clean clusters_df
-    # clusters_df = clean_clusters_df(clusters_df)
+    # TODO clean clusters
+    # clusters = clean_clusters(clusters)
 
-    total_cells = clusters_df["Population"].sum()
+    total_cells = clusters["Population"].sum()
 
-    for _, s in clusters_df.iterrows():
+    for _, s in clusters.iterrows():
 
         data, style = {}, {}
         data["id"] = s.Type
@@ -83,50 +117,40 @@ def load_nodes(clusters_df) -> dict:
 
 
 def load_edges(
-    pathways_df: str,
-    direction: Optional[str] = None,
-    threshold: Optional[float] = None,
+    pathways: str,
+    differential: bool = False,
 ):
     """add pathways from source to target"""
-
     edges = []
 
-    df = pathways_df
+    pathways = pathways.copy()
 
-    if direction == "up":
-        df = df[df["final_score"] > 0]
-    elif direction == "down":
-        df = df[df["final_score"] < 0]
-
-    if threshold:
-        df = df[df["final_score"].abs() > threshold]
-
-    sr_pairs = df.groupby(["Sender.group", "Receiver.group"]).size().to_dict()
+    sr_pairs = pathways.groupby(["Sender.group", "Receiver.group"]).size().to_dict()
     for sr, num_pathways in sr_pairs.items():
         source_id, target_id = sr
-        try:
-            edge_index = next(
-                i
-                for i, e in enumerate(edges)
-                if e["data"]["source"] == source_id and e["data"]["target"] == target_id
-            )
-            edges[edge_index]["data"]["weight"] += num_pathways
-        except StopIteration:
-            data = dict()
-            data["id"] = source_id + target_id
-            data["source"] = source_id
-            data["target"] = target_id
-            data["weight"] = num_pathways
+        data = dict()
+        data["id"] = source_id + target_id
+        data["source"] = source_id
+        data["target"] = target_id
+        data["weight"] = num_pathways
+        data["label"] = str(num_pathways)
 
-            edges.append({"data": data, "style": dict()})
-
-    max_paths = max([e["data"]["weight"] for e in edges])
-    for e in edges:
-        e["style"]["width"] = edge_width_map(e["data"]["weight"], max_paths)
+        edges.append({"data": data})
+    if len(edges) == 0:
+        return edges
+    # else:
+    #     max_paths = max([e["data"]["weight"] for e in edges])
+    #     for e in edges:
+    #         e["style"]["width"] = edge_width_map(e["data"]["weight"], max_paths)
     return edges
 
 
-def cytoscape_container(full_pathways_df, clusters_df, layout_name="circle"):
+def get_cytoscape_component(
+    pathways: pd.DataFrame,
+    clusters: pd.DataFrame,
+    layout_name="circle",
+    differential: bool = False,
+):
 
     stylesheet = [
         {
@@ -146,36 +170,21 @@ def cytoscape_container(full_pathways_df, clusters_df, layout_name="circle"):
                 "curve-style": "bezier",
                 "target-arrow-shape": "triangle",
                 "arrow-scale": ".5",
+                "label": "data(label)",
             },
         },
     ]
 
-    nodes, edges = load_nodes(clusters_df), load_edges(full_pathways_df)
-    return html.Div(
-        [
-            dcc.Dropdown(
-                id="cyto-sender-select",
-                multi=True,
-                clearable=True,
-                placeholder="filter senders",
-                options=full_pathways_df["Sender.group"].unique(),
-            ),
-            dcc.Dropdown(
-                id="cyto-receiver-select",
-                multi=True,
-                clearable=True,
-                placeholder="filter receivers",
-                options=full_pathways_df["Receiver.group"].unique(),
-            ),
-            cyto.Cytoscape(
-                id="cytoscape-clusters-graph",
-                elements=nodes + edges,
-                style={"width": "100%", "height": "90vh"},
-                layout={"name": layout_name},
-                stylesheet=stylesheet,
-            ),
-            html.P(id="cytoscape-tapNodeData-output"),
-            html.P(id="cytoscape-tapEdgeData-output"),
-        ],
-        id="cytoscape-container",
+    # nodes, edges = load_nodes(clusters), load_edges(pathways, differential=differential)
+
+    return (
+        cyto.Cytoscape(
+            id="cytoscape-figure",
+            elements=[],
+            style={"width": "100%", "height": "90vh"},
+            layout={"name": layout_name},
+            stylesheet=stylesheet,
+        ),
     )
+    # html.P(id="cytoscape-tapNodeData-output"),
+    # html.P(id="cytoscape-tapEdgeData-output"),

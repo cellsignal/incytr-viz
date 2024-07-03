@@ -13,7 +13,7 @@ def get_node_colors(ids):
     return [colors[x.split("_")[1]] for x in ids]
 
 
-def filter_pathways_df(
+def filter_pathways(
     raw: pd.DataFrame,
     threshold: Optional[float] = 0.95,
     direction: Optional[str] = None,

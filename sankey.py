@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
-from dash import html, dcc
+import plotly.graph_objects as go
+from dash import Dash, html, dcc, ctx
+from dash.dependencies import Input, Output, State
+from util import *
 
 
 def pathways_df_to_sankey(
@@ -57,97 +60,138 @@ def pathways_df_to_sankey(
     return (ids, labels, source, target, value, min_score, max_score)
 
 
-def sankey_container(full_pathways_df, default_senders=None, default_receivers=None):
-
-    return html.Div(
-        [
-            # html.Div(
-            #     dcc.Upload(
-            #         id="upload-data",
-            #         children=html.Div(["Drag and Drop or ", html.A("Select Files")]),
-            #         multiple=False,
-            #     ),
-            # ),
-            html.Div(
-                [
-                    html.Div(children=0, id="num-pathways-displayed"),
-                    dcc.Dropdown(
-                        id="sender-select",
-                        value=default_senders,
-                        multi=True,
-                        clearable=True,
-                        placeholder="filter senders",
-                        options=full_pathways_df["Sender.group"].unique(),
-                    ),
-                    dcc.Dropdown(
-                        id="receiver-select",
-                        value=default_receivers,
-                        multi=True,
-                        clearable=True,
-                        placeholder="filter receivers",
-                        options=full_pathways_df["Receiver.group"].unique(),
-                    ),
-                    dcc.Dropdown(
-                        id="ligand-select",
-                        multi=True,
-                        clearable=True,
-                        placeholder="filter ligands",
-                        options=full_pathways_df["Ligand"].unique(),
-                    ),
-                    dcc.Dropdown(
-                        id="receptor-select",
-                        multi=True,
-                        clearable=True,
-                        placeholder="filter receptors",
-                        options=full_pathways_df["Receptor"].unique(),
-                    ),
-                    dcc.Dropdown(
-                        id="em-select",
-                        multi=True,
-                        clearable=True,
-                        placeholder="filter effectors",
-                        options=full_pathways_df["EM"].unique(),
-                    ),
-                    dcc.Dropdown(
-                        id="target-select",
-                        multi=True,
-                        clearable=True,
-                        placeholder="filter target genes",
-                        options=full_pathways_df["Target"].unique(),
-                    ),
-                    html.Div(
-                        [
-                            html.H3("Up/Down Regulated"),
-                            dcc.RadioItems(
-                                id="direction-select",
-                                options=[
-                                    {"label": "Up", "value": "up"},
-                                    {"label": "Down", "value": "down"},
-                                    {"label": "All", "value": "all"},
-                                ],
-                                value="all",  # Set default value to 'all'
-                            ),
-                        ]
-                    ),
-                    html.Div(
-                        [
-                            dcc.Slider(
-                                min=0,
-                                max=1,
-                                step=0.01,
-                                value=0.95,
-                                marks=None,
-                                tooltip={"placement": "bottom", "always_visible": True},
-                                id="threshold-slider",
-                            )
-                        ]
-                    ),
-                ],
-                style={
-                    "justify-content": "space-between",
-                },
-            ),
-            dcc.Graph(id="sankey-graph"),
-            html.Div(id="file-path"),
-        ]
+def apply_sankey_callbacks(app: Dash, full_pathways: pd.DataFrame):
+    @app.callback(
+        Output("ligand-select", "value", allow_duplicate=True),
+        Output("receptor-select", "value", allow_duplicate=True),
+        Output("em-select", "value", allow_duplicate=True),
+        Output("target-select", "value", allow_duplicate=True),
+        Input("pathways-figure", "clickData"),
+        State("ligand-select", "value"),
+        State("receptor-select", "value"),
+        State("em-select", "value"),
+        State("target-select", "value"),
+        prevent_initial_call=True,
     )
+    def update_filters_click_node(
+        click_data,
+        ligand_select,
+        receptor_select,
+        em_select,
+        target_select,
+    ):
+
+        def _update(current, new):
+            return list(
+                set(current + [new]) if isinstance(current, list) else set([new])
+            )
+
+        if click_data:
+
+            try:
+                customdata = click_data["points"][0]["customdata"]
+                node_label = customdata.split("_")[0]
+                node_type = customdata.split("_")[1]
+                if node_type == "Ligand":
+                    ligand_select = _update(ligand_select, node_label)
+                elif node_type == "Receptor":
+                    receptor_select = _update(receptor_select, node_label)
+                elif node_type == "EM":
+                    em_select = _update(em_select, node_label)
+                elif node_type == "Target":
+                    target_select = _update(target_select, node_label)
+            except Exception as e:
+                print(e)
+
+        return (
+            ligand_select,
+            receptor_select,
+            em_select,
+            target_select,
+        )
+
+    @app.callback(
+        Output("pathways-figure", "figure"),
+        Output("num-pathways-displayed", "children"),
+        Input("sender-select", "value"),
+        Input("receiver-select", "value"),
+        Input("ligand-select", "value"),
+        Input("receptor-select", "value"),
+        Input("direction-select", "value"),
+        Input("em-select", "value"),
+        Input("target-select", "value"),
+        Input("threshold-slider", "value"),
+        prevent_initial_call=True,
+    )
+    def update_sankey(
+        sender_select,
+        receiver_select,
+        ligand_select,
+        receptor_select,
+        direction_select,
+        em_select,
+        target_select,
+        threshold,
+    ):
+
+        filtered_pathways = filter_pathways(
+            full_pathways,
+            filter_senders=sender_select,
+            filter_receivers=receiver_select,
+            filter_ligands=ligand_select,
+            filter_receptors=receptor_select,
+            filter_em=em_select,
+            filter_target_genes=target_select,
+            threshold=threshold,
+            direction=direction_select,
+        )
+
+        ids, labels, source, target, value, min_score, max_score = (
+            pathways_df_to_sankey(
+                sankey_df=filtered_pathways, always_include_target_genes=False
+            )
+        )
+
+        fig = go.Figure(
+            data=[
+                go.Sankey(
+                    arrangement="fixed",
+                    node=dict(
+                        pad=15,
+                        thickness=20,
+                        line=dict(color="black", width=0.5),
+                        label=labels,
+                        customdata=ids,
+                        hovertemplate="Node %{customdata} has total value %{value}<extra></extra>",
+                        color=get_node_colors(ids),
+                    ),
+                    link=dict(source=source, target=target, value=value),
+                )
+            ]
+        )
+
+        fig.update_layout(title_text="my graph", font_size=10)
+
+        return (
+            fig,
+            len(filtered_pathways),
+        )
+
+
+# html.Div(
+#     dcc.Upload(
+#         id="upload-data",
+#         children=html.Div(["Drag and Drop or ", html.A("Select Files")]),
+#         multiple=False,
+#     ),
+# ),
+
+
+# if upload_contents:
+#     print(upload_contents)
+#     content_type, content_string = upload_contents.split(",")
+#     decoded = base64.b64decode(content_string)
+#     try:
+#         raw = pd.read_csv(io.StringIO(decoded.decode("utf-8")), sep=None)
+#     except Exception as e:
+#         print(e)
