@@ -33,6 +33,8 @@ def apply_cytoscape_callbacks(app, full_pathways: pd.DataFrame, clusters: pd.Dat
         Input("target-select", "value"),
         Input("threshold-slider", "value"),
         Input("direction-select", "value"),
+        Input("differential-radio", "value"),
+        # prevent_initial_call=True,
     )
     def update_cytoscape(
         sender_select,
@@ -43,6 +45,7 @@ def apply_cytoscape_callbacks(app, full_pathways: pd.DataFrame, clusters: pd.Dat
         target_select,
         threshold,
         direction_select,
+        differential_radio,
     ):
 
         filtered_pathways = filter_pathways(
@@ -56,7 +59,9 @@ def apply_cytoscape_callbacks(app, full_pathways: pd.DataFrame, clusters: pd.Dat
             threshold=threshold,
             direction=direction_select,
         )
-        nodes, edges = load_nodes(clusters), load_edges(filtered_pathways)
+        nodes, edges = load_nodes(clusters), load_edges(
+            filtered_pathways, differential=differential_radio
+        )
         print([e for e in edges if e["data"]["id"] == "MicrogliaMicroglia"])
         return nodes + edges
 
@@ -82,7 +87,9 @@ def node_size_map(cluster_count: int, total_count: int):
 
 
 def edge_width_map(pathways: int, max_paths: int, max_width_px: int = 5):
-    return str(pathways / max_paths * max_width_px) + "px"
+    floor = 0.5
+    pixels = max((pathways / max_paths * max_width_px), floor)
+    return str(pixels) + "px"
 
 
 def load_nodes(clusters: pd.DataFrame) -> dict:
@@ -116,6 +123,25 @@ def load_nodes(clusters: pd.DataFrame) -> dict:
     return nodes
 
 
+def get_total_pathways(df):
+    return int(df["pathway_counts"].sum())
+
+
+def get_differential(df):
+
+    try:
+        up_paths = df.loc[tuple([x for x in df.name] + ["up"])]["pathway_counts"]
+    except KeyError:
+        up_paths = 0
+
+    try:
+        down_paths = df.loc[tuple([x for x in df.name] + ["down"])]["pathway_counts"]
+    except KeyError:
+        down_paths = 0
+
+    return int(up_paths - down_paths)
+
+
 def load_edges(
     pathways: str,
     differential: bool = False,
@@ -125,31 +151,48 @@ def load_edges(
 
     pathways = pathways.copy()
 
-    sr_pairs = pathways.groupby(["Sender.group", "Receiver.group"]).size().to_dict()
-    for sr, num_pathways in sr_pairs.items():
+    pathways["direction"] = pathways["final_score"].apply(
+        lambda x: "up" if x >= 0 else "down"
+    )
+
+    s = pathways.groupby(["Sender.group", "Receiver.group", "direction"]).size()
+
+    # if no pathways for up/down direction, need to fill in with zeroes
+    s = s.unstack("direction").fillna(0).stack("direction")
+
+    df = pd.DataFrame(s, columns=["pathway_counts"])
+
+    if differential:
+        weights = df.groupby(["Sender.group", "Receiver.group"]).apply(get_differential)
+    else:
+        weights = df.groupby(["Sender.group", "Receiver.group"]).apply(
+            get_total_pathways
+        )
+
+    sr_pairs = weights.to_dict()
+    for sr, weight in sr_pairs.items():
         source_id, target_id = sr
         data = dict()
         data["id"] = source_id + target_id
         data["source"] = source_id
         data["target"] = target_id
-        data["weight"] = num_pathways
-        data["label"] = str(num_pathways)
+        data["weight"] = weight
+        data["label"] = str(weight)
 
         edges.append({"data": data})
-    if len(edges) == 0:
-        return edges
-    # else:
-    #     max_paths = max([e["data"]["weight"] for e in edges])
-    #     for e in edges:
-    #         e["style"]["width"] = edge_width_map(e["data"]["weight"], max_paths)
+
+    weight_magnitudes = [abs(e["data"]["weight"]) for e in edges]
+    # update edge width based on weight, relative to largest edge
+    if edges:
+        max_paths = max(weight_magnitudes)
+        for e in edges:
+            e["data"]["width"] = edge_width_map(abs(e["data"]["weight"]), max_paths)
+
     return edges
 
 
 def get_cytoscape_component(
-    pathways: pd.DataFrame,
-    clusters: pd.DataFrame,
     layout_name="circle",
-    differential: bool = False,
 ):
 
     stylesheet = [
@@ -171,8 +214,12 @@ def get_cytoscape_component(
                 "target-arrow-shape": "triangle",
                 "arrow-scale": ".5",
                 "label": "data(label)",
+                "width": "data(width)",
             },
         },
+        {"selector": "[weight > 0]", "style": {"line-color": "green"}},
+        {"selector": "[weight < 0]", "style": {"line-color": "red"}},
+        {"selector": "[weight = 0]", "style": {"line-color": "black"}},
     ]
 
     # nodes, edges = load_nodes(clusters), load_edges(pathways, differential=differential)

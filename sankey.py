@@ -62,10 +62,22 @@ def pathways_df_to_sankey(
 
 def apply_sankey_callbacks(app: Dash, full_pathways: pd.DataFrame):
     @app.callback(
-        Output("ligand-select", "value", allow_duplicate=True),
-        Output("receptor-select", "value", allow_duplicate=True),
-        Output("em-select", "value", allow_duplicate=True),
-        Output("target-select", "value", allow_duplicate=True),
+        Output(
+            "ligand-select",
+            "value",
+        ),
+        Output(
+            "receptor-select",
+            "value",
+        ),
+        Output(
+            "em-select",
+            "value",
+        ),
+        Output(
+            "target-select",
+            "value",
+        ),
         Input("pathways-figure", "clickData"),
         State("ligand-select", "value"),
         State("receptor-select", "value"),
@@ -112,7 +124,6 @@ def apply_sankey_callbacks(app: Dash, full_pathways: pd.DataFrame):
 
     @app.callback(
         Output("pathways-figure", "figure"),
-        Output("num-pathways-displayed", "children"),
         Input("sender-select", "value"),
         Input("receiver-select", "value"),
         Input("ligand-select", "value"),
@@ -121,7 +132,7 @@ def apply_sankey_callbacks(app: Dash, full_pathways: pd.DataFrame):
         Input("em-select", "value"),
         Input("target-select", "value"),
         Input("threshold-slider", "value"),
-        prevent_initial_call=True,
+        # prevent_initial_call=True,
     )
     def update_sankey(
         sender_select,
@@ -172,10 +183,7 @@ def apply_sankey_callbacks(app: Dash, full_pathways: pd.DataFrame):
 
         fig.update_layout(title_text="my graph", font_size=10)
 
-        return (
-            fig,
-            len(filtered_pathways),
-        )
+        return fig
 
 
 # html.Div(

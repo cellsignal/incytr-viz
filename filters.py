@@ -25,6 +25,26 @@ def pathway_filter_components(pathways: pd.DataFrame):
                 value="network",
                 id="view-radio",
             ),
+            dcc.RadioItems(
+                [
+                    {
+                        "label": html.Div(
+                            ["Differential View"],
+                            style={"color": "Gold", "font-size": 20},
+                        ),
+                        "value": True,
+                    },
+                    {
+                        "label": html.Div(
+                            ["Aggregate View"],
+                            style={"color": "MediumTurqoise", "font-size": 20},
+                        ),
+                        "value": False,
+                    },
+                ],
+                value=False,
+                id="differential-radio",
+            ),
             dcc.Dropdown(
                 id="sender-select",
                 multi=True,

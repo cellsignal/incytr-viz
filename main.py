@@ -54,7 +54,7 @@ def incytr_app(pathways_file, clusters_file):
     )
     def update_view(view):
         if view == "network":
-            return get_cytoscape_component(full_pathways, clusters)
+            return get_cytoscape_component()
 
         elif view == "pathways":
             return (dcc.Graph(id="pathways-figure"),)
