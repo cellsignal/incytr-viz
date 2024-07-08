@@ -155,19 +155,17 @@ def load_edges(
         lambda x: "up" if x >= 0 else "down"
     )
 
-    s = pathways.groupby(["Sender.group", "Receiver.group", "direction"]).size()
+    s: pd.Series = pathways.groupby(
+        ["Sender.group", "Receiver.group", "direction"]
+    ).size()
 
     # if no pathways for up/down direction, need to fill in with zeroes
     s = s.unstack("direction").fillna(0).stack("direction")
 
     df = pd.DataFrame(s, columns=["pathway_counts"])
 
-    if differential:
-        weights = df.groupby(["Sender.group", "Receiver.group"]).apply(get_differential)
-    else:
-        weights = df.groupby(["Sender.group", "Receiver.group"]).apply(
-            get_total_pathways
-        )
+    weight_func = get_differential if differential else get_total_pathways
+    weights = df.groupby(["Sender.group", "Receiver.group"]).apply(weight_func)
 
     sr_pairs = weights.to_dict()
     for sr, weight in sr_pairs.items():
@@ -181,8 +179,8 @@ def load_edges(
 
         edges.append({"data": data})
 
-    weight_magnitudes = [abs(e["data"]["weight"]) for e in edges]
     # update edge width based on weight, relative to largest edge
+    weight_magnitudes = [abs(e["data"]["weight"]) for e in edges]
     if edges:
         max_paths = max(weight_magnitudes)
         for e in edges:

@@ -6,44 +6,70 @@ def pathway_filter_components(pathways: pd.DataFrame):
 
     return html.Div(
         [
-            dcc.RadioItems(
-                [
-                    {
-                        "label": html.Div(
-                            ["Network View"], style={"color": "Gold", "font-size": 20}
-                        ),
-                        "value": "network",
-                    },
-                    {
-                        "label": html.Div(
-                            ["Pathways View"],
-                            style={"color": "MediumTurqoise", "font-size": 20},
-                        ),
-                        "value": "pathways",
-                    },
+            html.Div(
+                children=[
+                    dcc.RadioItems(
+                        [
+                            {
+                                "label": html.Div(
+                                    ["Network View"],
+                                    style={"font-size": 20},
+                                ),
+                                "value": "network",
+                            },
+                            {
+                                "label": html.Div(
+                                    ["Pathways View"],
+                                    style={"font-size": 20},
+                                ),
+                                "value": "pathways",
+                            },
+                        ],
+                        value="network",
+                        id="view-radio",
+                        style={
+                            "border": "1px solid lightgray",
+                            "padding": "10px",
+                        },
+                    ),
+                    html.Div(
+                        children=[
+                            html.H3("(applies to network view only)"),
+                            dcc.RadioItems(
+                                [
+                                    {
+                                        "label": html.Div(
+                                            ["Differential View"],
+                                            style={"font-size": 20},
+                                        ),
+                                        "value": True,
+                                    },
+                                    {
+                                        "label": html.Div(
+                                            ["Aggregate View"],
+                                            style={
+                                                "color": "MediumTurqoise",
+                                                "font-size": 20,
+                                            },
+                                        ),
+                                        "value": False,
+                                    },
+                                ],
+                                value=False,
+                                id="differential-radio",
+                                style={
+                                    "border": "1px solid lightgray",
+                                    "padding": "10px",
+                                },
+                            ),
+                        ]
+                    ),
                 ],
-                value="network",
-                id="view-radio",
-            ),
-            dcc.RadioItems(
-                [
-                    {
-                        "label": html.Div(
-                            ["Differential View"],
-                            style={"color": "Gold", "font-size": 20},
-                        ),
-                        "value": True,
-                    },
-                    {
-                        "label": html.Div(
-                            ["Aggregate View"],
-                            style={"color": "MediumTurqoise", "font-size": 20},
-                        ),
-                        "value": False,
-                    },
-                ],
-                value=False,
-                id="differential-radio",
+                style={
+                    "display": "flex",
+                    "justify-content": "space-between",
+                    "padding": "30px",
+                },
             ),
             dcc.Dropdown(
                 id="sender-select",
