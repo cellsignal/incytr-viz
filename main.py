@@ -1,13 +1,8 @@
-import io
-import base64
-from typing import Optional
-
 import numpy as np
 import pandas as pd
-import pdb
-import plotly.graph_objects as go
-from dash import Dash, html, dcc, ctx
-from dash.dependencies import Input, Output, State
+import plotly.express as px
+from dash import Dash, html, dcc
+from dash.dependencies import Input, Output
 from dtypes import pathway_dtypes
 from util import *
 
@@ -24,6 +19,9 @@ def incytr_app(pathways_file, clusters_file):
     app = Dash(__name__, suppress_callback_exceptions=True)
 
     full_pathways: pd.DataFrame = pd.read_csv(pathways_file, dtype=pathway_dtypes)
+    hist_data = pd.cut(
+        full_pathways["final_score"], bins=np.linspace(-1.0, 1.0, num=21)
+    ).value_counts()
     clusters: pd.DataFrame = pd.read_csv(clusters_file)
 
     app.layout = html.Div(
@@ -57,7 +55,19 @@ def incytr_app(pathways_file, clusters_file):
             return get_cytoscape_component()
 
         elif view == "pathways":
-            return (dcc.Graph(id="pathways-figure"),)
+            return dcc.Graph(id="pathways-figure")
+
+    @app.callback(
+        Output("hist", "figure"),
+        Input("sender-select", "value"),
+    )
+    def update_hist(sender_select):
+        return px.histogram(
+            full_pathways,
+            x="final_score",
+            nbins=20,
+            histfunc="count",
+        )
 
     return app
 

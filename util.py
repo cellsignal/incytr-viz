@@ -2,6 +2,10 @@ import pandas as pd
 from typing import Optional
 
 
+def update_filter_value(current, new):
+    return list(set(current + [new]) if isinstance(current, list) else set([new]))
+
+
 def get_node_colors(ids):
 
     colors = {

@@ -10,6 +10,8 @@ from dash import html, dcc
 import dash_cytoscape as cyto
 from dash.dependencies import Input, Output, State
 from util import *
+import numpy as np
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 
@@ -62,15 +64,27 @@ def apply_cytoscape_callbacks(app, full_pathways: pd.DataFrame, clusters: pd.Dat
         nodes, edges = load_nodes(clusters), load_edges(
             filtered_pathways, differential=differential_radio
         )
-        print([e for e in edges if e["data"]["id"] == "MicrogliaMicroglia"])
         return nodes + edges
 
-
-def random_color():
-    r = random.randint(0, 255)
-    g = random.randint(0, 255)
-    b = random.randint(0, 255)
-    return f"rgb({r}, {g}, {b})"
+    @app.callback(
+        Output("sender-select", "value"),
+        Output("receiver-select", "value"),
+        Output("view-radio", "value"),
+        Input("cytoscape-figure", "tapEdgeData"),
+        State("sender-select", "value"),
+        State("receiver-select", "value"),
+        State("view-radio", "value"),
+        prevent_initial_call=True,
+    )
+    def showPathways(data, sender_select, receiver_select, view_radio):
+        if data:
+            return (
+                update_filter_value(sender_select, data["source"]),
+                update_filter_value(receiver_select, data["target"]),
+                "pathways",
+            )
+        else:
+            return sender_select, receiver_select, view_radio
 
 
 def clean_clusters(df) -> pd.DataFrame:
@@ -86,8 +100,8 @@ def node_size_map(cluster_count: int, total_count: int):
     return str(proportion * 100) + "%"
 
 
-def edge_width_map(pathways: int, max_paths: int, max_width_px: int = 5):
-    floor = 0.5
+def edge_width_map(pathways: int, max_paths: int, max_width_px: int = 10):
+    floor = 1
     pixels = max((pathways / max_paths * max_width_px), floor)
     return str(pixels) + "px"
 
@@ -109,13 +123,18 @@ def load_nodes(clusters: pd.DataFrame) -> dict:
 
     total_cells = clusters["Population"].sum()
 
-    for _, s in clusters.iterrows():
+    cmap = plt.get_cmap("viridis")
 
+    # rgba arrays, values 0-1
+    plt_colors = cmap(np.linspace(0, 1, len(clusters)))
+    rgb_colors = [[int(x * 256) for x in c[0:3]] for c in plt_colors]
+
+    for i, s in clusters.iterrows():
         data, style = {}, {}
         data["id"] = s.Type
         data["label"] = s.Type
         data["cluster_size"] = s.Population
-        style["background-color"] = random_color()
+        style["background-color"] = "rgb({}, {}, {})".format(*rgb_colors[i])
         style["width"] = node_size_map(s.Population, total_cells)
         style["height"] = node_size_map(s.Population, total_cells)
         nodes.append({"data": data, "style": style})
@@ -148,6 +167,9 @@ def load_edges(
 ):
     """add pathways from source to target"""
     edges = []
+
+    if len(pathways) == 0:
+        return edges
 
     pathways = pathways.copy()
 
@@ -198,11 +220,10 @@ def get_cytoscape_component(
             "selector": "node",
             "style": {
                 "label": "data(id)",
-                "font-size": "10vh",
                 "text-wrap": "ellipsis",
                 "text-valign": "center",
                 "text-halign": "center",
-                "font-size": "10px",
+                "font-size": "20px",
             },
         },
         {
@@ -213,6 +234,7 @@ def get_cytoscape_component(
                 "arrow-scale": ".5",
                 "label": "data(label)",
                 "width": "data(width)",
+                # "line-color": "data(line_color)",
             },
         },
         {"selector": "[weight > 0]", "style": {"line-color": "green"}},

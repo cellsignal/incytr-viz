@@ -128,7 +128,14 @@ def pathway_filter_components(pathways: pd.DataFrame):
                 ]
             ),
             html.Div(
-                [
+                children=[
+                    dcc.Graph(
+                        id="hist",
+                        responsive=False,
+                        style={
+                            "width": "100%",
+                        },
+                    ),
                     dcc.Slider(
                         min=0,
                         max=1,
@@ -137,8 +144,9 @@ def pathway_filter_components(pathways: pd.DataFrame):
                         marks=None,
                         tooltip={"placement": "bottom", "always_visible": True},
                         id="threshold-slider",
-                    )
-                ]
+                    ),
+                ],
+                style={},
             ),
         ],
         id="pathway-filters-container",
