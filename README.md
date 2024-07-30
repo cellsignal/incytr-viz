@@ -10,9 +10,15 @@ Dependencies:
 - dash
 - dash_cytoscape==0.3.0
 
-## Run
+## Run in browser
 
-1. Open main.ipynb and update CLUSTERS_FILE and PATHWAYS_FILE to appropriate file paths. Examples in docs/ folder
+1. Install dependencies if necessary (pip install -r requirements.txt)
+2. Open main.py and update CLUSTERS_FILE and PATHWAYS_FILE to appropriate file paths. Examples in docs/ folder
+3. Run 'python main.py'
+
+## Run in jupyter notebook
+
+1. Open notebook.ipynb and update CLUSTERS_FILE and PATHWAYS_FILE to appropriate file paths. Examples in docs/ folder
 2. Run notebook
 
 ## Notes
