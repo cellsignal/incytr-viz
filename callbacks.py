@@ -90,7 +90,7 @@ def apply_filter_callback(app, full_pathways, full_clusters):
                 style={"width": "100%"},
             )
 
-        sw_hist = get_hist(filtered_pathways, "SigWeight_WT", 20)
+        sw_hist = get_hist(filtered_pathways, "SigWeight", 20)
         rnas_hist = get_hist(filtered_pathways, "adjlog2FC", 20)
         fs_hist = get_hist(filtered_pathways, "final_score", 20)
 

@@ -79,22 +79,17 @@ def filter_pathways(
 
     df = full_pathways.copy()
 
-    fs_positive_passing_sw_threshold = df[
-        (df["final_score"] > 0) & (df["SigWeight_5X"] >= sw_threshold)
-    ]
-
-    fs_negative_passing_sw_threshold = df[
-        (df["final_score"] < 0) & (df["SigWeight_WT"] >= sw_threshold)
-    ]
-
-    df = pd.concat(
-        [fs_positive_passing_sw_threshold, fs_negative_passing_sw_threshold], axis=0
+    df["SigWeight"] = df.apply(
+        lambda row: (
+            row["SigWeight_5X"] if row["final_score"] > 0 else row["SigWeight_WT"]
+        ),
+        axis=1,
     )
 
+    df = df[df["SigWeight"] >= sw_threshold]
     df = df[df["final_score"].abs() >= fs_threshold]
     df = df[df["adjlog2FC"].abs() >= rnas_threshold]
 
-    df["SigWeight_WT"].gt
     df = df[
         df["Ligand"].isin(filter_ligands)
         & df["Receptor"].isin(filter_receptors)
