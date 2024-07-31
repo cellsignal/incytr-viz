@@ -31,11 +31,15 @@ def load_nodes(clusters) -> list[dict]:
     plt_colors = cmap(np.linspace(0, 1, len(clusters)))
     rgb_colors = [[int(x * 256) for x in c[0:3]] for c in plt_colors]
 
+    total_cells = clusters["Population"].sum()
+
     for i, s in clusters.iterrows():
         data = dict()
         data["id"] = s.Type
         data["label"] = s.Type
         data["cluster_size"] = s.Population
+        data["width"] = node_size_map(s.Population, total_cells)
+        data["height"] = node_size_map(s.Population, total_cells)
         data["background_color"] = "rgb({}, {}, {})".format(*rgb_colors[i])
         nodes.append({"data": data})
 
@@ -156,7 +160,7 @@ def pathways_df_to_sankey(
     def _should_display_targets() -> bool:
         num_targets = len(em_t["Target"].unique())
 
-        return True if always_include_target_genes else num_targets <= 50
+        return True if always_include_target_genes else num_targets <= 75
 
     if _should_display_targets():
         included_links.append(em_t)
@@ -169,6 +173,10 @@ def pathways_df_to_sankey(
     target = [next(i for i, e in enumerate(ids) if e == x) for x in links["target_id"]]
     value = links["value"]
 
+    # direct_targets = links.apply(
+    #     lambda x: list(set(links[links["source_id"] == x["source_id"]]["Target"])),
+    #     axis=1,
+    # )
     return (ids, labels, source, target, value)
 
 
@@ -177,6 +185,8 @@ def get_sankey_component(pathways, id):
     ids, labels, source, target, value = pathways_df_to_sankey(
         sankey_df=pathways, always_include_target_genes=False
     )
+
+    # customdata = [ids, [", ".join(x) for x in direct_targets.values]]
 
     return dcc.Graph(
         figure=go.Figure(
@@ -332,7 +342,7 @@ def slider_container(slider_container_style={}):
                 [
                     _slider("sw-slider", 0, 1, 0.01, 0.7, "SigWeight"),
                     _slider("rnas-slider", 0, 1, 0.01, 0, "RNA Score (abs)"),
-                    _slider("fs-slider", 0, 1, 0.01, 0, "Final Score (abs)"),
+                    _slider("fs-slider", 0, 2, 0.01, 0, "Final Score (abs)"),
                 ],
             ),
         ],

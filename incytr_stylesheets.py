@@ -7,6 +7,8 @@ cytoscape = [
             "text-valign": "center",
             "text-halign": "center",
             "font-size": "20px",
+            "height": "data(height)",
+            "width": "data(width)",
             "background-color": "data(background_color)",
         },
     },

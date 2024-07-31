@@ -42,6 +42,7 @@ def format_full_pathways(full_pathways: pd.DataFrame) -> pd.DataFrame:
     )
 
     TO_KEEP = [
+        "Path",
         "Ligand",
         "Receptor",
         "EM",
@@ -91,7 +92,7 @@ def incytr_app(pathways_file, clusters_file):
 if __name__ == "__main__":
 
     CLUSTERS_FILE = "data/mc38/population.csv"
-    PATHWAYS_FILE = "data/mc38/mc38_incytr_out_kinase_proteomicsinput.csv"
+    PATHWAYS_FILE = "data/mc38/pathways_small.csv"
 
     app = incytr_app(PATHWAYS_FILE, CLUSTERS_FILE)
 

@@ -91,7 +91,7 @@ def apply_filter_callback(app, full_pathways, full_clusters):
             )
 
         sw_hist = get_hist(filtered_pathways, "SigWeight", 20)
-        rnas_hist = get_hist(filtered_pathways, "adjlog2FC", 20)
+        rnas_hist = get_hist(filtered_pathways, "RNA_score", 20)
         fs_hist = get_hist(filtered_pathways, "final_score", 20)
 
         return [graphs, sw_hist, rnas_hist, fs_hist]
