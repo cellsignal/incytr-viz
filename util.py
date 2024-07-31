@@ -65,9 +65,9 @@ def filter_pathways(
 ) -> pd.DataFrame:
 
     if not filter_senders:
-        filter_senders = full_pathways["Sender.group"].unique()
+        filter_senders = full_pathways["Sender"].unique()
     if not filter_receivers:
-        filter_receivers = full_pathways["Receiver.group"].unique()
+        filter_receivers = full_pathways["Receiver"].unique()
     if not filter_ligands:
         filter_ligands = full_pathways["Ligand"].unique()
     if not filter_receptors:
@@ -79,41 +79,32 @@ def filter_pathways(
 
     df = full_pathways.copy()
 
-    df["SigWeight"] = df.apply(
-        lambda row: (
-            row["SigWeight_5X"] if row["final_score"] > 0 else row["SigWeight_WT"]
-        ),
-        axis=1,
-    )
-
     df = df[df["SigWeight"] >= sw_threshold]
     df = df[df["final_score"].abs() >= fs_threshold]
     df = df[df["adjlog2FC"].abs() >= rnas_threshold]
 
-    df = df[
-        df["Ligand"].isin(filter_ligands)
-        & df["Receptor"].isin(filter_receptors)
-        & df["EM"].isin(filter_em)
-        & df["Target"].isin(filter_target_genes)
-        & df["Sender.group"].isin(filter_senders)
-        & df["Receiver.group"].isin(filter_receivers)
-    ]
-
     if filter_all_molecules:
-        crosstalk_df = full_pathways[
+        crosstalk_df = df[
             (
-                full_pathways["Ligand"].isin(filter_all_molecules)
-                | full_pathways["Receptor"].isin(filter_all_molecules)
-                | full_pathways["EM"].isin(filter_all_molecules)
-                | full_pathways["Target"].isin(filter_all_molecules)
+                df["Ligand"].isin(filter_all_molecules)
+                | df["Receptor"].isin(filter_all_molecules)
+                | df["EM"].isin(filter_all_molecules)
+                | df["Target"].isin(filter_all_molecules)
             )
-            & df["Sender.group"].isin(filter_senders)
-            & df["Receiver.group"].isin(filter_receivers)
+            & df["Sender"].isin(filter_senders)
+            & df["Receiver"].isin(filter_receivers)
         ]
 
         return crosstalk_df
 
-    return df
+    return df[
+        df["Ligand"].isin(filter_ligands)
+        & df["Receptor"].isin(filter_receptors)
+        & df["EM"].isin(filter_em)
+        & df["Target"].isin(filter_target_genes)
+        & df["Sender"].isin(filter_senders)
+        & df["Receiver"].isin(filter_receivers)
+    ]
 
 
 # def scores_to_hist_data(scores: pd.Series):

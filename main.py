@@ -1,6 +1,6 @@
 import pandas as pd
 from dash import Dash, html
-
+import logging
 
 from dtypes import pathway_dtypes
 from callbacks import (
@@ -15,6 +15,8 @@ from components import (
 
 from util import *
 
+logger = logging.getLogger(__name__)
+
 
 def apply_callbacks(app, full_pathways, full_clusters):
 
@@ -25,11 +27,46 @@ def apply_callbacks(app, full_pathways, full_clusters):
     return app
 
 
+def format_full_pathways(full_pathways: pd.DataFrame) -> pd.DataFrame:
+
+    full_pathways["Ligand"] = full_pathways["Path"].str.split("*").str[0]
+    full_pathways["Receptor"] = full_pathways["Path"].str.split("*").str[1]
+    full_pathways["EM"] = full_pathways["Path"].str.split("*").str[2]
+    full_pathways["Target"] = full_pathways["Path"].str.split("*").str[3]
+
+    full_pathways["SigWeight"] = full_pathways.apply(
+        lambda row: (
+            row["SigWeight_X"] if row["final_score"] > 0 else row["SigWeight_Y"]
+        ),
+        axis=1,
+    )
+
+    TO_KEEP = [
+        "Ligand",
+        "Receptor",
+        "EM",
+        "Target",
+        "SigWeight",
+        "final_score",
+        "SigWeight_X",
+        "SigWeight_Y",
+        "RNA_score",
+        "Sender",
+        "Receiver",
+        "adjlog2FC",
+    ]
+
+    return full_pathways[TO_KEEP]
+
+
 def incytr_app(pathways_file, clusters_file):
 
     app = Dash(__name__, suppress_callback_exceptions=True)
+    logger.info("loading pathways....")
+    full_pathways: pd.DataFrame = format_full_pathways(
+        pd.read_csv(pathways_file, dtype=pathway_dtypes)
+    )
 
-    full_pathways: pd.DataFrame = pd.read_csv(pathways_file, dtype=pathway_dtypes)
     full_clusters: pd.DataFrame = pd.read_csv(clusters_file)
 
     app.layout = html.Div(
@@ -53,8 +90,8 @@ def incytr_app(pathways_file, clusters_file):
 
 if __name__ == "__main__":
 
-    CLUSTERS_FILE = "data/cluster_pop.csv"
-    PATHWAYS_FILE = "data/Allpaths_061524.csv"
+    CLUSTERS_FILE = "data/mc38/population.csv"
+    PATHWAYS_FILE = "data/mc38/mc38_incytr_out_kinase_proteomicsinput.csv"
 
     app = incytr_app(PATHWAYS_FILE, CLUSTERS_FILE)
 

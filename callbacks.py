@@ -62,7 +62,7 @@ def apply_filter_callback(app, full_pathways, full_clusters):
 
         if view_radio == "network":
             global_max_paths = np.max(
-                filtered_pathways.groupby(["Sender.group", "Receiver.group"]).size()
+                filtered_pathways.groupby(["Sender", "Receiver"]).size()
             )
 
             nodes = load_nodes(full_clusters)

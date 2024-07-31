@@ -59,7 +59,7 @@ def load_edges(
         lambda x: "up" if x >= 0 else "down"
     )
 
-    s: pd.Series = pathways.groupby(["Sender.group", "Receiver.group"]).size()
+    s: pd.Series = pathways.groupby(["Sender", "Receiver"]).size()
 
     sr_pairs = s.to_dict()
     for sr, weight in sr_pairs.items():
@@ -243,14 +243,14 @@ def filter_container(pathways, container_style={}):
                 placeholder="Filter Senders",
                 multi=True,
                 clearable=True,
-                options=pathways["Sender.group"].unique(),
+                options=pathways["Sender"].unique(),
             ),
             dcc.Dropdown(
                 id="receiver-select",
                 placeholder="Filter Receivers",
                 multi=True,
                 clearable=True,
-                options=pathways["Receiver.group"].unique(),
+                options=pathways["Receiver"].unique(),
             ),
             dcc.Dropdown(
                 id="ligand-select",
