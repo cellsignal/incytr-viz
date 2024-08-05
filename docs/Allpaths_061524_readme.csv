@@ -3,8 +3,8 @@ Ligand,gene symbol (from the gene input of the Sender group)
 Receptor,gene symbol (from the gene input of the Receiver group)
 EM,gene symbol (from the gene input of the Receiver group)
 Target,gene symbol (from the gene input of the Receiver group)
-Sender.group,cluster name of the Sender group
-Receiver.group,cluster name of the Receiver group
+Sender,cluster name of the Sender group
+Receiver,cluster name of the Receiver group
 Ligand_sclog2FC,"log2FC between two conditions (calculated using ""DESeq2"") in the Sender group"
 Receptor_sclog2FC,"log2FC between two conditions (calculated using ""DESeq2"") in the Receiver group"
 EM_sclog2FC,"log2FC between two conditions (calculated using ""DESeq2"") in the Receiver group"

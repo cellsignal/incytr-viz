@@ -1,81 +1,99 @@
-import numpy as np
 import pandas as pd
-import plotly.express as px
-from dash import Dash, html, dcc
-from dash.dependencies import Input, Output
+from dash import Dash, html
+import logging
+
 from dtypes import pathway_dtypes
+from callbacks import (
+    apply_filter_callback,
+    apply_sankey_callbacks,
+    apply_cluster_edge_callback,
+)
+from components import (
+    hist_container,
+    pathway_filter_components,
+)
+
 from util import *
 
-from clusters import (
-    get_cytoscape_component,
-    apply_cytoscape_callbacks,
-)
-from sankey import pathways_df_to_sankey, apply_sankey_callbacks
-from filters import pathway_filter_components
+logger = logging.getLogger(__name__)
+
+
+def apply_callbacks(app, full_pathways, full_clusters):
+
+    apply_filter_callback(app, full_pathways, full_clusters)
+    apply_sankey_callbacks(app)
+    apply_cluster_edge_callback(app)
+
+    return app
+
+
+def format_full_pathways(full_pathways: pd.DataFrame) -> pd.DataFrame:
+
+    full_pathways.columns = full_pathways.columns.str.strip()
+    full_pathways["Ligand"] = full_pathways["Path"].str.split("*").str[0]
+    full_pathways["Receptor"] = full_pathways["Path"].str.split("*").str[1]
+    full_pathways["EM"] = full_pathways["Path"].str.split("*").str[2]
+    full_pathways["Target"] = full_pathways["Path"].str.split("*").str[3]
+
+    full_pathways["SigWeight"] = full_pathways.apply(
+        lambda row: (
+            row["SigWeight_X"] if row["final_score"] > 0 else row["SigWeight_Y"]
+        ),
+        axis=1,
+    )
+
+    TO_KEEP = [
+        "Path",
+        "Ligand",
+        "Receptor",
+        "EM",
+        "Target",
+        "SigWeight",
+        "final_score",
+        "SigWeight_X",
+        "SigWeight_Y",
+        "RNA_score",
+        "Sender",
+        "Receiver",
+        "adjlog2FC",
+    ]
+
+    return full_pathways[TO_KEEP]
 
 
 def incytr_app(pathways_file, clusters_file):
 
     app = Dash(__name__, suppress_callback_exceptions=True)
+    logger.info("loading pathways....")
+    full_pathways: pd.DataFrame = format_full_pathways(
+        pd.read_csv(pathways_file, dtype=pathway_dtypes)
+    )
 
-    full_pathways: pd.DataFrame = pd.read_csv(pathways_file, dtype=pathway_dtypes)
-    hist_data = pd.cut(
-        full_pathways["final_score"], bins=np.linspace(-1.0, 1.0, num=21)
-    ).value_counts()
-    clusters: pd.DataFrame = pd.read_csv(clusters_file)
+    full_clusters: pd.DataFrame = pd.read_csv(clusters_file)
 
     app.layout = html.Div(
         [
-            html.Div(
-                [
-                    html.Div(children=0, id="num-pathways-displayed"),
-                ],
-                style={
-                    "justify-content": "space-between",
-                },
-            ),
             pathway_filter_components(full_pathways),
             html.Div(
-                id="figures-container",
-                children=[],
+                id="data-container",
+                children=[
+                    hist_container({"display": "flex", "flexDirection": "row"}),
+                    html.Div(id="figures-container"),
+                ],
+                style={"display": "flex", "flexDirection": "column"},
             ),
         ],
         id="app-container",
+        style={"display": "flex", "width": "100vw"},
     )
 
-    apply_sankey_callbacks(app, full_pathways)
-    apply_cytoscape_callbacks(app, full_pathways, clusters)
-
-    @app.callback(
-        Output("figures-container", "children"),
-        Input("view-radio", "value"),
-    )
-    def update_view(view):
-        if view == "network":
-            return get_cytoscape_component()
-
-        elif view == "pathways":
-            return dcc.Graph(id="pathways-figure")
-
-    @app.callback(
-        Output("hist", "figure"),
-        Input("sender-select", "value"),
-    )
-    def update_hist(sender_select):
-        return px.histogram(
-            full_pathways,
-            x="final_score",
-            nbins=20,
-            histfunc="count",
-        )
-
-    return app
+    return apply_callbacks(app, full_pathways, full_clusters)
 
 
 if __name__ == "__main__":
 
-    CLUSTERS_FILE = "data/cluster_pop.csv"
-    PATHWAYS_FILE = "data/Allpaths_061524.csv"
+    CLUSTERS_FILE = "data/mc38/population.csv"
+    PATHWAYS_FILE = "data/mc38/pathways_small.csv"
 
     app = incytr_app(PATHWAYS_FILE, CLUSTERS_FILE)
 
