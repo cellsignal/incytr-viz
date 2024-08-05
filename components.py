@@ -105,17 +105,21 @@ def hist_container(container_style={}):
 
 def get_cytoscape_component(
     id,
+    title,
     elements=[],
     layout_name="circle",
 ):
 
     return html.Div(
-        cyto.Cytoscape(
-            id=id,
-            elements=elements,
-            layout={"name": layout_name},
-            stylesheet=incytr_stylesheets.cytoscape,
-        ),
+        [
+            html.H3(title),
+            cyto.Cytoscape(
+                id=id,
+                elements=elements,
+                layout={"name": layout_name},
+                stylesheet=incytr_stylesheets.cytoscape,
+            ),
+        ],
         style={
             "width": "50%",
         },
@@ -180,7 +184,7 @@ def pathways_df_to_sankey(
     return (ids, labels, source, target, value)
 
 
-def get_sankey_component(pathways, id):
+def get_sankey_component(pathways, id, title):
 
     ids, labels, source, target, value = pathways_df_to_sankey(
         sankey_df=pathways, always_include_target_genes=False
@@ -188,23 +192,28 @@ def get_sankey_component(pathways, id):
 
     # customdata = [ids, [", ".join(x) for x in direct_targets.values]]
 
-    return dcc.Graph(
-        figure=go.Figure(
-            go.Sankey(
-                arrangement="fixed",
-                node=dict(
-                    pad=15,
-                    thickness=20,
-                    line=dict(color="black", width=0.5),
-                    label=labels,
-                    customdata=ids,
-                    hovertemplate="Node %{customdata} has total value %{value}<extra></extra>",
-                    color=get_node_colors(ids),
+    return html.Div(
+        [
+            html.H3(title),
+            dcc.Graph(
+                figure=go.Figure(
+                    go.Sankey(
+                        arrangement="fixed",
+                        node=dict(
+                            pad=15,
+                            thickness=20,
+                            line=dict(color="black", width=0.5),
+                            label=labels,
+                            customdata=ids,
+                            hovertemplate="Node %{customdata} has total value %{value}<extra></extra>",
+                            color=get_node_colors(ids),
+                        ),
+                        link=dict(source=source, target=target, value=value),
+                    ),
                 ),
-                link=dict(source=source, target=target, value=value),
+                id=id,
             ),
-        ),
-        id=id,
+        ]
     )
 
 

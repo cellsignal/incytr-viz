@@ -13,8 +13,24 @@ Dependencies:
 ## Run in browser
 
 1. Install dependencies if necessary (pip install -r requirements.txt)
-2. Open main.py and update CLUSTERS_FILE and PATHWAYS_FILE to appropriate file paths. Examples in docs/ folder
-3. Run 'python main.py'
+2. Ensure your CSV has the following columns:
+
+- Sender
+- Receiver
+- Path
+- Ligand
+- Receptor
+- EM
+- Target
+- SigWeight
+- final_score
+- SigWeight_X <-- corresponds to experimental condition (e.g. 5X)
+- SigWeight_Y <-- corresponds to control/wild-type condition
+- RNA_score
+- adjlog2FC
+
+3. Open main.py and update CLUSTERS_FILE and PATHWAYS_FILE to appropriate file paths. Examples in docs/ folder
+4. Run 'python main.py'
 
 ## Run in jupyter notebook
 

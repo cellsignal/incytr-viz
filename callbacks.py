@@ -69,9 +69,11 @@ def apply_filter_callback(app, full_pathways, full_clusters):
             up_edges = load_edges(nodes, up_pathways, global_max_paths)
             down_edges = load_edges(nodes, down_pathways, global_max_paths)
 
-            up_cytoscape = get_cytoscape_component("cytoscape-up", nodes + up_edges)
+            up_cytoscape = get_cytoscape_component(
+                "cytoscape-up", "Exp. Condition", nodes + up_edges
+            )
             down_cytoscape = get_cytoscape_component(
-                "cytoscape-down", nodes + down_edges
+                "cytoscape-down", "WT Condition", nodes + down_edges
             )
 
             graphs = html.Div(
@@ -81,8 +83,10 @@ def apply_filter_callback(app, full_pathways, full_clusters):
             )
 
         elif view_radio == "pathways":
-            up_sankey = get_sankey_component(up_pathways, "sankey-up")
-            down_sankey = get_sankey_component(down_pathways, "sankey-down")
+            up_sankey = get_sankey_component(up_pathways, "sankey-up", "Exp. Condition")
+            down_sankey = get_sankey_component(
+                down_pathways, "sankey-down", "WT Condition"
+            )
 
             graphs = html.Div(
                 children=[up_sankey, down_sankey],
