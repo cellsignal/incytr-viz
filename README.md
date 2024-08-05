@@ -13,15 +13,11 @@ Dependencies:
 ## Run in browser
 
 1. Install dependencies if necessary (pip install -r requirements.txt)
-2. Ensure your CSV has the following columns:
+2. Ensure your CSV has the following columns (currently case sensitive):
 
 - Sender
 - Receiver
-- Path
-- Ligand
-- Receptor
-- EM
-- Target
+- Path (ligand, em, receptor, target columns are generated from the Path column)
 - SigWeight
 - final_score
 - SigWeight_X <-- corresponds to experimental condition (e.g. 5X)

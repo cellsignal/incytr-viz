@@ -29,6 +29,7 @@ def apply_callbacks(app, full_pathways, full_clusters):
 
 def format_full_pathways(full_pathways: pd.DataFrame) -> pd.DataFrame:
 
+    full_pathways.columns = full_pathways.columns.str.strip()
     full_pathways["Ligand"] = full_pathways["Path"].str.split("*").str[0]
     full_pathways["Receptor"] = full_pathways["Path"].str.split("*").str[1]
     full_pathways["EM"] = full_pathways["Path"].str.split("*").str[2]
