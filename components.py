@@ -13,7 +13,8 @@ def hist_container(container_style={}):
 
     return html.Div(
         [
-            html.Div(dcc.Graph(id="sw-hist")),
+            html.Div(dcc.Graph(id="sw-a-hist")),
+            html.Div(dcc.Graph(id="sw-b-hist")),
             html.Div(dcc.Graph(id="rnas-hist")),
             html.Div(dcc.Graph(id="fs-hist")),
         ],
@@ -46,8 +47,13 @@ def get_cytoscape_component(
 
 def pathways_df_to_sankey(
     sankey_df: pd.DataFrame,
+    sigweight_column_name,
+    sigweight_threshold: float,
     always_include_target_genes: bool = False,
 ) -> tuple:
+
+    ## filter by sigweight
+    sankey_df = sankey_df[sankey_df[sigweight_column_name] >= sigweight_threshold]
 
     min_score, max_score = (
         sankey_df["final_score"].min(),
@@ -102,10 +108,15 @@ def pathways_df_to_sankey(
     return (ids, labels, source, target, value)
 
 
-def get_sankey_component(pathways, id, title):
+def get_sankey_component(
+    pathways, id, sigweight_column_name, sigweight_threshold, title
+):
 
     ids, labels, source, target, value = pathways_df_to_sankey(
-        sankey_df=pathways, always_include_target_genes=False
+        sankey_df=pathways,
+        sigweight_column_name=sigweight_column_name,
+        sigweight_threshold=sigweight_threshold,
+        always_include_target_genes=False,
     )
 
     # customdata = [ids, [", ".join(x) for x in direct_targets.values]]
@@ -263,13 +274,47 @@ def slider_container(slider_container_style={}):
             },
         )
 
+    def _range_slider(
+        id: str, minval: int, maxval: int, step: int, value: list, label: str
+    ):
+
+        tooltip_format = {
+            "placement": "bottom",
+            "always_visible": True,
+        }
+
+        return html.Div(
+            [
+                html.Div(
+                    dcc.RangeSlider(
+                        min=minval,
+                        max=maxval,
+                        step=step,
+                        value=value,
+                        marks=None,
+                        tooltip=tooltip_format,
+                        id=id,
+                    ),
+                    style={
+                        "width": "70%",
+                    },
+                ),
+                html.H4(label),
+            ],
+            style={
+                "display": "flex",
+                "alignItems": "center",
+                "justifyContent": "space-between",
+            },
+        )
+
     return html.Div(
         children=[
             html.Div(
                 [
                     _slider("sw-slider", 0, 1, 0.01, 0.7, "SigWeight"),
-                    _slider("rnas-slider", 0, 1, 0.01, 0, "RNA Score (abs)"),
-                    _slider("fs-slider", 0, 2, 0.01, 0, "Final Score (abs)"),
+                    _range_slider("rnas-slider", -2, 2, 0.01, [-2, 2], "RNA Score"),
+                    _range_slider("fs-slider", -2, 2, 0.01, [-2, 2], "Final Score"),
                 ],
             ),
         ],

@@ -10,6 +10,10 @@ from components import (
 import matplotlib.pyplot as plt
 
 
+def has_rna_score(full_pathways):
+    return
+
+
 def load_nodes(clusters: pd.DataFrame) -> list[dict]:
     """
     Generate cytoscape nodes from clusters file
@@ -79,6 +83,8 @@ def load_nodes(clusters: pd.DataFrame) -> list[dict]:
 def load_edges(
     nodes: list[dict],
     pathways: pd.DataFrame,
+    sigweight_filter_column,
+    sighweight_threshold: float,
     global_max_paths: int,
 ):
     """add pathways from source to target"""
@@ -90,6 +96,9 @@ def load_edges(
         (pathways["Sender"].isin(node_labels))
         & (pathways["Receiver"].isin(node_labels))
     ]
+
+    ## filter pathways that are below sigweight threshold
+    pathways = pathways[pathways[sigweight_filter_column] >= sighweight_threshold]
 
     if len(pathways) == 0:
         return edges
@@ -122,10 +131,13 @@ def load_edges(
     return edges
 
 
-def apply_filter_callback(app, full_pathways, full_clusters):
+def apply_filter_callback(
+    app, full_pathways, full_clusters, has_rna_score, has_final_score
+):
     @app.callback(
         Output("figures-container", "children"),
-        Output("sw-hist", "figure"),
+        Output("sw-a-hist", "figure"),
+        Output("sw-b-hist", "figure"),
         Output("rnas-hist", "figure"),
         Output("fs-hist", "figure"),
         Input("sender-select", "value"),
@@ -174,8 +186,20 @@ def apply_filter_callback(app, full_pathways, full_clusters):
             )
 
             nodes_a, nodes_b = load_nodes(full_clusters)
-            edges_a = load_edges(nodes_a, filtered_pathways, global_max_paths)
-            edges_b = load_edges(nodes_b, filtered_pathways, global_max_paths)
+            edges_a = load_edges(
+                nodes_a,
+                filtered_pathways,
+                CN.SIGWEIGHT_A(filtered_pathways.columns),
+                sw_threshold,
+                global_max_paths,
+            )
+            edges_b = load_edges(
+                nodes_b,
+                filtered_pathways,
+                CN.SIGWEIGHT_B(filtered_pathways.columns),
+                sw_threshold,
+                global_max_paths,
+            )
 
             cytoscape_a = get_cytoscape_component(
                 "cytoscape-a", "Exp. Condition", nodes_a + edges_a
@@ -191,24 +215,45 @@ def apply_filter_callback(app, full_pathways, full_clusters):
             )
 
         elif view_radio == "pathways":
-            up_sankey = get_sankey_component(
-                filtered_pathways, "sankey-a", "Exp. Condition"
+            sankey_a = get_sankey_component(
+                filtered_pathways,
+                "sankey-a",
+                CN.SIGWEIGHT_A(filtered_pathways.columns),
+                sw_threshold,
+                "Exp. Condition",
             )
-            down_sankey = get_sankey_component(
-                filtered_pathways, "sankey-b", "WT Condition"
+            sankey_b = get_sankey_component(
+                filtered_pathways,
+                "sankey-b",
+                CN.SIGWEIGHT_B(filtered_pathways.columns),
+                sw_threshold,
+                "WT Condition",
             )
 
             graphs = html.Div(
-                children=[up_sankey, down_sankey],
+                children=[sankey_a, sankey_b],
                 id="sankey-container",
                 style={"width": "100%"},
             )
 
-        sw_hist = get_hist(filtered_pathways, "SigWeight", 20)
-        rnas_hist = get_hist(filtered_pathways, "RNA_score", 20)
-        fs_hist = get_hist(filtered_pathways, "final_score", 20)
+        sw_a_hist = get_hist(
+            filtered_pathways, CN.SIGWEIGHT_A(filtered_pathways.columns), 20
+        )
+        sw_b_hist = get_hist(
+            filtered_pathways, CN.SIGWEIGHT_B(filtered_pathways.columns), 20
+        )
+        rnas_hist = (
+            get_hist(filtered_pathways, get_cn("rna_score"), 20)
+            if has_rna_score
+            else empty_hist(get_cn("rna_score"))
+        )
+        fs_hist = (
+            get_hist(filtered_pathways, get_cn("final_score"), 20)
+            if has_final_score
+            else empty_hist(get_cn("final_score"))
+        )
 
-        return [graphs, sw_hist, rnas_hist, fs_hist]
+        return [graphs, sw_a_hist, sw_b_hist, rnas_hist, fs_hist]
 
     return app
 

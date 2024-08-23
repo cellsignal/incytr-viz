@@ -13,8 +13,6 @@ pathway_dtypes = {
     "EM_sclog2FC": np.float64,
     "Target_sclog2FC": np.float64,
     "Path": str,
-    "SigWeight_5X": np.float64,
-    "SigWeight_WT": np.float64,
     "log2FC": np.float64,
     "adjlog2FC": np.float64,
     "Ligand_pr_log2FC": np.float64,

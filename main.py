@@ -56,7 +56,16 @@ def load_clusters_files(clusters_a_path, clusters_b_path):
 
 def apply_callbacks(app, full_pathways, full_clusters):
 
-    apply_filter_callback(app, full_pathways, full_clusters)
+    has_rna_score = get_cn("rna_score") in full_pathways.columns
+    has_final_score = get_cn("final_score") in full_pathways.columns
+
+    apply_filter_callback(
+        app,
+        full_pathways,
+        full_clusters,
+        has_rna_score=has_rna_score,
+        has_final_score=has_final_score,
+    )
     apply_sankey_callbacks(app)
     apply_cluster_edge_callback(app)
 
@@ -71,27 +80,19 @@ def format_full_pathways(full_pathways: pd.DataFrame) -> pd.DataFrame:
     full_pathways["EM"] = full_pathways["Path"].str.split("*").str[2]
     full_pathways["Target"] = full_pathways["Path"].str.split("*").str[3]
 
-    full_pathways["SigWeight"] = full_pathways.apply(
-        lambda row: (
-            row["SigWeight_X"] if row["final_score"] > 0 else row["SigWeight_Y"]
-        ),
-        axis=1,
-    )
-
     TO_KEEP = [
         "Path",
         "Ligand",
         "Receptor",
         "EM",
         "Target",
-        "SigWeight",
         "final_score",
-        "SigWeight_X",
-        "SigWeight_Y",
         "RNA_score",
         "Sender",
         "Receiver",
         "adjlog2FC",
+        CN.SIGWEIGHT_A(full_pathways.columns),
+        CN.SIGWEIGHT_B(full_pathways.columns),
     ]
 
     return full_pathways[TO_KEEP]

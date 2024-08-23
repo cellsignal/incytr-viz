@@ -2,6 +2,32 @@ import pandas as pd
 import pdb
 from typing import Optional, Literal
 import plotly.express as px
+import enum
+
+
+class CN(enum.Enum):
+    PATH = "path"
+    LIGAND = "ligand"
+    RECEPTOR = "receptor"
+    EM = "em"
+    TARGET = "target"
+    FINAL_SCORE = "final_score"
+    RNA_SCORE = "RNA_score"
+    SENDER = "sender"
+    RECEIVER = "receiver"
+    ADJLOG2FC = "adjlog2fc"
+
+    @classmethod
+    def SIGWEIGHT_A(self, colnames):
+        return next(c for c in colnames if "SigWeight" in c)
+
+    @classmethod
+    def SIGWEIGHT_B(self, colnames):
+        return next(c for c in colnames[::-1] if "SigWeight" in c)
+
+
+def get_cn(enum_choice: str):
+    return CN[enum_choice.upper()].value
 
 
 def update_filter_value(current, new):
@@ -31,11 +57,16 @@ def get_hist(df, col, num_bins):
     return px.histogram(
         df,
         x=col,
+        title=col,
         nbins=num_bins,
         histfunc="count",
         width=300,
         height=300,
     )
+
+
+def empty_hist(col):
+    return px.histogram(pd.DataFrame({col: []}), title=col, width=300, height=300)
 
 
 def get_node_colors(ids):
@@ -51,8 +82,8 @@ def get_node_colors(ids):
 
 def filter_pathways(
     full_pathways: pd.DataFrame,
-    fs_threshold: float = 0,
-    sw_threshold: float = 0,
+    fs_threshold: float = [-2, 2],
+    sw_threshold: float = [-2, 2],
     rnas_threshold: float = 0,
     filter_senders: list[Optional[str]] = [],
     filter_receivers: list[Optional[str]] = [],
@@ -79,9 +110,16 @@ def filter_pathways(
 
     df = full_pathways.copy()
 
-    df = df[df["SigWeight"] >= sw_threshold]
-    df = df[df["final_score"].abs() >= fs_threshold]
-    df = df[df["adjlog2FC"].abs() >= rnas_threshold]
+    df = df[
+        (df[CN.SIGWEIGHT_A(full_pathways.columns)] >= sw_threshold)
+        | (df[CN.SIGWEIGHT_B(full_pathways.columns)] >= sw_threshold)
+    ]
+    df = df[
+        (df["final_score"] >= fs_threshold[0]) & (df["final_score"] <= fs_threshold[1])
+    ]
+    df = df[
+        (df["RNA_score"] >= rnas_threshold[0]) & (df["RNA_score"] <= rnas_threshold[1])
+    ]
 
     if filter_all_molecules:
         crosstalk_df = df[
