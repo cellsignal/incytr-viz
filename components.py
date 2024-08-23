@@ -4,91 +4,9 @@ from dash import html, dcc
 import dash_cytoscape as cyto
 import plotly.graph_objects as go
 import numpy as np
-import matplotlib.pyplot as plt
 
 from util import *
 import incytr_stylesheets
-
-
-def load_nodes(clusters) -> list[dict]:
-    """{'cluster_name': count}
-
-    Args:
-        df (_type_): _description_
-
-    Returns:
-        dict: _description_
-    """
-
-    nodes = []
-
-    # TODO clean clusters
-    # clusters = clean_clusters(clusters)
-
-    cmap = plt.get_cmap("viridis")
-
-    # rgba arrays, values 0-1
-    plt_colors = cmap(np.linspace(0, 1, len(clusters)))
-    rgb_colors = [[int(x * 256) for x in c[0:3]] for c in plt_colors]
-
-    total_cells = clusters["Population"].sum()
-
-    for i, s in clusters.iterrows():
-        data = dict()
-        data["id"] = s.Type
-        data["label"] = s.Type
-        data["cluster_size"] = s.Population
-        data["width"] = node_size_map(s.Population, total_cells)
-        data["height"] = node_size_map(s.Population, total_cells)
-        data["background_color"] = "rgb({}, {}, {})".format(*rgb_colors[i])
-        nodes.append({"data": data})
-
-    return nodes
-
-
-def load_edges(
-    nodes: list[dict],
-    pathways: str,
-    global_max_paths: int,
-):
-    """add pathways from source to target"""
-    edges = []
-
-    if len(pathways) == 0:
-        return edges
-
-    pathways = pathways.copy()
-
-    pathways["direction"] = pathways["final_score"].apply(
-        lambda x: "up" if x >= 0 else "down"
-    )
-
-    s: pd.Series = pathways.groupby(["Sender", "Receiver"]).size()
-
-    sr_pairs = s.to_dict()
-    for sr, weight in sr_pairs.items():
-        source_id, target_id = sr
-        data = dict()
-        data["id"] = source_id + target_id
-        data["source"] = source_id
-        data["target"] = target_id
-        data["weight"] = weight
-        data["label"] = str(weight)
-        data["line_color"] = next(
-            x["data"]["background_color"]
-            for x in nodes
-            if x["data"]["label"] == source_id
-        )
-
-        edges.append({"data": data})
-
-    if edges:
-        for e in edges:
-            e["data"]["width"] = edge_width_map(
-                abs(e["data"]["weight"]), global_max_paths
-            )
-
-    return edges
 
 
 def hist_container(container_style={}):

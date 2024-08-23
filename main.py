@@ -18,6 +18,42 @@ from util import *
 logger = logging.getLogger(__name__)
 
 
+def load_clusters_files(clusters_a_path, clusters_b_path):
+    def _load_clusters_file(clusters_path):
+
+        clusters_dtypes = {"type": str, "population": int}
+
+        clusters = pd.read_csv(clusters_path, dtype=clusters_dtypes).reset_index(
+            drop=True
+        )
+
+        clusters.columns = clusters.columns.str.lower().str.strip()
+
+        if not all(c in clusters.columns for c in clusters_dtypes.keys()):
+            raise ValueError(
+                f"Invalid clusters file: missing one of {clusters_dtypes.keys()}"
+            )
+
+        clusters = clusters[list(clusters_dtypes.keys())].reset_index(drop=True)
+        return clusters.set_index("type")
+
+    clusters_a = _load_clusters_file(clusters_a_path)
+    clusters_b = _load_clusters_file(clusters_b_path)
+
+    merged_clusters = clusters_a.join(
+        clusters_b, on="type", how="outer", lsuffix="_a", rsuffix="_b"
+    )
+
+    merged_clusters["population_a"] = (
+        merged_clusters["population_a"].fillna(0).astype(int)
+    )
+    merged_clusters["population_b"] = (
+        merged_clusters["population_b"].fillna(0).astype(int)
+    )
+
+    return merged_clusters
+
+
 def apply_callbacks(app, full_pathways, full_clusters):
 
     apply_filter_callback(app, full_pathways, full_clusters)
@@ -61,7 +97,7 @@ def format_full_pathways(full_pathways: pd.DataFrame) -> pd.DataFrame:
     return full_pathways[TO_KEEP]
 
 
-def incytr_app(pathways_file, clusters_file):
+def incytr_app(pathways_file, clusters_a_filepath, clusters_b_filepath):
 
     app = Dash(__name__, suppress_callback_exceptions=True)
     logger.info("loading pathways....")
@@ -69,7 +105,7 @@ def incytr_app(pathways_file, clusters_file):
         pd.read_csv(pathways_file, dtype=pathway_dtypes)
     )
 
-    full_clusters: pd.DataFrame = pd.read_csv(clusters_file)
+    clusters = load_clusters_files(clusters_a_filepath, clusters_b_filepath)
 
     app.layout = html.Div(
         [
@@ -87,14 +123,15 @@ def incytr_app(pathways_file, clusters_file):
         style={"display": "flex", "width": "100vw"},
     )
 
-    return apply_callbacks(app, full_pathways, full_clusters)
+    return apply_callbacks(app, full_pathways, clusters)
 
 
 if __name__ == "__main__":
 
-    CLUSTERS_FILE = "data/mc38/population.csv"
-    PATHWAYS_FILE = "data/mc38/pathways_small.csv"
+    CLUSTERS_A_FILE = "data/mc38_fake/population_a.csv"
+    CLUSTERS_B_FILE = "data/mc38_fake/population_b.csv"
+    PATHWAYS_FILE = "data/mc38_fake/pathways_small_short.csv"
 
-    app = incytr_app(PATHWAYS_FILE, CLUSTERS_FILE)
+    app = incytr_app(PATHWAYS_FILE, CLUSTERS_A_FILE, CLUSTERS_B_FILE)
 
     app.run(debug=True)

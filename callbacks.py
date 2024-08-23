@@ -3,12 +3,123 @@ from dash import Dash, html
 from dash.dependencies import Input, Output, State
 from util import *
 from components import (
-    load_edges,
-    load_nodes,
     get_cytoscape_component,
     get_sankey_component,
     get_hist,
 )
+import matplotlib.pyplot as plt
+
+
+def load_nodes(clusters: pd.DataFrame) -> list[dict]:
+    """
+    Generate cytoscape nodes from clusters file
+
+    clusters: clusters df with expected column names:
+
+    type
+    population_a
+    population_b
+    rgb_colors
+
+    Output:
+
+    [nodes_a, nodes_b]
+
+    Each member of the list is a list of dicts, each dict is a node
+
+    nodes_a ~ [{"data": {...node_data}}, .....]
+
+    """
+    # TODO clean clusters
+    # clusters = clean_clusters(clusters)
+
+    cmap = plt.get_cmap("viridis")
+
+    # rgba arrays, values 0-1
+    plt_colors = cmap(np.linspace(0, 1, len(clusters)))
+    clusters["rgb_colors"] = [[int(x * 256) for x in c[0:3]] for c in plt_colors]
+
+    def _nodes_from_clusters_file(
+        row: pd.Series, pop_colname: str, total_cells: int
+    ) -> dict:
+
+        node_type = row.name
+        node_population = row[pop_colname]
+        node_rgb_color = row["rgb_colors"]
+
+        if not node_population or np.isnan(node_population):
+            return np.nan
+
+        data = dict()
+        data["id"] = node_type
+        data["label"] = node_type
+        data["cluster_size"] = node_population
+        data["width"] = node_size_map(node_population, total_cells)
+        data["height"] = node_size_map(node_population, total_cells)
+        data["background_color"] = "rgb({}, {}, {})".format(*node_rgb_color)
+        return {"data": data}
+
+    clusters["nodes_a"] = clusters.apply(
+        lambda row: _nodes_from_clusters_file(
+            row, "population_a", clusters["population_a"].sum()
+        ),
+        axis=1,
+    )
+    clusters["nodes_b"] = clusters.apply(
+        lambda row: _nodes_from_clusters_file(
+            row, "population_b", clusters["population_b"].sum()
+        ),
+        axis=1,
+    )
+
+    # omit nodes that are na -- these nodes do not exist or have pop 0
+    return list(clusters["nodes_a"].dropna()), list(clusters["nodes_b"].dropna())
+
+
+def load_edges(
+    nodes: list[dict],
+    pathways: pd.DataFrame,
+    global_max_paths: int,
+):
+    """add pathways from source to target"""
+    edges = []
+
+    ## filter pathways if sender/receiver not in nodes
+    node_labels = pd.Series([x["data"]["label"] for x in nodes])
+    pathways = pathways[
+        (pathways["Sender"].isin(node_labels))
+        & (pathways["Receiver"].isin(node_labels))
+    ]
+
+    if len(pathways) == 0:
+        return edges
+
+    s: pd.Series = pathways.groupby(["Sender", "Receiver"]).size()
+
+    sr_pairs = s.to_dict()
+    for sr, weight in sr_pairs.items():
+        source_id, target_id = sr
+        data = dict()
+        data["id"] = source_id + target_id
+        data["source"] = source_id
+        data["target"] = target_id
+        data["weight"] = weight
+        data["label"] = str(weight)
+        data["line_color"] = next(
+            x["data"]["background_color"]
+            for x in nodes
+            if x["data"]["label"] == source_id
+        )
+
+        edges.append({"data": data})
+
+    if edges:
+        for e in edges:
+            e["data"]["width"] = edge_width_map(
+                abs(e["data"]["weight"]), global_max_paths
+            )
+
+    return edges
 
 
 def apply_filter_callback(app, full_pathways, full_clusters):
@@ -57,35 +168,34 @@ def apply_filter_callback(app, full_pathways, full_clusters):
             rnas_threshold=rnas_threshold,
         )
 
-        up_pathways = filtered_pathways[filtered_pathways["final_score"] > 0]
-        down_pathways = filtered_pathways[filtered_pathways["final_score"] < 0]
-
         if view_radio == "network":
             global_max_paths = np.max(
                 filtered_pathways.groupby(["Sender", "Receiver"]).size()
             )
 
-            nodes = load_nodes(full_clusters)
-            up_edges = load_edges(nodes, up_pathways, global_max_paths)
-            down_edges = load_edges(nodes, down_pathways, global_max_paths)
+            nodes_a, nodes_b = load_nodes(full_clusters)
+            edges_a = load_edges(nodes_a, filtered_pathways, global_max_paths)
+            edges_b = load_edges(nodes_b, filtered_pathways, global_max_paths)
 
-            up_cytoscape = get_cytoscape_component(
-                "cytoscape-up", "Exp. Condition", nodes + up_edges
+            cytoscape_a = get_cytoscape_component(
+                "cytoscape-a", "Exp. Condition", nodes_a + edges_a
             )
-            down_cytoscape = get_cytoscape_component(
-                "cytoscape-down", "WT Condition", nodes + down_edges
+            cytoscape_b = get_cytoscape_component(
+                "cytoscape-b", "WT Condition", nodes_b + edges_b
             )
 
             graphs = html.Div(
-                children=[up_cytoscape, down_cytoscape],
+                children=[cytoscape_a, cytoscape_b],
                 id="cytoscape-container",
                 style={"display": "flex", "flexDirection": "row", "width": "100%"},
             )
 
         elif view_radio == "pathways":
-            up_sankey = get_sankey_component(up_pathways, "sankey-up", "Exp. Condition")
+            up_sankey = get_sankey_component(
+                filtered_pathways, "sankey-a", "Exp. Condition"
+            )
             down_sankey = get_sankey_component(
-                down_pathways, "sankey-down", "WT Condition"
+                filtered_pathways, "sankey-b", "WT Condition"
             )
 
             graphs = html.Div(
@@ -108,8 +218,8 @@ def apply_cluster_edge_callback(app):
         Output("sender-select", "value"),
         Output("receiver-select", "value"),
         Output("view-radio", "value"),
-        Input("cytoscape-down", "tapEdgeData"),
-        Input("cytoscape-up", "tapEdgeData"),
+        Input("cytoscape-b", "tapEdgeData"),
+        Input("cytoscape-a", "tapEdgeData"),
         State("sender-select", "value"),
         State("receiver-select", "value"),
         State("view-radio", "value"),
@@ -151,8 +261,8 @@ def apply_sankey_callbacks(
             "target-select",
             "value",
         ),
-        Input("sankey-up", "clickData"),
-        Input("sankey-down", "clickData"),
+        Input("sankey-a", "clickData"),
+        Input("sankey-b", "clickData"),
         State("ligand-select", "value"),
         State("receptor-select", "value"),
         State("em-select", "value"),
