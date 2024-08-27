@@ -18,12 +18,12 @@ class CN(enum.Enum):
     ADJLOG2FC = "adjlog2fc"
 
     @classmethod
-    def SIGWEIGHT_A(self, colnames):
-        return next(c for c in colnames if "SigWeight" in c)
+    def SIGWEIGHT_A(self, full_pathways):
+        return next(c for c in full_pathways.columns if "SigWeight" in c)
 
     @classmethod
-    def SIGWEIGHT_B(self, colnames):
-        return next(c for c in colnames[::-1] if "SigWeight" in c)
+    def SIGWEIGHT_B(self, full_pathways):
+        return next(c for c in full_pathways.columns[::-1] if "SigWeight" in c)
 
 
 def get_cn(enum_choice: str):
@@ -111,8 +111,8 @@ def filter_pathways(
     df = full_pathways.copy()
 
     df = df[
-        (df[CN.SIGWEIGHT_A(full_pathways.columns)] >= sw_threshold)
-        | (df[CN.SIGWEIGHT_B(full_pathways.columns)] >= sw_threshold)
+        (df[CN.SIGWEIGHT_A(full_pathways)] >= sw_threshold)
+        | (df[CN.SIGWEIGHT_B(full_pathways)] >= sw_threshold)
     ]
     df = df[
         (df["final_score"] >= fs_threshold[0]) & (df["final_score"] <= fs_threshold[1])

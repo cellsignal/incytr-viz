@@ -23,9 +23,7 @@ def load_clusters_files(clusters_a_path, clusters_b_path):
 
         clusters_dtypes = {"type": str, "population": int}
 
-        clusters = pd.read_csv(clusters_path, dtype=clusters_dtypes).reset_index(
-            drop=True
-        )
+        clusters = pd.read_csv(clusters_path, dtype=clusters_dtypes)
 
         clusters.columns = clusters.columns.str.lower().str.strip()
 
@@ -91,8 +89,8 @@ def format_full_pathways(full_pathways: pd.DataFrame) -> pd.DataFrame:
         "Sender",
         "Receiver",
         "adjlog2FC",
-        CN.SIGWEIGHT_A(full_pathways.columns),
-        CN.SIGWEIGHT_B(full_pathways.columns),
+        CN.SIGWEIGHT_A(full_pathways),
+        CN.SIGWEIGHT_B(full_pathways),
     ]
 
     return full_pathways[TO_KEEP]

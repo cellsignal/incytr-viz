@@ -51,7 +51,7 @@ def load_nodes(clusters: pd.DataFrame) -> list[dict]:
         node_population = row[pop_colname]
         node_rgb_color = row["rgb_colors"]
 
-        if not node_population or np.isnan(node_population):
+        if (not node_population) or (np.isnan(node_population)):
             return np.nan
 
         data = dict()
@@ -152,7 +152,7 @@ def apply_filter_callback(
         Input("rnas-slider", "value"),
         Input("view-radio", "value"),
     )
-    def filter_figures(
+    def update_figures(
         sender_select,
         receiver_select,
         ligand_select,
@@ -189,14 +189,14 @@ def apply_filter_callback(
             edges_a = load_edges(
                 nodes_a,
                 filtered_pathways,
-                CN.SIGWEIGHT_A(filtered_pathways.columns),
+                CN.SIGWEIGHT_A(filtered_pathways),
                 sw_threshold,
                 global_max_paths,
             )
             edges_b = load_edges(
                 nodes_b,
                 filtered_pathways,
-                CN.SIGWEIGHT_B(filtered_pathways.columns),
+                CN.SIGWEIGHT_B(filtered_pathways),
                 sw_threshold,
                 global_max_paths,
             )
@@ -218,14 +218,14 @@ def apply_filter_callback(
             sankey_a = get_sankey_component(
                 filtered_pathways,
                 "sankey-a",
-                CN.SIGWEIGHT_A(filtered_pathways.columns),
+                CN.SIGWEIGHT_A(filtered_pathways),
                 sw_threshold,
                 "Exp. Condition",
             )
             sankey_b = get_sankey_component(
                 filtered_pathways,
                 "sankey-b",
-                CN.SIGWEIGHT_B(filtered_pathways.columns),
+                CN.SIGWEIGHT_B(filtered_pathways),
                 sw_threshold,
                 "WT Condition",
             )
@@ -236,12 +236,8 @@ def apply_filter_callback(
                 style={"width": "100%"},
             )
 
-        sw_a_hist = get_hist(
-            filtered_pathways, CN.SIGWEIGHT_A(filtered_pathways.columns), 20
-        )
-        sw_b_hist = get_hist(
-            filtered_pathways, CN.SIGWEIGHT_B(filtered_pathways.columns), 20
-        )
+        sw_a_hist = get_hist(filtered_pathways, CN.SIGWEIGHT_A(filtered_pathways), 20)
+        sw_b_hist = get_hist(filtered_pathways, CN.SIGWEIGHT_B(filtered_pathways), 20)
         rnas_hist = (
             get_hist(filtered_pathways, get_cn("rna_score"), 20)
             if has_rna_score
