@@ -52,10 +52,9 @@ def load_clusters_files(clusters_a_path, clusters_b_path):
     return merged_clusters
 
 
-def apply_callbacks(app, full_pathways, full_clusters):
-
-    has_rna_score = get_cn("rna_score") in full_pathways.columns
-    has_final_score = get_cn("final_score") in full_pathways.columns
+def apply_callbacks(
+    app, full_pathways, full_clusters, has_rna_score, has_final_score, has_p_value
+):
 
     apply_filter_callback(
         app,
@@ -63,6 +62,7 @@ def apply_callbacks(app, full_pathways, full_clusters):
         full_clusters,
         has_rna_score=has_rna_score,
         has_final_score=has_final_score,
+        has_p_value=has_p_value,
     )
     apply_sankey_callbacks(app)
     apply_cluster_edge_callback(app)
@@ -72,27 +72,34 @@ def apply_callbacks(app, full_pathways, full_clusters):
 
 def format_full_pathways(full_pathways: pd.DataFrame) -> pd.DataFrame:
 
-    full_pathways.columns = full_pathways.columns.str.strip()
-    full_pathways["Ligand"] = full_pathways["Path"].str.split("*").str[0]
-    full_pathways["Receptor"] = full_pathways["Path"].str.split("*").str[1]
-    full_pathways["EM"] = full_pathways["Path"].str.split("*").str[2]
-    full_pathways["Target"] = full_pathways["Path"].str.split("*").str[3]
+    full_pathways.columns = full_pathways.columns.str.strip().str.lower()
+    full_pathways["ligand"] = full_pathways[get_cn("path")].str.split("*").str[0]
+    full_pathways["receptor"] = full_pathways[get_cn("path")].str.split("*").str[1]
+    full_pathways["em"] = full_pathways[get_cn("path")].str.split("*").str[2]
+    full_pathways["target"] = full_pathways[get_cn("path")].str.split("*").str[3]
 
     TO_KEEP = [
-        "Path",
-        "Ligand",
-        "Receptor",
-        "EM",
-        "Target",
-        "final_score",
-        "RNA_score",
-        "Sender",
-        "Receiver",
-        "adjlog2FC",
-        CN.SIGWEIGHT_A(full_pathways),
-        CN.SIGWEIGHT_B(full_pathways),
+        get_cn("path"),
+        get_cn("ligand"),
+        get_cn("receptor"),
+        get_cn("em"),
+        get_cn("target"),
+        get_cn("final_score"),
+        get_cn("rna_score"),
+        get_cn("sender"),
+        get_cn("receiver"),
+        get_cn("adjlog2fc"),
+        CN.SIGWEIGHT(full_pathways, "a"),
+        CN.SIGWEIGHT(full_pathways, "b"),
     ]
 
+    if CN.PVAL(full_pathways, "a") and CN.PVAL(full_pathways, "b"):
+        TO_KEEP += [
+            CN.PVAL(full_pathways, "a"),
+            CN.PVAL(full_pathways, "b"),
+        ]
+
+    TO_KEEP = [c for c in TO_KEEP if c in full_pathways.columns]
     return full_pathways[TO_KEEP]
 
 
@@ -104,16 +111,25 @@ def incytr_app(pathways_file, clusters_a_filepath, clusters_b_filepath):
         pd.read_csv(pathways_file, dtype=pathway_dtypes)
     )
 
+    has_rna_score = rna_score_available(full_pathways)
+    has_final_score = final_score_available(full_pathways)
+    has_p_value = p_value_available(full_pathways)
+
     clusters = load_clusters_files(clusters_a_filepath, clusters_b_filepath)
 
     app.layout = html.Div(
         [
-            pathway_filter_components(full_pathways),
+            pathway_filter_components(
+                full_pathways,
+                has_final_score=has_final_score,
+                has_p_value=has_p_value,
+                has_rna_score=has_rna_score,
+            ),
             html.Div(
                 id="data-container",
                 children=[
                     hist_container({"display": "flex", "flexDirection": "row"}),
-                    html.Div(id="figures-container"),
+                    html.Div(id="figures-container", style={"display": "flex"}),
                 ],
                 style={"display": "flex", "flexDirection": "column"},
             ),
@@ -122,7 +138,9 @@ def incytr_app(pathways_file, clusters_a_filepath, clusters_b_filepath):
         style={"display": "flex", "width": "100vw"},
     )
 
-    return apply_callbacks(app, full_pathways, clusters)
+    return apply_callbacks(
+        app, full_pathways, clusters, has_rna_score, has_final_score, has_p_value
+    )
 
 
 if __name__ == "__main__":

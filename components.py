@@ -15,6 +15,8 @@ def hist_container(container_style={}):
         [
             html.Div(dcc.Graph(id="sw-a-hist")),
             html.Div(dcc.Graph(id="sw-b-hist")),
+            html.Div(dcc.Graph(id="pval-a-hist")),
+            html.Div(dcc.Graph(id="pval-b-hist")),
             html.Div(dcc.Graph(id="rnas-hist")),
             html.Div(dcc.Graph(id="fs-hist")),
         ],
@@ -47,20 +49,8 @@ def get_cytoscape_component(
 
 def pathways_df_to_sankey(
     sankey_df: pd.DataFrame,
-    sigweight_column_name,
-    sigweight_threshold: float,
     always_include_target_genes: bool = False,
 ) -> tuple:
-
-    ## filter by sigweight
-    sankey_df = sankey_df[sankey_df[sigweight_column_name] >= sigweight_threshold]
-
-    min_score, max_score = (
-        sankey_df["final_score"].min(),
-        sankey_df["final_score"].max(),
-    )
-    if np.isnan(min_score) and np.isnan(max_score):
-        min_score, max_score = 0, 0
 
     def _get_values(
         df: pd.DataFrame, source_colname: str, target_colname: str
@@ -71,22 +61,23 @@ def pathways_df_to_sankey(
             .reset_index(name="value")
         )
         out.rename(
-            columns={source_colname: "Source", target_colname: "Target"}, inplace=True
+            columns={source_colname: "Source", target_colname: get_cn("target")},
+            inplace=True,
         )
         out["source_id"] = out["Source"] + "_" + source_colname
-        out["target_id"] = out["Target"] + "_" + target_colname
+        out["target_id"] = out[get_cn("target")] + "_" + target_colname
 
         return out
 
-    l_r = _get_values(sankey_df, "Ligand", "Receptor")
-    r_em = _get_values(sankey_df, "Receptor", "EM")
-    em_t = _get_values(sankey_df, "EM", "Target")
+    l_r = _get_values(sankey_df, get_cn("ligand"), get_cn("receptor"))
+    r_em = _get_values(sankey_df, get_cn("receptor"), get_cn("em"))
+    em_t = _get_values(sankey_df, get_cn("em"), get_cn("target"))
 
     included_links = [l_r, r_em]
 
     ## auto-determine if target genes should be included
     def _should_display_targets() -> bool:
-        num_targets = len(em_t["Target"].unique())
+        num_targets = len(em_t[get_cn("target")].unique())
 
         return True if always_include_target_genes else num_targets <= 75
 
@@ -102,28 +93,22 @@ def pathways_df_to_sankey(
     value = links["value"]
 
     # direct_targets = links.apply(
-    #     lambda x: list(set(links[links["source_id"] == x["source_id"]]["Target"])),
+    #     lambda x: list(set(links[links["source_id"] == x["source_id"]][get_cn("target")])),
     #     axis=1,
     # )
     return (ids, labels, source, target, value)
 
 
-def get_sankey_component(
-    pathways, id, sigweight_column_name, sigweight_threshold, title
-):
+def get_sankey_component(pathways, id, title):
 
     ids, labels, source, target, value = pathways_df_to_sankey(
         sankey_df=pathways,
-        sigweight_column_name=sigweight_column_name,
-        sigweight_threshold=sigweight_threshold,
         always_include_target_genes=False,
     )
 
-    # customdata = [ids, [", ".join(x) for x in direct_targets.values]]
-
     return html.Div(
         [
-            html.H3(title),
+            html.H2(title),
             dcc.Graph(
                 figure=go.Figure(
                     go.Sankey(
@@ -142,7 +127,8 @@ def get_sankey_component(
                 ),
                 id=id,
             ),
-        ]
+        ],
+        style={"width": "50%"},
     )
 
 
@@ -162,7 +148,7 @@ def radio_container(container_style={}) -> html.Div:
                         ["Pathways View"],
                         style={"fontSize": 20},
                     ),
-                    "value": "pathways",
+                    "value": "sankey",
                 },
             ],
             value="network",
@@ -176,10 +162,10 @@ def filter_container(pathways, container_style={}):
 
     all_molecules = pd.concat(
         [
-            pathways["Ligand"],
-            pathways["Receptor"],
-            pathways["EM"],
-            pathways["Target"],
+            pathways[get_cn("ligand")],
+            pathways[get_cn("receptor")],
+            pathways[get_cn("em")],
+            pathways[get_cn("target")],
         ],
         axis=0,
     ).unique()
@@ -191,42 +177,42 @@ def filter_container(pathways, container_style={}):
                 placeholder="Filter Senders",
                 multi=True,
                 clearable=True,
-                options=pathways["Sender"].unique(),
+                options=pathways[get_cn("sender")].unique(),
             ),
             dcc.Dropdown(
                 id="receiver-select",
                 placeholder="Filter Receivers",
                 multi=True,
                 clearable=True,
-                options=pathways["Receiver"].unique(),
+                options=pathways[get_cn("receiver")].unique(),
             ),
             dcc.Dropdown(
                 id="ligand-select",
                 placeholder="Filter Ligands",
                 multi=True,
                 clearable=True,
-                options=pathways["Ligand"].unique(),
+                options=pathways[get_cn("ligand")].unique(),
             ),
             dcc.Dropdown(
                 id="receptor-select",
                 placeholder="Filter Receptors",
                 multi=True,
                 clearable=True,
-                options=pathways["Receptor"].unique(),
+                options=pathways[get_cn("receptor")].unique(),
             ),
             dcc.Dropdown(
                 id="em-select",
                 placeholder="Filter Effectors",
                 multi=True,
                 clearable=True,
-                options=pathways["EM"].unique(),
+                options=pathways[get_cn("em")].unique(),
             ),
             dcc.Dropdown(
                 id="target-select",
                 placeholder="Filter Target Genes",
                 multi=True,
                 clearable=True,
-                options=pathways["Target"].unique(),
+                options=pathways[get_cn("target")].unique(),
             ),
             dcc.Dropdown(
                 id="all-molecules-select",
@@ -240,7 +226,9 @@ def filter_container(pathways, container_style={}):
     )
 
 
-def slider_container(slider_container_style={}):
+def slider_container(
+    has_rna_score, has_final_score, has_p_value, slider_container_style={}
+):
 
     def _slider(id: str, minval: int, maxval: int, step: int, value: int, label: str):
 
@@ -308,21 +296,25 @@ def slider_container(slider_container_style={}):
             },
         )
 
+    sliders = [_slider("sw-slider", 0, 1, 0.01, 0.7, "SigWeight")]
+    if has_p_value:
+        sliders.append(_slider("pval-slider", 0, 1, 0.01, 1, "P-Value"))
+    if has_rna_score:
+        sliders.append(_range_slider("rnas-slider", -2, 2, 0.01, [-2, 2], "RNA Score"))
+    if has_final_score:
+        sliders.append(_range_slider("fs-slider", -2, 2, 0.01, [-2, 2], "Final Score"))
     return html.Div(
-        children=[
-            html.Div(
-                [
-                    _slider("sw-slider", 0, 1, 0.01, 0.7, "SigWeight"),
-                    _range_slider("rnas-slider", -2, 2, 0.01, [-2, 2], "RNA Score"),
-                    _range_slider("fs-slider", -2, 2, 0.01, [-2, 2], "Final Score"),
-                ],
-            ),
-        ],
+        sliders,
         style=slider_container_style,
     )
 
 
-def pathway_filter_components(pathways: pd.DataFrame):
+def pathway_filter_components(
+    pathways: pd.DataFrame,
+    has_rna_score: bool,
+    has_final_score: bool,
+    has_p_value: bool,
+):
 
     return html.Div(
         [
@@ -342,7 +334,14 @@ def pathway_filter_components(pathways: pd.DataFrame):
                         },
                     ),
                     slider_container(
-                        {"width": "200px", "display": "flex", "flexDirection": "column"}
+                        has_rna_score=has_rna_score,
+                        has_final_score=has_final_score,
+                        has_p_value=has_p_value,
+                        slider_container_style={
+                            "width": "200px",
+                            "display": "flex",
+                            "flexDirection": "column",
+                        },
                     ),
                 ],
             ),

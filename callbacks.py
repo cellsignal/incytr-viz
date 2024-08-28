@@ -10,11 +10,7 @@ from components import (
 import matplotlib.pyplot as plt
 
 
-def has_rna_score(full_pathways):
-    return
-
-
-def load_nodes(clusters: pd.DataFrame) -> list[dict]:
+def load_nodes(clusters: pd.DataFrame, group) -> list[dict]:
     """
     Generate cytoscape nodes from clusters file
 
@@ -63,28 +59,29 @@ def load_nodes(clusters: pd.DataFrame) -> list[dict]:
         data["background_color"] = "rgb({}, {}, {})".format(*node_rgb_color)
         return {"data": data}
 
-    clusters["nodes_a"] = clusters.apply(
-        lambda row: _nodes_from_clusters_file(
-            row, "population_a", clusters["population_a"].sum()
-        ),
-        axis=1,
-    )
-    clusters["nodes_b"] = clusters.apply(
-        lambda row: _nodes_from_clusters_file(
-            row, "population_b", clusters["population_b"].sum()
-        ),
-        axis=1,
-    )
-
-    # omit nodes that are na -- these nodes do not exist or have pop 0
-    return list(clusters["nodes_a"].dropna()), list(clusters["nodes_b"].dropna())
+    if group == "a":
+        return list(
+            clusters.apply(
+                lambda row: _nodes_from_clusters_file(
+                    row, "population_a", clusters["population_a"].sum()
+                ),
+                axis=1,
+            ).dropna()
+        )
+    elif group == "b":
+        return list(
+            clusters.apply(
+                lambda row: _nodes_from_clusters_file(
+                    row, "population_b", clusters["population_b"].sum()
+                ),
+                axis=1,
+            ).dropna()
+        )
 
 
 def load_edges(
     nodes: list[dict],
     pathways: pd.DataFrame,
-    sigweight_filter_column,
-    sighweight_threshold: float,
     global_max_paths: int,
 ):
     """add pathways from source to target"""
@@ -93,17 +90,16 @@ def load_edges(
     ## filter pathways if sender/receiver not in nodes
     node_labels = pd.Series([x["data"]["label"] for x in nodes])
     pathways = pathways[
-        (pathways["Sender"].isin(node_labels))
-        & (pathways["Receiver"].isin(node_labels))
+        (pathways[get_cn("sender")].isin(node_labels))
+        & (pathways[get_cn("receiver")].isin(node_labels))
     ]
 
     ## filter pathways that are below sigweight threshold
-    pathways = pathways[pathways[sigweight_filter_column] >= sighweight_threshold]
 
     if len(pathways) == 0:
         return edges
 
-    s: pd.Series = pathways.groupby(["Sender", "Receiver"]).size()
+    s: pd.Series = pathways.groupby([get_cn("sender"), get_cn("receiver")]).size()
 
     sr_pairs = s.to_dict()
     for sr, weight in sr_pairs.items():
@@ -132,126 +128,158 @@ def load_edges(
 
 
 def apply_filter_callback(
-    app, full_pathways, full_clusters, has_rna_score, has_final_score
+    app, full_pathways, clusters, has_rna_score, has_final_score, has_p_value
 ):
-    @app.callback(
-        Output("figures-container", "children"),
-        Output("sw-a-hist", "figure"),
-        Output("sw-b-hist", "figure"),
-        Output("rnas-hist", "figure"),
-        Output("fs-hist", "figure"),
-        Input("sender-select", "value"),
-        Input("receiver-select", "value"),
-        Input("ligand-select", "value"),
-        Input("receptor-select", "value"),
-        Input("em-select", "value"),
-        Input("target-select", "value"),
-        Input("all-molecules-select", "value"),
-        Input("fs-slider", "value"),
-        Input("sw-slider", "value"),
-        Input("rnas-slider", "value"),
-        Input("view-radio", "value"),
-    )
-    def update_figures(
-        sender_select,
-        receiver_select,
-        ligand_select,
-        receptor_select,
-        em_select,
-        target_select,
-        all_mols,
-        fs_threshold,
-        sw_threshold,
-        rnas_threshold,
-        view_radio,
-    ):
 
-        filtered_pathways = filter_pathways(
-            full_pathways,
+    @app.callback(
+        output=[
+            Output("figures-container", "children"),
+            Output("sw-a-hist", "figure"),
+            Output("sw-b-hist", "figure"),
+            Output("pval-a-hist", "figure"),
+            Output("pval-b-hist", "figure"),
+            Output("rnas-hist", "figure"),
+            Output("fs-hist", "figure"),
+        ],
+        inputs=dict(
+            pcf=pathway_component_filter_inputs(),
+            pvf=pathway_value_filter_inputs(
+                has_rna_score, has_final_score, has_p_value
+            ),
+            view_radio=view_radio_input(),
+        ),
+    )
+    def update_filtered_elements(pcf, pvf, view_radio):
+
+        sender_select = pcf.get("sender_select", None)
+        receiver_select = pcf.get("receiver_select", None)
+        ligand_select = pcf.get("ligand_select", None)
+        receptor_select = pcf.get("receptor_select", None)
+        em_select = pcf.get("em_select", None)
+        target_select = pcf.get("target_select", None)
+        all_mols_select = pcf.get("all_mols_select", None)
+        sw_threshold = pvf.get("sw_threshold", None)
+        pval_threshold = pvf.get("pval_threshold", None)
+        rnas_bounds = pvf.get("rnas_bounds", None)
+        fs_bounds = pvf.get("fs_bounds", None)
+
+        filtered_pathways_a = filter_pathways(
+            full_pathways=full_pathways,
+            group="a",
             filter_senders=sender_select,
             filter_receivers=receiver_select,
             filter_ligands=ligand_select,
             filter_receptors=receptor_select,
             filter_em=em_select,
             filter_target_genes=target_select,
-            filter_all_molecules=all_mols,
-            fs_threshold=fs_threshold,
+            filter_all_molecules=all_mols_select,
+            fs_bounds=fs_bounds,
             sw_threshold=sw_threshold,
-            rnas_threshold=rnas_threshold,
+            rnas_bounds=rnas_bounds,
+            pval_threshold=pval_threshold,
         )
+
+        filtered_pathways_b = filter_pathways(
+            full_pathways,
+            "b",
+            filter_senders=sender_select,
+            filter_receivers=receiver_select,
+            filter_ligands=ligand_select,
+            filter_receptors=receptor_select,
+            filter_em=em_select,
+            filter_target_genes=target_select,
+            filter_all_molecules=all_mols_select,
+            fs_bounds=fs_bounds,
+            sw_threshold=sw_threshold,
+            rnas_bounds=rnas_bounds,
+            pval_threshold=pval_threshold,
+        )
+
+        filtered_pathways_total = pd.concat(
+            [filtered_pathways_a, filtered_pathways_b]
+        ).drop_duplicates(subset=[get_cn("path")])
 
         if view_radio == "network":
-            global_max_paths = np.max(
-                filtered_pathways.groupby(["Sender", "Receiver"]).size()
+            a_max_paths = np.max(
+                filtered_pathways_a.groupby(
+                    [get_cn("sender"), get_cn("receiver")]
+                ).size()
             )
+            b_max_paths = np.max(
+                filtered_pathways_b.groupby(
+                    [get_cn("sender"), get_cn("receiver")]
+                ).size()
+            )
+            global_max_paths = max(a_max_paths, b_max_paths)
 
-            nodes_a, nodes_b = load_nodes(full_clusters)
-            edges_a = load_edges(
-                nodes_a,
-                filtered_pathways,
-                CN.SIGWEIGHT_A(filtered_pathways),
-                sw_threshold,
-                global_max_paths,
-            )
-            edges_b = load_edges(
-                nodes_b,
-                filtered_pathways,
-                CN.SIGWEIGHT_B(filtered_pathways),
-                sw_threshold,
-                global_max_paths,
-            )
+            a_nodes = load_nodes(clusters, "a")
+            b_nodes = load_nodes(clusters, "b")
+
+            a_edges = load_edges(a_nodes, filtered_pathways_a, global_max_paths)
+            b_edges = load_edges(b_nodes, filtered_pathways_b, global_max_paths)
 
             cytoscape_a = get_cytoscape_component(
-                "cytoscape-a", "Exp. Condition", nodes_a + edges_a
+                "cytoscape-a", get_group_name(full_pathways, "a"), a_nodes + a_edges
             )
             cytoscape_b = get_cytoscape_component(
-                "cytoscape-b", "WT Condition", nodes_b + edges_b
+                "cytoscape-b", get_group_name(full_pathways, "b"), b_nodes + b_edges
             )
 
-            graphs = html.Div(
-                children=[cytoscape_a, cytoscape_b],
-                id="cytoscape-container",
-                style={"display": "flex", "flexDirection": "row", "width": "100%"},
-            )
-
-        elif view_radio == "pathways":
+            graph_a, graph_b = cytoscape_a, cytoscape_b
+        elif view_radio == "sankey":
             sankey_a = get_sankey_component(
-                filtered_pathways,
-                "sankey-a",
-                CN.SIGWEIGHT_A(filtered_pathways),
-                sw_threshold,
-                "Exp. Condition",
+                filtered_pathways_a, "sankey-a", get_group_name(full_pathways, "a")
             )
             sankey_b = get_sankey_component(
-                filtered_pathways,
-                "sankey-b",
-                CN.SIGWEIGHT_B(filtered_pathways),
-                sw_threshold,
-                "WT Condition",
+                filtered_pathways_b, "sankey-b", get_group_name(full_pathways, "b")
             )
 
-            graphs = html.Div(
-                children=[sankey_a, sankey_b],
-                id="sankey-container",
-                style={"width": "100%"},
+            graph_a, graph_b = sankey_a, sankey_b
+
+        sw_a_hist = get_hist(filtered_pathways_a, CN.SIGWEIGHT(full_pathways, "a"), 20)
+
+        sw_b_hist = get_hist(filtered_pathways_b, CN.SIGWEIGHT(full_pathways, "b"), 20)
+
+        if has_rna_score:
+            rnas_hist = (
+                get_hist(filtered_pathways_total, get_cn("rna_score"), 20)
+                if has_rna_score
+                else empty_hist(get_cn("rna_score"))
             )
+        else:
+            rnas_hist = empty_hist(get_cn("rna_score"))
+        if has_final_score:
+            fs_hist = (
+                get_hist(filtered_pathways_total, get_cn("final_score"), 20)
+                if has_final_score
+                else empty_hist(get_cn("final_score"))
+            )
+        else:
+            fs_hist = empty_hist(get_cn("final_score"))
+        if has_p_value:
+            pval_a_hist = (
+                get_hist(filtered_pathways_total, CN.PVAL(full_pathways, "a"), 20)
+                if has_p_value
+                else empty_hist(CN.PVAL(full_pathways, "a"))
+            )
+            pval_b_hist = (
+                get_hist(filtered_pathways_total, CN.PVAL(full_pathways, "b"), 20)
+                if has_p_value
+                else empty_hist(CN.PVAL(full_pathways, "b"))
+            )
+        else:
+            pval_a_hist = empty_hist(f"pval_{get_group_name(full_pathways, 'a')}")
+            pval_b_hist = empty_hist(f"pval_{get_group_name(full_pathways, 'b')}")
 
-        sw_a_hist = get_hist(filtered_pathways, CN.SIGWEIGHT_A(filtered_pathways), 20)
-        sw_b_hist = get_hist(filtered_pathways, CN.SIGWEIGHT_B(filtered_pathways), 20)
-        rnas_hist = (
-            get_hist(filtered_pathways, get_cn("rna_score"), 20)
-            if has_rna_score
-            else empty_hist(get_cn("rna_score"))
+        return (
+            [graph_a, graph_b],
+            sw_a_hist,
+            sw_b_hist,
+            pval_a_hist,
+            pval_b_hist,
+            rnas_hist,
+            fs_hist,
         )
-        fs_hist = (
-            get_hist(filtered_pathways, get_cn("final_score"), 20)
-            if has_final_score
-            else empty_hist(get_cn("final_score"))
-        )
-
-        return [graphs, sw_a_hist, sw_b_hist, rnas_hist, fs_hist]
-
-    return app
 
 
 def apply_cluster_edge_callback(app):
@@ -259,8 +287,8 @@ def apply_cluster_edge_callback(app):
         Output("sender-select", "value"),
         Output("receiver-select", "value"),
         Output("view-radio", "value"),
-        Input("cytoscape-b", "tapEdgeData"),
         Input("cytoscape-a", "tapEdgeData"),
+        Input("cytoscape-b", "tapEdgeData"),
         State("sender-select", "value"),
         State("receiver-select", "value"),
         State("view-radio", "value"),
@@ -274,7 +302,7 @@ def apply_cluster_edge_callback(app):
             return (
                 update_filter_value([], data["source"]),
                 update_filter_value([], data["target"]),
-                "pathways",
+                "sankey",
             )
         else:
             return sender_select, receiver_select, view_radio
@@ -332,13 +360,13 @@ def apply_sankey_callbacks(
                 customdata = click_data["points"][0]["customdata"]
                 node_label = customdata.split("_")[0]
                 node_type = customdata.split("_")[1]
-                if node_type == "Ligand":
+                if node_type == get_cn("ligand"):
                     ligand_select = _update(ligand_select, node_label)
-                elif node_type == "Receptor":
+                elif node_type == get_cn("receptor"):
                     receptor_select = _update(receptor_select, node_label)
-                elif node_type == "EM":
+                elif node_type == get_cn("em"):
                     em_select = _update(em_select, node_label)
-                elif node_type == "Target":
+                elif node_type == get_cn("target"):
                     target_select = _update(target_select, node_label)
             except Exception as e:
                 print(e)
