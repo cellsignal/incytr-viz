@@ -13,22 +13,24 @@ Dependencies:
 ## Run in browser
 
 1. Install dependencies if necessary (pip install -r requirements.txt)
-2. Ensure your CSV has the following columns (currently case sensitive):
+2. Ensure your CSV has the following columns (currently case insensitive):
 
 - Path (ligand, em, receptor, target columns are generated from the Path column)
+- Sender
+- Receiver
 - Ligand
 - Receptor
 - EM
 - Target
-- final_score
-- SigWeight_EXP
-- SigWeight_WT
-- RNA_score
-- Sender
-- Receiver
-- adjlog2FC
+- SigWeight_x, where x can be any suffix representing experimental group
+- SigWeight_y, where y can be any suffix representing experimental group
+- p_value_x, where x can be any suffix representing experimental group
+- p_value_y, where y can be any suffix representing experimental group
+- RNA_score (optional)
+- final_score (optional)
 
-3. Open main.py and update CLUSTERS_A_FILE (exp group) CLUSTERS_B_FILE (wt group) and PATHWAYS_FILE to appropriate file paths. Examples in docs/ folder
+3. Open main.py and update CLUSTERS_A_FILE (exp group) CLUSTERS_B_FILE (wt group) and PATHWAYS_FILE to appropriate file paths
+
 4. Run 'python main.py'
 
 ## Run in jupyter notebook
