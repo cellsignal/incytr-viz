@@ -4,98 +4,19 @@ from dash import html, dcc
 import dash_cytoscape as cyto
 import plotly.graph_objects as go
 import numpy as np
-import matplotlib.pyplot as plt
 
 from util import *
 import incytr_stylesheets
-
-
-def load_nodes(clusters) -> list[dict]:
-    """{'cluster_name': count}
-
-    Args:
-        df (_type_): _description_
-
-    Returns:
-        dict: _description_
-    """
-
-    nodes = []
-
-    # TODO clean clusters
-    # clusters = clean_clusters(clusters)
-
-    cmap = plt.get_cmap("viridis")
-
-    # rgba arrays, values 0-1
-    plt_colors = cmap(np.linspace(0, 1, len(clusters)))
-    rgb_colors = [[int(x * 256) for x in c[0:3]] for c in plt_colors]
-
-    total_cells = clusters["Population"].sum()
-
-    for i, s in clusters.iterrows():
-        data = dict()
-        data["id"] = s.Type
-        data["label"] = s.Type
-        data["cluster_size"] = s.Population
-        data["width"] = node_size_map(s.Population, total_cells)
-        data["height"] = node_size_map(s.Population, total_cells)
-        data["background_color"] = "rgb({}, {}, {})".format(*rgb_colors[i])
-        nodes.append({"data": data})
-
-    return nodes
-
-
-def load_edges(
-    nodes: list[dict],
-    pathways: str,
-    global_max_paths: int,
-):
-    """add pathways from source to target"""
-    edges = []
-
-    if len(pathways) == 0:
-        return edges
-
-    pathways = pathways.copy()
-
-    pathways["direction"] = pathways["final_score"].apply(
-        lambda x: "up" if x >= 0 else "down"
-    )
-
-    s: pd.Series = pathways.groupby(["Sender", "Receiver"]).size()
-
-    sr_pairs = s.to_dict()
-    for sr, weight in sr_pairs.items():
-        source_id, target_id = sr
-        data = dict()
-        data["id"] = source_id + target_id
-        data["source"] = source_id
-        data["target"] = target_id
-        data["weight"] = weight
-        data["label"] = str(weight)
-        data["line_color"] = next(
-            x["data"]["background_color"]
-            for x in nodes
-            if x["data"]["label"] == source_id
-        )
-
-        edges.append({"data": data})
-
-    if edges:
-        for e in edges:
-            e["data"]["width"] = edge_width_map(
-                abs(e["data"]["weight"]), global_max_paths
-            )
-
-    return edges
 
 
 def hist_container(container_style={}):
 
     return html.Div(
         [
-            html.Div(dcc.Graph(id="sw-hist")),
+            html.Div(dcc.Graph(id="sw-a-hist")),
+            html.Div(dcc.Graph(id="sw-b-hist")),
+            html.Div(dcc.Graph(id="pval-a-hist")),
+            html.Div(dcc.Graph(id="pval-b-hist")),
             html.Div(dcc.Graph(id="rnas-hist")),
             html.Div(dcc.Graph(id="fs-hist")),
         ],
@@ -131,13 +52,6 @@ def pathways_df_to_sankey(
     always_include_target_genes: bool = False,
 ) -> tuple:
 
-    min_score, max_score = (
-        sankey_df["final_score"].min(),
-        sankey_df["final_score"].max(),
-    )
-    if np.isnan(min_score) and np.isnan(max_score):
-        min_score, max_score = 0, 0
-
     def _get_values(
         df: pd.DataFrame, source_colname: str, target_colname: str
     ) -> pd.DataFrame:
@@ -147,22 +61,23 @@ def pathways_df_to_sankey(
             .reset_index(name="value")
         )
         out.rename(
-            columns={source_colname: "Source", target_colname: "Target"}, inplace=True
+            columns={source_colname: "Source", target_colname: get_cn("target")},
+            inplace=True,
         )
         out["source_id"] = out["Source"] + "_" + source_colname
-        out["target_id"] = out["Target"] + "_" + target_colname
+        out["target_id"] = out[get_cn("target")] + "_" + target_colname
 
         return out
 
-    l_r = _get_values(sankey_df, "Ligand", "Receptor")
-    r_em = _get_values(sankey_df, "Receptor", "EM")
-    em_t = _get_values(sankey_df, "EM", "Target")
+    l_r = _get_values(sankey_df, get_cn("ligand"), get_cn("receptor"))
+    r_em = _get_values(sankey_df, get_cn("receptor"), get_cn("em"))
+    em_t = _get_values(sankey_df, get_cn("em"), get_cn("target"))
 
     included_links = [l_r, r_em]
 
     ## auto-determine if target genes should be included
     def _should_display_targets() -> bool:
-        num_targets = len(em_t["Target"].unique())
+        num_targets = len(em_t[get_cn("target")].unique())
 
         return True if always_include_target_genes else num_targets <= 75
 
@@ -178,7 +93,7 @@ def pathways_df_to_sankey(
     value = links["value"]
 
     # direct_targets = links.apply(
-    #     lambda x: list(set(links[links["source_id"] == x["source_id"]]["Target"])),
+    #     lambda x: list(set(links[links["source_id"] == x["source_id"]][get_cn("target")])),
     #     axis=1,
     # )
     return (ids, labels, source, target, value)
@@ -187,14 +102,13 @@ def pathways_df_to_sankey(
 def get_sankey_component(pathways, id, title):
 
     ids, labels, source, target, value = pathways_df_to_sankey(
-        sankey_df=pathways, always_include_target_genes=False
+        sankey_df=pathways,
+        always_include_target_genes=False,
     )
-
-    # customdata = [ids, [", ".join(x) for x in direct_targets.values]]
 
     return html.Div(
         [
-            html.H3(title),
+            html.H2(title),
             dcc.Graph(
                 figure=go.Figure(
                     go.Sankey(
@@ -213,7 +127,8 @@ def get_sankey_component(pathways, id, title):
                 ),
                 id=id,
             ),
-        ]
+        ],
+        style={"width": "50%"},
     )
 
 
@@ -233,7 +148,7 @@ def radio_container(container_style={}) -> html.Div:
                         ["Pathways View"],
                         style={"fontSize": 20},
                     ),
-                    "value": "pathways",
+                    "value": "sankey",
                 },
             ],
             value="network",
@@ -247,10 +162,10 @@ def filter_container(pathways, container_style={}):
 
     all_molecules = pd.concat(
         [
-            pathways["Ligand"],
-            pathways["Receptor"],
-            pathways["EM"],
-            pathways["Target"],
+            pathways[get_cn("ligand")],
+            pathways[get_cn("receptor")],
+            pathways[get_cn("em")],
+            pathways[get_cn("target")],
         ],
         axis=0,
     ).unique()
@@ -262,42 +177,42 @@ def filter_container(pathways, container_style={}):
                 placeholder="Filter Senders",
                 multi=True,
                 clearable=True,
-                options=pathways["Sender"].unique(),
+                options=pathways[get_cn("sender")].unique(),
             ),
             dcc.Dropdown(
                 id="receiver-select",
                 placeholder="Filter Receivers",
                 multi=True,
                 clearable=True,
-                options=pathways["Receiver"].unique(),
+                options=pathways[get_cn("receiver")].unique(),
             ),
             dcc.Dropdown(
                 id="ligand-select",
                 placeholder="Filter Ligands",
                 multi=True,
                 clearable=True,
-                options=pathways["Ligand"].unique(),
+                options=pathways[get_cn("ligand")].unique(),
             ),
             dcc.Dropdown(
                 id="receptor-select",
                 placeholder="Filter Receptors",
                 multi=True,
                 clearable=True,
-                options=pathways["Receptor"].unique(),
+                options=pathways[get_cn("receptor")].unique(),
             ),
             dcc.Dropdown(
                 id="em-select",
                 placeholder="Filter Effectors",
                 multi=True,
                 clearable=True,
-                options=pathways["EM"].unique(),
+                options=pathways[get_cn("em")].unique(),
             ),
             dcc.Dropdown(
                 id="target-select",
                 placeholder="Filter Target Genes",
                 multi=True,
                 clearable=True,
-                options=pathways["Target"].unique(),
+                options=pathways[get_cn("target")].unique(),
             ),
             dcc.Dropdown(
                 id="all-molecules-select",
@@ -311,7 +226,9 @@ def filter_container(pathways, container_style={}):
     )
 
 
-def slider_container(slider_container_style={}):
+def slider_container(
+    has_rna_score, has_final_score, has_p_value, slider_container_style={}
+):
 
     def _slider(id: str, minval: int, maxval: int, step: int, value: int, label: str):
 
@@ -345,21 +262,59 @@ def slider_container(slider_container_style={}):
             },
         )
 
+    def _range_slider(
+        id: str, minval: int, maxval: int, step: int, value: list, label: str
+    ):
+
+        tooltip_format = {
+            "placement": "bottom",
+            "always_visible": True,
+        }
+
+        return html.Div(
+            [
+                html.Div(
+                    dcc.RangeSlider(
+                        min=minval,
+                        max=maxval,
+                        step=step,
+                        value=value,
+                        marks=None,
+                        tooltip=tooltip_format,
+                        id=id,
+                    ),
+                    style={
+                        "width": "70%",
+                    },
+                ),
+                html.H4(label),
+            ],
+            style={
+                "display": "flex",
+                "alignItems": "center",
+                "justifyContent": "space-between",
+            },
+        )
+
+    sliders = [_slider("sw-slider", 0, 1, 0.01, 0.7, "SigWeight")]
+    if has_p_value:
+        sliders.append(_slider("pval-slider", 0, 1, 0.01, 1, "P-Value"))
+    if has_rna_score:
+        sliders.append(_range_slider("rnas-slider", -2, 2, 0.01, [-2, 2], "RNA Score"))
+    if has_final_score:
+        sliders.append(_range_slider("fs-slider", -2, 2, 0.01, [-2, 2], "Final Score"))
     return html.Div(
-        children=[
-            html.Div(
-                [
-                    _slider("sw-slider", 0, 1, 0.01, 0.7, "SigWeight"),
-                    _slider("rnas-slider", 0, 1, 0.01, 0, "RNA Score (abs)"),
-                    _slider("fs-slider", 0, 2, 0.01, 0, "Final Score (abs)"),
-                ],
-            ),
-        ],
+        sliders,
         style=slider_container_style,
     )
 
 
-def pathway_filter_components(pathways: pd.DataFrame):
+def pathway_filter_components(
+    pathways: pd.DataFrame,
+    has_rna_score: bool,
+    has_final_score: bool,
+    has_p_value: bool,
+):
 
     return html.Div(
         [
@@ -379,7 +334,14 @@ def pathway_filter_components(pathways: pd.DataFrame):
                         },
                     ),
                     slider_container(
-                        {"width": "200px", "display": "flex", "flexDirection": "column"}
+                        has_rna_score=has_rna_score,
+                        has_final_score=has_final_score,
+                        has_p_value=has_p_value,
+                        slider_container_style={
+                            "width": "200px",
+                            "display": "flex",
+                            "flexDirection": "column",
+                        },
                     ),
                 ],
             ),
