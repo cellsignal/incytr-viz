@@ -1,6 +1,7 @@
 import pandas as pd
 import pdb
 from typing import Optional, Literal
+from dash import html
 import plotly.express as px
 import enum
 import typing
@@ -75,22 +76,8 @@ class CN(enum.Enum):
             return None
 
     @classmethod
-    def get_all_required_cols(self, full_pathways):
-        valid = False
-
-        base = [
-            self.PATH.value,
-            self.LIGAND.value,
-            self.RECEPTOR.value,
-            self.EM.value,
-            self.TARGET.value,
-            self.SENDER.value,
-            self.RECEIVER.value,
-            self.SIGWEIGHT(full_pathways, "a"),
-            self.SIGWEIGHT(full_pathways, "b"),
-        ]
-
-        return
+    def group_suffix(self, full_pathways_group):
+        return CN.SIGWEIGHT(full_pathways_group, "a").split("_")[1]
 
 
 def get_cn(enum_choice: str):
@@ -131,25 +118,26 @@ def node_size_map(cluster_count: int, total_count: int):
 
 
 def edge_width_map(pathways: int, global_max_paths: int, max_width_px: int = 10):
-    floor = 1
+    floor = 0.5
     pixels = max((pathways / global_max_paths * max_width_px), floor)
     return str(pixels) + "px"
 
 
-def get_hist(df, col, num_bins):
-    return px.histogram(
-        df,
-        x=col,
-        title=col,
-        nbins=num_bins,
-        histfunc="count",
-        width=300,
-        height=300,
-    )
-
-
-def empty_hist(col):
-    return px.histogram(pd.DataFrame({col: []}), title=col, width=300, height=300)
+def get_hist(df, col, title, num_bins=20):
+    try:
+        return px.histogram(
+            df,
+            x=col,
+            title=title,
+            nbins=num_bins,
+            histfunc="count",
+            width=300,
+            height=300,
+        )
+    except:
+        return px.histogram(
+            pd.DataFrame({title: []}), title=title, width=300, height=300
+        )
 
 
 def get_group_name(full_pathways, group):

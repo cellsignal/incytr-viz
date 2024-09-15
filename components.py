@@ -9,17 +9,48 @@ from util import *
 import incytr_stylesheets
 
 
-def hist_container(container_style={}):
+def flex_div(direction, *children, additional_style={}):
+    style = {"display": "flex", "flexDirection": direction}
+    return html.Div(children=children, style={**style, **additional_style})
 
+
+def flex_row(*children, additional_style={}):
+    return flex_div("row", *children, additional_style=additional_style)
+
+
+def flex_column(*children, additional_style={}):
+    return flex_div("column", *children, additional_style=additional_style)
+
+
+def hist_container(container_style={}):
+    style = {"flex": "0 0 1"}
+
+    children = [
+        flex_column(
+            flex_row(
+                html.Div(dcc.Graph(id="sw-a-hist"), style=style),
+                html.Div(dcc.Graph(id="pval-a-hist"), style=style),
+            ),
+            flex_row(
+                html.Div(dcc.Graph(id="rnas-a-hist"), style=style),
+                html.Div(dcc.Graph(id="fs-a-hist"), style=style),
+            ),
+            additional_style={"border": "1px solid black"},
+        ),
+        flex_column(
+            flex_row(
+                html.Div(dcc.Graph(id="sw-b-hist"), style=style),
+                html.Div(dcc.Graph(id="pval-b-hist"), style=style),
+            ),
+            flex_row(
+                html.Div(dcc.Graph(id="rnas-b-hist"), style=style),
+                html.Div(dcc.Graph(id="fs-b-hist"), style=style),
+            ),
+            additional_style={"border": "1px solid black"},
+        ),
+    ]
     return html.Div(
-        [
-            html.Div(dcc.Graph(id="sw-a-hist")),
-            html.Div(dcc.Graph(id="sw-b-hist")),
-            html.Div(dcc.Graph(id="pval-a-hist")),
-            html.Div(dcc.Graph(id="pval-b-hist")),
-            html.Div(dcc.Graph(id="rnas-hist")),
-            html.Div(dcc.Graph(id="fs-hist")),
-        ],
+        children,
         style=container_style,
     )
 
@@ -178,6 +209,7 @@ def filter_container(pathways, container_style={}):
                 multi=True,
                 clearable=True,
                 options=pathways[get_cn("sender")].unique(),
+                style={"flex-grow": 1},
             ),
             dcc.Dropdown(
                 id="receiver-select",
@@ -314,6 +346,7 @@ def pathway_filter_components(
     has_rna_score: bool,
     has_final_score: bool,
     has_p_value: bool,
+    component_style={},
 ):
 
     return html.Div(
@@ -323,14 +356,14 @@ def pathway_filter_components(
                     html.Div(
                         [
                             filter_container(
-                                pathways, container_style={"width": "200px"}
+                                pathways, container_style={"flex-grow": 1}
                             ),
                             radio_container(),
                         ],
                         style={
                             "display": "flex",
                             "flexDirection": "column",
-                            "margin": "20px",
+                            "margin": "5px",
                         },
                     ),
                     slider_container(
@@ -338,7 +371,7 @@ def pathway_filter_components(
                         has_final_score=has_final_score,
                         has_p_value=has_p_value,
                         slider_container_style={
-                            "width": "200px",
+                            # "width": "200px",
                             "display": "flex",
                             "flexDirection": "column",
                         },
@@ -346,8 +379,5 @@ def pathway_filter_components(
                 ],
             ),
         ],
-        style={
-            "display": "flex",
-            "width": "25%",
-        },
+        style=component_style,
     )

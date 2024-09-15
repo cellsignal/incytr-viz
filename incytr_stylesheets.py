@@ -4,8 +4,8 @@ cytoscape = [
         "style": {
             "label": "data(id)",
             "text-wrap": "ellipsis",
-            "text-valign": "center",
-            "text-halign": "center",
+            "text-valign": "top",
+            "text-halign": "right",
             "font-size": "20px",
             "height": "data(height)",
             "width": "data(width)",

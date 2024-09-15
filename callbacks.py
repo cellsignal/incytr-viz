@@ -33,15 +33,13 @@ def load_nodes(clusters: pd.DataFrame, group) -> list[dict]:
     # TODO clean clusters
     # clusters = clean_clusters(clusters)
 
-    cmap = plt.get_cmap("viridis")
+    cmap = plt.get_cmap("tab20")
 
     # rgba arrays, values 0-1
     plt_colors = cmap(np.linspace(0, 1, len(clusters)))
     clusters["rgb_colors"] = [[int(x * 256) for x in c[0:3]] for c in plt_colors]
 
-    def _nodes_from_clusters_file(
-        row: pd.Series, pop_colname: str, total_cells: int
-    ) -> dict:
+    def _add_node(row: pd.Series, pop_colname: str, total_cells: int) -> dict:
 
         node_type = row.name
         node_population = row[pop_colname]
@@ -59,21 +57,19 @@ def load_nodes(clusters: pd.DataFrame, group) -> list[dict]:
         data["background_color"] = "rgb({}, {}, {})".format(*node_rgb_color)
         return {"data": data}
 
+    total_cells = clusters["population_a"].sum() + clusters["population_b"].sum()
+
     if group == "a":
         return list(
             clusters.apply(
-                lambda row: _nodes_from_clusters_file(
-                    row, "population_a", clusters["population_a"].sum()
-                ),
+                lambda row: _add_node(row, "population_a", total_cells),
                 axis=1,
             ).dropna()
         )
     elif group == "b":
         return list(
             clusters.apply(
-                lambda row: _nodes_from_clusters_file(
-                    row, "population_b", clusters["population_b"].sum()
-                ),
+                lambda row: _add_node(row, "population_b", total_cells),
                 axis=1,
             ).dropna()
         )
@@ -138,8 +134,10 @@ def apply_filter_callback(
             Output("sw-b-hist", "figure"),
             Output("pval-a-hist", "figure"),
             Output("pval-b-hist", "figure"),
-            Output("rnas-hist", "figure"),
-            Output("fs-hist", "figure"),
+            Output("rnas-a-hist", "figure"),
+            Output("rnas-b-hist", "figure"),
+            Output("fs-a-hist", "figure"),
+            Output("fs-b-hist", "figure"),
         ],
         inputs=dict(
             pcf=pathway_component_filter_inputs(),
@@ -195,90 +193,75 @@ def apply_filter_callback(
             pval_threshold=pval_threshold,
         )
 
-        filtered_pathways_total = pd.concat(
-            [filtered_pathways_a, filtered_pathways_b]
-        ).drop_duplicates(subset=[get_cn("path")])
+        a_max_paths = np.max(
+            filtered_pathways_a.groupby([get_cn("sender"), get_cn("receiver")]).size()
+        )
+        b_max_paths = np.max(
+            filtered_pathways_b.groupby([get_cn("sender"), get_cn("receiver")]).size()
+        )
+        if np.isnan(a_max_paths):
+            a_max_paths = 0
+        if np.isnan(b_max_paths):
+            b_max_paths = 0
 
-        if view_radio == "network":
-            a_max_paths = np.max(
-                filtered_pathways_a.groupby(
-                    [get_cn("sender"), get_cn("receiver")]
-                ).size()
-            )
-            b_max_paths = np.max(
-                filtered_pathways_b.groupby(
-                    [get_cn("sender"), get_cn("receiver")]
-                ).size()
-            )
-            global_max_paths = max(a_max_paths, b_max_paths)
+        global_max_paths = max(a_max_paths, b_max_paths)
 
-            a_nodes = load_nodes(clusters, "a")
-            b_nodes = load_nodes(clusters, "b")
+        def _get_group_figures(
+            filtered_pathways: pd.DataFrame, global_max_paths: int, group
+        ):
 
-            a_edges = load_edges(a_nodes, filtered_pathways_a, global_max_paths)
-            b_edges = load_edges(b_nodes, filtered_pathways_b, global_max_paths)
+            suffix = get_group_name(filtered_pathways, group)
 
-            cytoscape_a = get_cytoscape_component(
-                "cytoscape-a", get_group_name(full_pathways, "a"), a_nodes + a_edges
+            if view_radio == "network":
+
+                nodes = load_nodes(clusters, group)
+
+                edges = load_edges(nodes, filtered_pathways, global_max_paths)
+
+                cytoscape = get_cytoscape_component(
+                    f"cytoscape-{group}", suffix, nodes + edges
+                )
+
+                graph = cytoscape
+
+            elif view_radio == "sankey":
+                sankey = get_sankey_component(
+                    filtered_pathways, "sankey-{group}", suffix
+                )
+
+                graph = sankey
+
+            sw_hist = get_hist(
+                filtered_pathways, CN.SIGWEIGHT(full_pathways, group), "sigweight"
             )
-            cytoscape_b = get_cytoscape_component(
-                "cytoscape-b", get_group_name(full_pathways, "b"), b_nodes + b_edges
+            rnas_hist = get_hist(filtered_pathways, get_cn("rna_score"), "rna_score")
+            fs_hist = get_hist(filtered_pathways, get_cn("final_score"), "final_score")
+            pval_hist = get_hist(
+                filtered_pathways, CN.PVAL(full_pathways, group), "p_val"
             )
 
-            graph_a, graph_b = cytoscape_a, cytoscape_b
-        elif view_radio == "sankey":
-            sankey_a = get_sankey_component(
-                filtered_pathways_a, "sankey-a", get_group_name(full_pathways, "a")
-            )
-            sankey_b = get_sankey_component(
-                filtered_pathways_b, "sankey-b", get_group_name(full_pathways, "b")
+            return (
+                graph,
+                sw_hist,
+                pval_hist,
+                rnas_hist,
+                fs_hist,
             )
 
-            graph_a, graph_b = sankey_a, sankey_b
+        group_a = _get_group_figures(filtered_pathways_a, global_max_paths, "a")
 
-        sw_a_hist = get_hist(filtered_pathways_a, CN.SIGWEIGHT(full_pathways, "a"), 20)
-
-        sw_b_hist = get_hist(filtered_pathways_b, CN.SIGWEIGHT(full_pathways, "b"), 20)
-
-        if has_rna_score:
-            rnas_hist = (
-                get_hist(filtered_pathways_total, get_cn("rna_score"), 20)
-                if has_rna_score
-                else empty_hist(get_cn("rna_score"))
-            )
-        else:
-            rnas_hist = empty_hist(get_cn("rna_score"))
-        if has_final_score:
-            fs_hist = (
-                get_hist(filtered_pathways_total, get_cn("final_score"), 20)
-                if has_final_score
-                else empty_hist(get_cn("final_score"))
-            )
-        else:
-            fs_hist = empty_hist(get_cn("final_score"))
-        if has_p_value:
-            pval_a_hist = (
-                get_hist(filtered_pathways_total, CN.PVAL(full_pathways, "a"), 20)
-                if has_p_value
-                else empty_hist(CN.PVAL(full_pathways, "a"))
-            )
-            pval_b_hist = (
-                get_hist(filtered_pathways_total, CN.PVAL(full_pathways, "b"), 20)
-                if has_p_value
-                else empty_hist(CN.PVAL(full_pathways, "b"))
-            )
-        else:
-            pval_a_hist = empty_hist(f"pval_{get_group_name(full_pathways, 'a')}")
-            pval_b_hist = empty_hist(f"pval_{get_group_name(full_pathways, 'b')}")
+        group_b = _get_group_figures(filtered_pathways_b, global_max_paths, "b")
 
         return (
-            [graph_a, graph_b],
-            sw_a_hist,
-            sw_b_hist,
-            pval_a_hist,
-            pval_b_hist,
-            rnas_hist,
-            fs_hist,
+            [group_a[0], group_b[0]],
+            group_a[1],
+            group_b[1],
+            group_a[2],
+            group_b[2],
+            group_a[3],
+            group_b[3],
+            group_a[4],
+            group_b[4],
         )
 
 
