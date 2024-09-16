@@ -8,119 +8,7 @@ from components import (
     get_hist,
 )
 import matplotlib.pyplot as plt
-
-
-def load_nodes(clusters: pd.DataFrame, group) -> list[dict]:
-    """
-    Generate cytoscape nodes from clusters file
-
-    clusters: clusters df with expected column names:
-
-    type
-    population_a
-    population_b
-    rgb_colors
-
-    Output:
-
-    [nodes_a, nodes_b]
-
-    Each member of the list is a list of dicts, each dict is a node
-
-    nodes_a ~ [{"data": {...node_data}}, .....]
-
-    """
-    # TODO clean clusters
-    # clusters = clean_clusters(clusters)
-
-    cmap = plt.get_cmap("tab20")
-
-    # rgba arrays, values 0-1
-    plt_colors = cmap(np.linspace(0, 1, len(clusters)))
-    clusters["rgb_colors"] = [[int(x * 256) for x in c[0:3]] for c in plt_colors]
-
-    def _add_node(row: pd.Series, pop_colname: str, total_cells: int) -> dict:
-
-        node_type = row.name
-        node_population = row[pop_colname]
-        node_rgb_color = row["rgb_colors"]
-
-        if (not node_population) or (np.isnan(node_population)):
-            return np.nan
-
-        data = dict()
-        data["id"] = node_type
-        data["label"] = node_type
-        data["cluster_size"] = node_population
-        data["width"] = node_size_map(node_population, total_cells)
-        data["height"] = node_size_map(node_population, total_cells)
-        data["background_color"] = "rgb({}, {}, {})".format(*node_rgb_color)
-        return {"data": data}
-
-    total_cells = clusters["population_a"].sum() + clusters["population_b"].sum()
-
-    if group == "a":
-        return list(
-            clusters.apply(
-                lambda row: _add_node(row, "population_a", total_cells),
-                axis=1,
-            ).dropna()
-        )
-    elif group == "b":
-        return list(
-            clusters.apply(
-                lambda row: _add_node(row, "population_b", total_cells),
-                axis=1,
-            ).dropna()
-        )
-
-
-def load_edges(
-    nodes: list[dict],
-    pathways: pd.DataFrame,
-    global_max_paths: int,
-):
-    """add pathways from source to target"""
-    edges = []
-
-    ## filter pathways if sender/receiver not in nodes
-    node_labels = pd.Series([x["data"]["label"] for x in nodes])
-    pathways = pathways[
-        (pathways[get_cn("sender")].isin(node_labels))
-        & (pathways[get_cn("receiver")].isin(node_labels))
-    ]
-
-    ## filter pathways that are below sigweight threshold
-
-    if len(pathways) == 0:
-        return edges
-
-    s: pd.Series = pathways.groupby([get_cn("sender"), get_cn("receiver")]).size()
-
-    sr_pairs = s.to_dict()
-    for sr, weight in sr_pairs.items():
-        source_id, target_id = sr
-        data = dict()
-        data["id"] = source_id + target_id
-        data["source"] = source_id
-        data["target"] = target_id
-        data["weight"] = weight
-        data["label"] = str(weight)
-        data["line_color"] = next(
-            x["data"]["background_color"]
-            for x in nodes
-            if x["data"]["label"] == source_id
-        )
-
-        edges.append({"data": data})
-
-    if edges:
-        for e in edges:
-            e["data"]["width"] = edge_width_map(
-                abs(e["data"]["weight"]), global_max_paths
-            )
-
-    return edges
+from data import filter_pathways, load_nodes, load_edges
 
 
 def apply_filter_callback(
@@ -128,17 +16,8 @@ def apply_filter_callback(
 ):
 
     @app.callback(
-        output=[
-            Output("figures-container", "children"),
-            Output("sw-a-hist", "figure"),
-            Output("sw-b-hist", "figure"),
-            Output("pval-a-hist", "figure"),
-            Output("pval-b-hist", "figure"),
-            Output("rnas-a-hist", "figure"),
-            Output("rnas-b-hist", "figure"),
-            Output("fs-a-hist", "figure"),
-            Output("fs-b-hist", "figure"),
-        ],
+        Output("group-a-container", "children"),
+        Output("group-b-container", "children"),
         inputs=dict(
             pcf=pathway_component_filter_inputs(),
             pvf=pathway_value_filter_inputs(
@@ -226,42 +105,38 @@ def apply_filter_callback(
 
             elif view_radio == "sankey":
                 sankey = get_sankey_component(
-                    filtered_pathways, "sankey-{group}", suffix
+                    filtered_pathways, f"sankey-{group}", suffix
                 )
 
                 graph = sankey
 
             sw_hist = get_hist(
-                filtered_pathways, CN.SIGWEIGHT(full_pathways, group), "sigweight"
+                filtered_pathways,
+                CN.SIGWEIGHT(full_pathways.columns, group),
+                "sigweight",
             )
             rnas_hist = get_hist(filtered_pathways, get_cn("rna_score"), "rna_score")
             fs_hist = get_hist(filtered_pathways, get_cn("final_score"), "final_score")
             pval_hist = get_hist(
-                filtered_pathways, CN.PVAL(full_pathways, group), "p_val"
+                filtered_pathways, CN.PVAL(full_pathways.columns, group), "p_val"
             )
 
-            return (
+            return [
+                html.Div(
+                    [
+                        sw_hist,
+                        pval_hist,
+                        rnas_hist,
+                        fs_hist,
+                    ],
+                    className="histContainer",
+                ),
                 graph,
-                sw_hist,
-                pval_hist,
-                rnas_hist,
-                fs_hist,
-            )
-
-        group_a = _get_group_figures(filtered_pathways_a, global_max_paths, "a")
-
-        group_b = _get_group_figures(filtered_pathways_b, global_max_paths, "b")
+            ]
 
         return (
-            [group_a[0], group_b[0]],
-            group_a[1],
-            group_b[1],
-            group_a[2],
-            group_b[2],
-            group_a[3],
-            group_b[3],
-            group_a[4],
-            group_b[4],
+            _get_group_figures(filtered_pathways_a, global_max_paths, "a"),
+            _get_group_figures(filtered_pathways_b, global_max_paths, "b"),
         )
 
 

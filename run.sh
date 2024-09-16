@@ -1,0 +1,1 @@
+python app.py --group_a_popluations data/mc38_fake/population_a.csv --group_b_populations data/mc38_fake/population_b.csv --pathways data/mc38_fake/pathways_small_short.csv

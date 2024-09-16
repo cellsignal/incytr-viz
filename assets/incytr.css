@@ -1,0 +1,107 @@
+.app {
+  display: flex;
+  width: 95vw;
+  flex-direction: row;
+}
+
+.cytoscapeContainer {
+  display: flex;
+  flex: 0 0 1;
+}
+
+.hist {
+  padding: 5px;
+}
+
+.filterContainer {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 1;
+  width: 20vw;
+}
+
+.filter {
+}
+
+.groupContainer {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 1;
+}
+
+.histContainer {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 1rem;
+  padding: 1rem;
+  border: 1px solid black;
+}
+
+.sankeyContainer {
+  display: flex;
+  flex: 0 0 1;
+}
+
+.radioLabel {
+  font-size: 20px;
+}
+
+.radioContainer {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sliderContainer {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.slider {
+  width: 70%;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  margin: 5px;
+  padding: 5px;
+  width: 15vw;
+}
+
+.sidebarElement {
+  margin: 5px;
+  padding: 5px;
+  border: 1px solid black;
+}
+
+.mainContainer {
+  width: 80vw;
+}
+
+/* node {
+  label: data(id);
+  text-wrap: ellipsis;
+  text-valign: top;
+  text-halign: right;
+  font-size: 20px;
+  height: data(height);
+  width: data(width);
+  background-color: data(background_color);
+}
+
+edge {
+  curve-style: bezier;
+  target-arrow-shape: vee;
+  arrow-scale: 0.75;
+  label: data(label);
+  width: data(width);
+  line-color: data(line_color);
+  target-arrow-color: data(line_color);
+} */

@@ -1,4 +1,4 @@
-cytoscape = [
+cytoscape_styles = [
     {
         "selector": "node",
         "style": {

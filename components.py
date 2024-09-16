@@ -1,57 +1,23 @@
 import pandas as pd
-import pdb
 from dash import html, dcc
 import dash_cytoscape as cyto
 import plotly.graph_objects as go
-import numpy as np
 
 from util import *
-import incytr_stylesheets
+from data import pathways_df_to_sankey
+from stylesheet import cytoscape_styles
 
 
-def flex_div(direction, *children, additional_style={}):
-    style = {"display": "flex", "flexDirection": direction}
-    return html.Div(children=children, style={**style, **additional_style})
-
-
-def flex_row(*children, additional_style={}):
-    return flex_div("row", *children, additional_style=additional_style)
-
-
-def flex_column(*children, additional_style={}):
-    return flex_div("column", *children, additional_style=additional_style)
-
-
-def hist_container(container_style={}):
-    style = {"flex": "0 0 1"}
-
-    children = [
-        flex_column(
-            flex_row(
-                html.Div(dcc.Graph(id="sw-a-hist"), style=style),
-                html.Div(dcc.Graph(id="pval-a-hist"), style=style),
-            ),
-            flex_row(
-                html.Div(dcc.Graph(id="rnas-a-hist"), style=style),
-                html.Div(dcc.Graph(id="fs-a-hist"), style=style),
-            ),
-            additional_style={"border": "1px solid black"},
-        ),
-        flex_column(
-            flex_row(
-                html.Div(dcc.Graph(id="sw-b-hist"), style=style),
-                html.Div(dcc.Graph(id="pval-b-hist"), style=style),
-            ),
-            flex_row(
-                html.Div(dcc.Graph(id="rnas-b-hist"), style=style),
-                html.Div(dcc.Graph(id="fs-b-hist"), style=style),
-            ),
-            additional_style={"border": "1px solid black"},
-        ),
-    ]
+def hist_container(group):
     return html.Div(
-        children,
-        style=container_style,
+        [
+            html.Div(dcc.Graph(id=f"sw-hist-{group}")),
+            html.Div(dcc.Graph(id=f"pval-hist-{group}")),
+            html.Div(dcc.Graph(id=f"rnas-hist-{group}")),
+            html.Div(dcc.Graph(id=f"fs-hist-{group}")),
+        ],
+        id=f"hist-container-{group}",
+        className="histContainer",
     )
 
 
@@ -69,65 +35,11 @@ def get_cytoscape_component(
                 id=id,
                 elements=elements,
                 layout={"name": layout_name},
-                stylesheet=incytr_stylesheets.cytoscape,
+                stylesheet=cytoscape_styles,
             ),
         ],
-        style={
-            "width": "50%",
-        },
+        className="cytoscapeContainer",
     )
-
-
-def pathways_df_to_sankey(
-    sankey_df: pd.DataFrame,
-    always_include_target_genes: bool = False,
-) -> tuple:
-
-    def _get_values(
-        df: pd.DataFrame, source_colname: str, target_colname: str
-    ) -> pd.DataFrame:
-        out = (
-            df.groupby(source_colname)[target_colname]
-            .value_counts()
-            .reset_index(name="value")
-        )
-        out.rename(
-            columns={source_colname: "Source", target_colname: get_cn("target")},
-            inplace=True,
-        )
-        out["source_id"] = out["Source"] + "_" + source_colname
-        out["target_id"] = out[get_cn("target")] + "_" + target_colname
-
-        return out
-
-    l_r = _get_values(sankey_df, get_cn("ligand"), get_cn("receptor"))
-    r_em = _get_values(sankey_df, get_cn("receptor"), get_cn("em"))
-    em_t = _get_values(sankey_df, get_cn("em"), get_cn("target"))
-
-    included_links = [l_r, r_em]
-
-    ## auto-determine if target genes should be included
-    def _should_display_targets() -> bool:
-        num_targets = len(em_t[get_cn("target")].unique())
-
-        return True if always_include_target_genes else num_targets <= 75
-
-    if _should_display_targets():
-        included_links.append(em_t)
-
-    links = pd.concat(included_links, axis=0).reset_index(drop=True)
-    # ids allow for repeating labels in ligand, receptor, etc. without pointing to same node
-    ids = list(set(pd.concat([links["source_id"], links["target_id"]])))
-    labels = [x.split("_")[0] for x in ids]
-    source = [next(i for i, e in enumerate(ids) if e == x) for x in links["source_id"]]
-    target = [next(i for i, e in enumerate(ids) if e == x) for x in links["target_id"]]
-    value = links["value"]
-
-    # direct_targets = links.apply(
-    #     lambda x: list(set(links[links["source_id"] == x["source_id"]][get_cn("target")])),
-    #     axis=1,
-    # )
-    return (ids, labels, source, target, value)
 
 
 def get_sankey_component(pathways, id, title):
@@ -141,6 +53,9 @@ def get_sankey_component(pathways, id, title):
         [
             html.H2(title),
             dcc.Graph(
+                style={
+                    "height": "300px",
+                },
                 figure=go.Figure(
                     go.Sankey(
                         arrangement="fixed",
@@ -159,37 +74,36 @@ def get_sankey_component(pathways, id, title):
                 id=id,
             ),
         ],
-        style={"width": "50%"},
+        className="sankeyContainer",
     )
 
 
-def radio_container(container_style={}) -> html.Div:
+def radio_container() -> html.Div:
     return html.Div(
         dcc.RadioItems(
             [
                 {
                     "label": html.Div(
                         ["Network View"],
-                        style={"fontSize": 20},
                     ),
                     "value": "network",
                 },
                 {
                     "label": html.Div(
                         ["Pathways View"],
-                        style={"fontSize": 20},
                     ),
                     "value": "sankey",
                 },
             ],
             value="network",
             id="view-radio",
-            style=container_style,
+            labelClassName="radioLabel",
+            className="radioContainer sidebarElement",
         ),
     )
 
 
-def filter_container(pathways, container_style={}):
+def filter_container(pathways):
 
     all_molecules = pd.concat(
         [
@@ -209,7 +123,6 @@ def filter_container(pathways, container_style={}):
                 multi=True,
                 clearable=True,
                 options=pathways[get_cn("sender")].unique(),
-                style={"flex-grow": 1},
             ),
             dcc.Dropdown(
                 id="receiver-select",
@@ -254,12 +167,13 @@ def filter_container(pathways, container_style={}):
                 options=all_molecules,
             ),
         ],
-        style=container_style,
     )
 
 
 def slider_container(
-    has_rna_score, has_final_score, has_p_value, slider_container_style={}
+    has_rna_score,
+    has_final_score,
+    has_p_value,
 ):
 
     def _slider(id: str, minval: int, maxval: int, step: int, value: int, label: str):
@@ -281,17 +195,11 @@ def slider_container(
                         tooltip=tooltip_format,
                         id=id,
                     ),
-                    style={
-                        "width": "70%",
-                    },
+                    className="slider",
                 ),
                 html.H4(label),
             ],
-            style={
-                "display": "flex",
-                "alignItems": "center",
-                "justifyContent": "space-between",
-            },
+            className="sliderContainer",
         )
 
     def _range_slider(
@@ -315,17 +223,11 @@ def slider_container(
                         tooltip=tooltip_format,
                         id=id,
                     ),
-                    style={
-                        "width": "70%",
-                    },
+                    className="slider",
                 ),
                 html.H4(label),
             ],
-            style={
-                "display": "flex",
-                "alignItems": "center",
-                "justifyContent": "space-between",
-            },
+            className="sliderContainer",
         )
 
     sliders = [_slider("sw-slider", 0, 1, 0.01, 0.7, "SigWeight")]
@@ -337,16 +239,15 @@ def slider_container(
         sliders.append(_range_slider("fs-slider", -2, 2, 0.01, [-2, 2], "Final Score"))
     return html.Div(
         sliders,
-        style=slider_container_style,
+        className="sidebarElement",
     )
 
 
-def pathway_filter_components(
+def sidebar(
     pathways: pd.DataFrame,
     has_rna_score: bool,
     has_final_score: bool,
     has_p_value: bool,
-    component_style={},
 ):
 
     return html.Div(
@@ -355,29 +256,26 @@ def pathway_filter_components(
                 children=[
                     html.Div(
                         [
-                            filter_container(
-                                pathways, container_style={"flex-grow": 1}
-                            ),
+                            filter_container(pathways),
                             radio_container(),
                         ],
-                        style={
-                            "display": "flex",
-                            "flexDirection": "column",
-                            "margin": "5px",
-                        },
                     ),
                     slider_container(
                         has_rna_score=has_rna_score,
                         has_final_score=has_final_score,
                         has_p_value=has_p_value,
-                        slider_container_style={
-                            # "width": "200px",
-                            "display": "flex",
-                            "flexDirection": "column",
-                        },
                     ),
                 ],
             ),
         ],
-        style=component_style,
+        className="sidebar",
+    )
+
+
+def group_component(group):
+    return html.Div(
+        [
+            hist_container(group),
+            html.Div([], id=f"figure-{group}-container"),
+        ]
     )
