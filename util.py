@@ -103,8 +103,8 @@ def clean_clusters(df) -> pd.DataFrame:
 
 def node_size_map(cluster_count: int, total_count: int):
     """map cell count to node diameter"""
-    proportion = (cluster_count / total_count) / 0.3
-    return str(proportion * 100) + "%"
+    proportion = ((cluster_count / total_count)) ** 0.5
+    return str(round(proportion * 100, 4)) + "%"
 
 
 def edge_width_map(pathways: int, global_max_paths: int, max_width_px: int = 10):

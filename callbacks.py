@@ -8,7 +8,32 @@ from components import (
     get_hist,
 )
 import matplotlib.pyplot as plt
+from dash import callback
 from data import filter_pathways, load_nodes, load_edges
+
+
+def apply_node_tap_callback(app, outputs, inputs):
+
+    @app.callback(*outputs, *inputs)
+    def display_tooltip(node):
+        if node:
+
+            id = node["data"]["id"]
+            title = node["data"]["label"]
+            size = node["data"]["cluster_size"]
+            sum_outward = sum(
+                [e["weight"] for e in node["edgesData"] if e["source"] == id]
+            )
+            sum_inward = sum(
+                [e["weight"] for e in node["edgesData"] if e["target"] == id]
+            )
+
+            return [
+                html.H4(f"{title}"),
+                html.P(f"Node Size: {size}"),
+                html.P(f"Sum of Outward Edges: {sum_outward}"),
+                html.P(f"Sum of Inward Edges: {sum_inward}"),
+            ]
 
 
 def apply_filter_callback(

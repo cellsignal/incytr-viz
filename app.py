@@ -1,5 +1,6 @@
 import logging
 import pandas as pd
+from dash.dependencies import Input, Output, State
 from dash import Dash, html
 
 from util import *
@@ -10,6 +11,7 @@ from callbacks import (
     apply_filter_callback,
     apply_sankey_callbacks,
     apply_cluster_edge_callback,
+    apply_node_tap_callback,
 )
 from components import (
     sidebar,
@@ -34,6 +36,16 @@ def apply_callbacks(
     )
     apply_sankey_callbacks(app)
     apply_cluster_edge_callback(app)
+    apply_node_tap_callback(
+        app,
+        outputs=[Output("metrics-a", "children")],
+        inputs=[Input("cytoscape-a", "tapNode")],
+    )
+    apply_node_tap_callback(
+        app,
+        outputs=[Output("metrics-b", "children")],
+        inputs=[Input("cytoscape-b", "tapNode")],
+    )
 
     return app
 
@@ -66,10 +78,23 @@ def incytr_app(pathways_file, clusters_a_filepath, clusters_b_filepath):
             ),
             html.Div(
                 [
-                    html.Div([], id="group-a-container", className="groupContainer"),
-                    html.Div([], id="group-b-container", className="groupContainer"),
+                    html.Div(
+                        [
+                            html.Div(
+                                [], id="group-a-container", className="groupContainer"
+                            ),
+                            html.Div([], id="metrics-a", className="metricsContainer"),
+                        ]
+                    ),
+                    html.Div(
+                        [
+                            html.Div(
+                                [], id="group-b-container", className="groupContainer"
+                            ),
+                            html.Div([], id="metrics-b", className="metricsContainer"),
+                        ]
+                    ),
                 ],
-                style={"display": "flex", "flexDirection": "row"},
                 id="main-container",
                 className="mainContainer",
             ),

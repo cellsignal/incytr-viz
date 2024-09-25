@@ -23,6 +23,16 @@
 .filter {
 }
 
+.flexRow {
+  display: flex;
+  flex-direction: row;
+}
+
+.flexColumn {
+  display: flex;
+  flex-direction: column;
+}
+
 .groupContainer {
   display: flex;
   flex-direction: column;
@@ -38,6 +48,23 @@
   margin: 1rem;
   padding: 1rem;
   border: 1px solid black;
+}
+
+.mainContainer {
+  width: 80vw;
+  display: flex;
+  flex-direction: row;
+}
+
+.metricsContainer {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  margin: 1rem;
+  padding: 1rem;
+  border: 1px solid black;
+  height: 200px;
+  margin: 10rem;
 }
 
 .sankeyContainer {
@@ -79,10 +106,6 @@
   margin: 5px;
   padding: 5px;
   border: 1px solid black;
-}
-
-.mainContainer {
-  width: 80vw;
 }
 
 /* node {
