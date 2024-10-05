@@ -1,11 +1,11 @@
-import pandas as pd
 import pdb
-from typing import Optional, Literal
-from dash import html, dcc
-import plotly.express as px
 import enum
-import typing
-from dash.dependencies import Input, Output, State
+from math import pi
+
+import pandas as pd
+import plotly.express as px
+from dash import html, dcc
+from dash.dependencies import Input
 
 
 def pathway_component_filter_inputs():
@@ -101,10 +101,14 @@ def clean_clusters(df) -> pd.DataFrame:
     return df
 
 
-def node_size_map(cluster_count: int, total_count: int):
+def cluster_size_to_node_diameter(
+    cluster_count: int, total_count: int, scaling_factor: float = 0.01
+):
     """map cell count to node diameter"""
-    proportion = ((cluster_count / total_count)) ** 0.5
-    return str(round(proportion * 100, 4)) + "%"
+
+    area = cluster_count
+    scaled = (area**0.5) * scaling_factor
+    return str(round(scaled * 100, 4)) + "%"
 
 
 def edge_width_map(pathways: int, global_max_paths: int, max_width_px: int = 10):

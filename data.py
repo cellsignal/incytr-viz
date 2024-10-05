@@ -3,7 +3,7 @@ import numpy as np
 import pdb
 import matplotlib.pyplot as plt
 
-from util import get_cn, CN, node_size_map, edge_width_map
+from util import get_cn, CN, edge_width_map
 from typing import Optional, Literal
 
 
@@ -158,16 +158,43 @@ def load_nodes(clusters: pd.DataFrame, group) -> list[dict]:
     # TODO clean clusters
     # clusters = clean_clusters(clusters)
 
+    def _node_size_mapping(population: int, min_pop, scaling_factor: int = 300) -> str:
+        log_pop, log_min_pop = (
+            np.log2(population + 1),
+            np.log2(min_pop + 1),
+        )
+
+        normalized = 1 + (log_pop - log_min_pop)
+        area_px = np.round(normalized * scaling_factor, 4)
+        diameter_px = np.round(np.sqrt(4 * area_px / np.pi), 4)
+
+        return str(diameter_px) + "px"
+
     cmap = plt.get_cmap("tab20")
 
     # rgba arrays, values 0-1
     plt_colors = cmap(np.linspace(0, 1, len(clusters)))
     clusters["rgb_colors"] = [[int(x * 256) for x in c[0:3]] for c in plt_colors]
 
-    def _add_node(row: pd.Series, pop_colname: str, total_cells: int) -> dict:
+    # Ignore zeros for minimum population calculation
+    min_pop = np.min(pd.concat([clusters["population_a"], clusters["population_b"]]))
+
+    # ignore clusters with population zero
+    clusters["population_a"] = clusters["population_a"].replace(0, np.nan)
+    clusters["population_b"] = clusters["population_b"].replace(0, np.nan)
+
+    min_pop = np.min(pd.concat([clusters["population_a"], clusters["population_b"]]))
+    clusters["diameter_a"] = clusters["population_a"].apply(
+        lambda x: _node_size_mapping(x, min_pop)
+    )
+    clusters["diameter_b"] = clusters["population_b"].apply(
+        lambda x: _node_size_mapping(x, min_pop)
+    )
+
+    def _add_node(row: pd.Series, group: str) -> dict:
 
         node_type = row.name
-        node_population = row[pop_colname]
+        node_population = row["population_" + group]
         node_rgb_color = row["rgb_colors"]
 
         if (not node_population) or (np.isnan(node_population)):
@@ -177,24 +204,22 @@ def load_nodes(clusters: pd.DataFrame, group) -> list[dict]:
         data["id"] = node_type
         data["label"] = node_type
         data["cluster_size"] = node_population
-        data["width"] = node_size_map(node_population, total_cells)
-        data["height"] = node_size_map(node_population, total_cells)
+        data["width"] = row["diameter_" + group]
+        data["height"] = row["diameter_" + group]
         data["background_color"] = "rgb({}, {}, {})".format(*node_rgb_color)
         return {"data": data}
-
-    total_cells = clusters["population_a"].sum() + clusters["population_b"].sum()
 
     if group == "a":
         return list(
             clusters.apply(
-                lambda row: _add_node(row, "population_a", total_cells),
+                lambda row: _add_node(row, "a"),
                 axis=1,
             ).dropna()
         )
     elif group == "b":
         return list(
             clusters.apply(
-                lambda row: _add_node(row, "population_b", total_cells),
+                lambda row: _add_node(row, "b"),
                 axis=1,
             ).dropna()
         )
