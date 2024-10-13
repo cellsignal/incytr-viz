@@ -101,16 +101,6 @@ def clean_clusters(df) -> pd.DataFrame:
     return df
 
 
-def cluster_size_to_node_diameter(
-    cluster_count: int, total_count: int, scaling_factor: float = 0.01
-):
-    """map cell count to node diameter"""
-
-    area = cluster_count
-    scaled = (area**0.5) * scaling_factor
-    return str(round(scaled * 100, 4)) + "%"
-
-
 def edge_width_map(pathways: int, global_max_paths: int, max_width_px: int = 10):
     floor = 0.5
     pixels = max((pathways / global_max_paths * max_width_px), floor)

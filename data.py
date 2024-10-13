@@ -22,7 +22,7 @@ def load_cell_populations(clusters_a_path, clusters_b_path):
             )
 
         clusters = clusters[list(fields.keys())].reset_index(drop=True)
-        clusters["population"] = clusters["population"].fillna(0).astype(int)
+        clusters["population"] = clusters["population"].fillna(0).astype(float)
 
         return clusters.set_index("type")
 
@@ -31,7 +31,7 @@ def load_cell_populations(clusters_a_path, clusters_b_path):
 
     return clusters_a.join(
         clusters_b, on="type", how="outer", lsuffix="_a", rsuffix="_b"
-    )
+    ).set_index("type")
 
 
 def load_pathways_input(full_pathways: pd.DataFrame) -> pd.DataFrame:
@@ -183,7 +183,6 @@ def load_nodes(clusters: pd.DataFrame, group) -> list[dict]:
     clusters["population_a"] = clusters["population_a"].replace(0, np.nan)
     clusters["population_b"] = clusters["population_b"].replace(0, np.nan)
 
-    min_pop = np.min(pd.concat([clusters["population_a"], clusters["population_b"]]))
     clusters["diameter_a"] = clusters["population_a"].apply(
         lambda x: _node_size_mapping(x, min_pop)
     )
