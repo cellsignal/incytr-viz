@@ -7,43 +7,6 @@ from util import get_cn, CN, edge_width_map
 from typing import Optional, Literal
 
 
-def load_cell_populations(clusters_a_path, clusters_b_path):
-    def _load(clusters_path):
-
-        fields = {"type": str, "population": int}
-
-        clusters = pd.read_csv(clusters_path, dtype=fields)
-
-        clusters.columns = clusters.columns.str.lower().str.strip()
-
-        if not all(c in clusters.columns for c in fields.keys()):
-            raise ValueError(
-                f"Invalid cell populations file: ensure the following columns are present: {fields.keys()}"
-            )
-
-        clusters = clusters[list(fields.keys())].reset_index(drop=True)
-        clusters["population"] = clusters["population"].fillna(0).astype(float)
-        clusters["type"] = clusters["type"].str.strip()
-
-        return clusters.set_index("type")
-
-    clusters_a = _load(clusters_a_path)
-    clusters_b = _load(clusters_b_path)
-
-    return clusters_a.merge(clusters_b, on="type", how="outer", suffixes=("_a", "_b"))
-
-
-def load_pathways_input(full_pathways: pd.DataFrame) -> pd.DataFrame:
-
-    full_pathways.columns = full_pathways.columns.str.strip().str.lower()
-    full_pathways["ligand"] = full_pathways[get_cn("path")].str.split("*").str[0]
-    full_pathways["receptor"] = full_pathways[get_cn("path")].str.split("*").str[1]
-    full_pathways["em"] = full_pathways[get_cn("path")].str.split("*").str[2]
-    full_pathways["target"] = full_pathways[get_cn("path")].str.split("*").str[3]
-
-    return full_pathways
-
-
 def filter_pathways(
     full_pathways: pd.DataFrame,
     group: Literal["a", "b"],

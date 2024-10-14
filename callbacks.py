@@ -232,8 +232,8 @@ def apply_sankey_callbacks(
         prevent_initial_call=True,
     )
     def update_filters_click_node(
-        click_data_up,
-        click_data_down,
+        click_data_a,
+        click_data_b,
         ligand_select,
         receptor_select,
         em_select,
@@ -245,7 +245,7 @@ def apply_sankey_callbacks(
                 set(current + [new]) if isinstance(current, list) else set([new])
             )
 
-        click_data = click_data_up or click_data_down
+        click_data = click_data_a or click_data_b
 
         if click_data:
 

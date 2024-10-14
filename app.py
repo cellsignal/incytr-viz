@@ -5,7 +5,7 @@ import dash_bootstrap_components as dbc
 from dash import Dash, html
 
 from util import *
-from dtypes import pathway_dtypes
+import i_o
 import argparse
 
 from callbacks import (
@@ -20,8 +20,6 @@ from components import (
 )
 
 logger = logging.getLogger(__name__)
-
-from data import load_pathways_input, load_cell_populations
 
 
 def apply_callbacks(
@@ -53,50 +51,18 @@ def apply_callbacks(
     return app
 
 
-def incytr_app(pathways_file, clusters_a_filepath, clusters_b_filepath):
+def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
 
-    logger.info("loading pathways....")
-
-    if ".csv" in pathways_file:
-        sep = ","
-    elif ".tsv" in pathways_file:
-        sep = "\t"
-    else:
-        raise ValueError("Pathways file must be a CSV or TSV -- check filename")
-
-    full_pathways: pd.DataFrame = load_pathways_input(
-        pd.read_csv(pathways_file, dtype=pathway_dtypes, sep=sep)
+    paths, has_rna_score, has_final_score, has_p_value = i_o.load_pathways(
+        pathways_path
     )
 
-    has_rna_score = CN.rna_score_available(full_pathways)
-    has_final_score = CN.final_score_available(full_pathways)
-    has_p_value = CN.p_value_available(full_pathways)
+    clusters_a = i_o.load_cell_clusters(clusters_a_filepath)
+    clusters_b = i_o.load_cell_clusters(clusters_b_filepath)
 
-    TO_KEEP = [
-        get_cn("path"),
-        get_cn("ligand"),
-        get_cn("receptor"),
-        get_cn("em"),
-        get_cn("target"),
-        get_cn("sender"),
-        get_cn("receiver"),
-        CN.SIGWEIGHT(cols=full_pathways.columns, group="a"),
-        CN.SIGWEIGHT(cols=full_pathways.columns, group="b"),
-    ]
-
-    if has_final_score:
-        TO_KEEP.append(get_cn("final_score"))
-    if has_rna_score:
-        TO_KEEP.append(get_cn("rna_score"))
-    if has_p_value:
-        TO_KEEP += [
-            CN.PVAL(full_pathways.columns, "a"),
-            CN.PVAL(full_pathways.columns, "b"),
-        ]
-
-    full_pathways = full_pathways[TO_KEEP]
-
-    clusters = load_cell_populations(clusters_a_filepath, clusters_b_filepath)
+    clusters_merged = clusters_a.merge(
+        clusters_b, on="type", how="outer", suffixes=("_a", "_b")
+    )
 
     app = Dash(
         __name__,
@@ -107,7 +73,7 @@ def incytr_app(pathways_file, clusters_a_filepath, clusters_b_filepath):
     app.layout = html.Div(
         [
             sidebar(
-                full_pathways,
+                paths,
                 has_final_score=has_final_score,
                 has_p_value=has_p_value,
                 has_rna_score=has_rna_score,
@@ -132,7 +98,7 @@ def incytr_app(pathways_file, clusters_a_filepath, clusters_b_filepath):
                     ),
                     html.Div(
                         [
-                            dbc.Button("Open modal", id="open", n_clicks=0),
+                            dbc.Button("Help", id="open", n_clicks=0),
                             dbc.Modal(
                                 [
                                     dbc.ModalHeader(dbc.ModalTitle("Header")),
@@ -163,7 +129,7 @@ def incytr_app(pathways_file, clusters_a_filepath, clusters_b_filepath):
     )
 
     return apply_callbacks(
-        app, full_pathways, clusters, has_rna_score, has_final_score, has_p_value
+        app, paths, clusters_merged, has_rna_score, has_final_score, has_p_value
     )
 
 
