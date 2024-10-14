@@ -41,29 +41,7 @@ def load_pathways_input(full_pathways: pd.DataFrame) -> pd.DataFrame:
     full_pathways["em"] = full_pathways[get_cn("path")].str.split("*").str[2]
     full_pathways["target"] = full_pathways[get_cn("path")].str.split("*").str[3]
 
-    TO_KEEP = [
-        get_cn("path"),
-        get_cn("ligand"),
-        get_cn("receptor"),
-        get_cn("em"),
-        get_cn("target"),
-        get_cn("final_score"),
-        get_cn("rna_score"),
-        get_cn("sender"),
-        get_cn("receiver"),
-        get_cn("adjlog2fc"),
-        CN.SIGWEIGHT(cols=full_pathways.columns, group="a"),
-        CN.SIGWEIGHT(cols=full_pathways.columns, group="b"),
-    ]
-
-    if CN.PVAL(full_pathways, "a") and CN.PVAL(full_pathways, "b"):
-        TO_KEEP += [
-            CN.PVAL(full_pathways, "a"),
-            CN.PVAL(full_pathways, "b"),
-        ]
-
-    TO_KEEP = [c for c in TO_KEEP if c in full_pathways.columns]
-    return full_pathways[TO_KEEP]
+    return full_pathways
 
 
 def filter_pathways(
@@ -98,7 +76,6 @@ def filter_pathways(
         filter_target_genes = full_pathways[get_cn("target")].unique()
 
     df = df[df[CN.SIGWEIGHT(full_pathways.columns, group)] >= sw_threshold]
-
     if pval_threshold:
         df = df[df[CN.PVAL(full_pathways.columns, group)] <= pval_threshold]
 

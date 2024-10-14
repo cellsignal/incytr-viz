@@ -29,7 +29,7 @@ Dependencies:
 - RNA_score (optional)
 - final_score (optional)
 
-3. Open run.sh and update --group_a_popluations (exp group) --group_b_populations (wt group) and --pathways to appropriate file paths
+3. Open run.sh and update --group_a_populations (exp group) --group_b_populations (wt group) and --pathways to appropriate file paths
 
 4. Run 'bash run.sh' and navigate to http://127.0.0.1:8050/ in your browser
 

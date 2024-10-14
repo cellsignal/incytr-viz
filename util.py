@@ -55,21 +55,23 @@ class CN(enum.Enum):
 
     @classmethod
     def group_suffix(cls, cols, group):
-        return cls.SIGWEIGHT(cols, group).split("_")[1]
+        if group == "a":
+            return next(c for c in cols if "sigweight" in c).split("_")[1]
+
+        elif group == "b":
+            return next(c for c in cols[::-1] if "sigweight" in c).split("_")[1]
 
     @classmethod
     def SIGWEIGHT(cls, cols, group):
+        suffix = cls.group_suffix(cols, group)
         try:
-            if group == "a":
-                return next(c for c in cols if "sigweight" in c)
-            elif group == "b":
-                return next(c for c in cols[::-1] if "sigweight" in c)
+            return "sigweight_" + suffix
         except StopIteration:
             raise ValueError("No sigweight column found")
 
     @classmethod
     def PVAL(cls, cols, group):
-        return "pval_" + cls.group_suffix(cols, group)
+        return "p_value_" + cls.group_suffix(cols, group)
 
     @classmethod
     def rna_score_available(cls, full_pathways):
@@ -81,7 +83,7 @@ class CN(enum.Enum):
 
     @classmethod
     def p_value_available(cls, full_pathways):
-        return any("pval" in c for c in full_pathways.columns)
+        return any("p_value_" in c for c in full_pathways.columns)
 
 
 def get_cn(enum_choice: str, **kwargs):
@@ -135,7 +137,7 @@ def get_hist(df, col, title, num_bins=20):
 
 
 def get_group_name(full_pathways, group):
-    return CN.SIGWEIGHT(full_pathways.columns, group).split("_")[1]
+    return CN.group_suffix(full_pathways.columns, group)
 
 
 def get_node_colors(ids):

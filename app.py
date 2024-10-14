@@ -56,13 +56,45 @@ def apply_callbacks(
 def incytr_app(pathways_file, clusters_a_filepath, clusters_b_filepath):
 
     logger.info("loading pathways....")
+
+    if ".csv" in pathways_file:
+        sep = ","
+    elif ".tsv" in pathways_file:
+        sep = "\t"
+    else:
+        raise ValueError("Pathways file must be a CSV or TSV -- check filename")
+
     full_pathways: pd.DataFrame = load_pathways_input(
-        pd.read_csv(pathways_file, dtype=pathway_dtypes)
+        pd.read_csv(pathways_file, dtype=pathway_dtypes, sep=sep)
     )
 
     has_rna_score = CN.rna_score_available(full_pathways)
     has_final_score = CN.final_score_available(full_pathways)
     has_p_value = CN.p_value_available(full_pathways)
+
+    TO_KEEP = [
+        get_cn("path"),
+        get_cn("ligand"),
+        get_cn("receptor"),
+        get_cn("em"),
+        get_cn("target"),
+        get_cn("sender"),
+        get_cn("receiver"),
+        CN.SIGWEIGHT(cols=full_pathways.columns, group="a"),
+        CN.SIGWEIGHT(cols=full_pathways.columns, group="b"),
+    ]
+
+    if has_final_score:
+        TO_KEEP.append(get_cn("final_score"))
+    if has_rna_score:
+        TO_KEEP.append(get_cn("rna_score"))
+    if has_p_value:
+        TO_KEEP += [
+            CN.PVAL(full_pathways.columns, "a"),
+            CN.PVAL(full_pathways.columns, "b"),
+        ]
+
+    full_pathways = full_pathways[TO_KEEP]
 
     clusters = load_cell_populations(clusters_a_filepath, clusters_b_filepath)
 
@@ -118,7 +150,8 @@ def incytr_app(pathways_file, clusters_a_filepath, clusters_b_filepath):
                                 size="lg",
                                 is_open=False,
                             ),
-                        ]
+                        ],
+                        className="modalContainer",
                     ),
                 ],
                 id="main-container",
@@ -138,7 +171,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Run the InCytr visualization app.")
     parser.add_argument(
-        "--group_a_popluations",
+        "--group_a_populations",
         type=str,
         required=True,
         help="Path to clusters A CSV file",
@@ -155,7 +188,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    CLUSTERS_A_FILE = args.group_a_popluations
+    CLUSTERS_A_FILE = args.group_a_populations
     CLUSTERS_B_FILE = args.group_b_populations
     PATHWAYS_FILE = args.pathways
 

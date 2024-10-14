@@ -1,1 +1,1 @@
-python app.py --group_a_popluations data/mc38_fake/population_a.csv --group_b_populations data/mc38_fake/population_b.csv --pathways data/mc38_fake/pathways_small_short.csv
+python app.py --group_a_populations data/covid/BL_clusters.csv --group_b_populations data/covid/HC_clusters.csv --pathways data/covid/hc_bl_incytr_updatedinputlist_p_pathway_ligand-target.tsv

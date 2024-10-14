@@ -157,6 +157,7 @@ def apply_filter_callback(
             )
 
             return [
+                graph,
                 html.Div(
                     [
                         sw_hist,
@@ -166,7 +167,6 @@ def apply_filter_callback(
                     ],
                     className="histContainer",
                 ),
-                graph,
             ]
 
         return (
