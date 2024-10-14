@@ -23,15 +23,14 @@ def load_cell_populations(clusters_a_path, clusters_b_path):
 
         clusters = clusters[list(fields.keys())].reset_index(drop=True)
         clusters["population"] = clusters["population"].fillna(0).astype(float)
+        clusters["type"] = clusters["type"].str.strip()
 
         return clusters.set_index("type")
 
     clusters_a = _load(clusters_a_path)
     clusters_b = _load(clusters_b_path)
 
-    return clusters_a.join(
-        clusters_b, on="type", how="outer", lsuffix="_a", rsuffix="_b"
-    ).set_index("type")
+    return clusters_a.merge(clusters_b, on="type", how="outer", suffixes=("_a", "_b"))
 
 
 def load_pathways_input(full_pathways: pd.DataFrame) -> pd.DataFrame:
@@ -176,12 +175,11 @@ def load_nodes(clusters: pd.DataFrame, group) -> list[dict]:
     plt_colors = cmap(np.linspace(0, 1, len(clusters)))
     clusters["rgb_colors"] = [[int(x * 256) for x in c[0:3]] for c in plt_colors]
 
-    # Ignore zeros for minimum population calculation
-    min_pop = np.min(pd.concat([clusters["population_a"], clusters["population_b"]]))
-
     # ignore clusters with population zero
     clusters["population_a"] = clusters["population_a"].replace(0, np.nan)
     clusters["population_b"] = clusters["population_b"].replace(0, np.nan)
+
+    min_pop = np.min(pd.concat([clusters["population_a"], clusters["population_b"]]))
 
     clusters["diameter_a"] = clusters["population_a"].apply(
         lambda x: _node_size_mapping(x, min_pop)
@@ -286,10 +284,10 @@ def pathways_df_to_sankey(
             .reset_index(name="value")
         )
         out.rename(
-            columns={source_colname: "Source", target_colname: get_cn("target")},
+            columns={source_colname: "source", target_colname: get_cn("target")},
             inplace=True,
         )
-        out["source_id"] = out["Source"] + "_" + source_colname
+        out["source_id"] = out["source"] + "_" + source_colname
         out["target_id"] = out[get_cn("target")] + "_" + target_colname
 
         return out

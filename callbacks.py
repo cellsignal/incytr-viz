@@ -7,9 +7,19 @@ from components import (
     get_sankey_component,
     get_hist,
 )
-import matplotlib.pyplot as plt
-from dash import callback
 from data import filter_pathways, load_nodes, load_edges
+
+
+def apply_modal_callbacks(app: Dash):
+    @app.callback(
+        Output("modal", "is_open"),
+        [Input("open", "n_clicks"), Input("close", "n_clicks")],
+        [State("modal", "is_open")],
+    )
+    def toggle_modal(n1, n2, is_open):
+        if n1 or n2:
+            return not is_open
+        return is_open
 
 
 def apply_node_tap_callback(app, outputs, inputs):
@@ -252,7 +262,7 @@ def apply_sankey_callbacks(
                 elif node_type == get_cn("target"):
                     target_select = _update(target_select, node_label)
             except Exception as e:
-                print(e)
+                pass
 
         return (
             ligand_select,

@@ -1,6 +1,7 @@
 import logging
 import pandas as pd
 from dash.dependencies import Input, Output, State
+import dash_bootstrap_components as dbc
 from dash import Dash, html
 
 from util import *
@@ -9,6 +10,7 @@ import argparse
 
 from callbacks import (
     apply_filter_callback,
+    apply_modal_callbacks,
     apply_sankey_callbacks,
     apply_cluster_edge_callback,
     apply_node_tap_callback,
@@ -35,6 +37,7 @@ def apply_callbacks(
         has_p_value=has_p_value,
     )
     apply_sankey_callbacks(app)
+    apply_modal_callbacks(app)
     apply_cluster_edge_callback(app)
     apply_node_tap_callback(
         app,
@@ -67,6 +70,7 @@ def incytr_app(pathways_file, clusters_a_filepath, clusters_b_filepath):
         __name__,
         serve_locally=True,
         suppress_callback_exceptions=True,
+        external_stylesheets=[dbc.themes.BOOTSTRAP],
     )
     app.layout = html.Div(
         [
@@ -92,6 +96,28 @@ def incytr_app(pathways_file, clusters_a_filepath, clusters_b_filepath):
                                 [], id="group-b-container", className="groupContainer"
                             ),
                             html.Div([], id="metrics-b", className="metricsContainer"),
+                        ]
+                    ),
+                    html.Div(
+                        [
+                            dbc.Button("Open modal", id="open", n_clicks=0),
+                            dbc.Modal(
+                                [
+                                    dbc.ModalHeader(dbc.ModalTitle("Header")),
+                                    dbc.ModalBody("This is the content of the modal"),
+                                    dbc.ModalFooter(
+                                        dbc.Button(
+                                            "Close",
+                                            id="close",
+                                            className="ms-auto",
+                                            n_clicks=0,
+                                        )
+                                    ),
+                                ],
+                                id="modal",
+                                size="lg",
+                                is_open=False,
+                            ),
                         ]
                     ),
                 ],

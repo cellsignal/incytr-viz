@@ -54,7 +54,8 @@ def get_sankey_component(pathways, id, title):
             html.H2(title),
             dcc.Graph(
                 style={
-                    "height": "300px",
+                    "height": "400px",
+                    "width": "100%",
                 },
                 figure=go.Figure(
                     go.Sankey(
