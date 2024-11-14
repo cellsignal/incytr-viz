@@ -1,7 +1,7 @@
 import numpy as np
 from dash import Dash, html
+from util import CN
 from dash.dependencies import Input, Output, State
-from util import *
 from components import (
     get_cytoscape_component,
     get_sankey_component,
@@ -10,7 +10,41 @@ from components import (
 from data import filter_pathways, load_nodes, load_edges
 
 
-def apply_modal_callbacks(app: Dash):
+def store_data_inputs():
+    return dict(
+        has_rna=Input("has-rna", "data"),
+        has_final=Input("has-final", "data"),
+        has_p_value=Input("has-p-value", "data"),
+    )
+
+
+def pathway_component_filter_inputs():
+    return dict(
+        sender_select=Input("sender-select", "value"),
+        receiver_select=Input("receiver-select", "value"),
+        ligand_select=Input("ligand-select", "value"),
+        receptor_select=Input("receptor-select", "value"),
+        em_select=Input("em-select", "value"),
+        target_select=Input("target-select", "value"),
+        any_role_select=Input("any-role-select", "value"),
+    )
+
+
+def pathway_value_filter_inputs():
+    return dict(
+        sw_threshold=Input("sw-slider", "value"),
+        pval_threshold=Input("pval-slider", "value"),
+        fs_bounds=Input("fs-slider", "value"),
+        rnas_bounds=Input("rnas-slider", "value"),
+    )
+
+
+def view_radio_input():
+    return Input("view-radio", "value")
+
+
+def apply_callbacks(app: Dash, all_pathways, all_clusters):
+
     @app.callback(
         Output("modal", "is_open"),
         [Input("open", "n_clicks"), Input("close", "n_clicks")],
@@ -21,43 +55,37 @@ def apply_modal_callbacks(app: Dash):
             return not is_open
         return is_open
 
+    # @app.callback(*outputs, *inputs)
+    # def display_tooltip(node):
+    #     if node:
 
-def apply_node_tap_callback(app, outputs, inputs):
+    #         id = node["data"]["id"]
+    #         title = node["data"]["label"]
+    #         size = node["data"]["cluster_size"]
+    #         sum_outward = sum(
+    #             [e["weight"] for e in node["edgesData"] if e["source"] == id]
+    #         )
+    #         sum_inward = sum(
+    #             [e["weight"] for e in node["edgesData"] if e["target"] == id]
+    #         )
 
-    @app.callback(*outputs, *inputs)
-    def display_tooltip(node):
-        if node:
+    #         return [
+    #             html.H4(f"{title}"),
+    #             html.P(f"Node Size: {size}"),
+    #             html.P(f"Sum of Outward Edges: {sum_outward}"),
+    #             html.P(f"Sum of Inward Edges: {sum_inward}"),
+    #         ]
 
-            id = node["data"]["id"]
-            title = node["data"]["label"]
-            size = node["data"]["cluster_size"]
-            sum_outward = sum(
-                [e["weight"] for e in node["edgesData"] if e["source"] == id]
-            )
-            sum_inward = sum(
-                [e["weight"] for e in node["edgesData"] if e["target"] == id]
-            )
-
-            return [
-                html.H4(f"{title}"),
-                html.P(f"Node Size: {size}"),
-                html.P(f"Sum of Outward Edges: {sum_outward}"),
-                html.P(f"Sum of Inward Edges: {sum_inward}"),
-            ]
-
-
-def apply_filter_callback(
-    app, full_pathways, clusters, has_rna_score, has_final_score, has_p_value
-):
+    @app.callback()
+    def update_histograms():
+        pass
 
     @app.callback(
         Output("group-a-container", "children"),
         Output("group-b-container", "children"),
         inputs=dict(
             pcf=pathway_component_filter_inputs(),
-            pvf=pathway_value_filter_inputs(
-                has_rna_score, has_final_score, has_p_value
-            ),
+            pvf=pathway_value_filter_inputs(),
             view_radio=view_radio_input(),
         ),
     )
@@ -69,14 +97,14 @@ def apply_filter_callback(
         receptor_select = pcf.get("receptor_select", None)
         em_select = pcf.get("em_select", None)
         target_select = pcf.get("target_select", None)
-        all_mols_select = pcf.get("all_mols_select", None)
+        any_role_select = pcf.get("any_role_select", None)
         sw_threshold = pvf.get("sw_threshold", None)
         pval_threshold = pvf.get("pval_threshold", None)
         rnas_bounds = pvf.get("rnas_bounds", None)
         fs_bounds = pvf.get("fs_bounds", None)
 
         filtered_pathways_a = filter_pathways(
-            full_pathways=full_pathways,
+            full_pathways=all_pathways,
             group="a",
             filter_senders=sender_select,
             filter_receivers=receiver_select,
@@ -84,7 +112,7 @@ def apply_filter_callback(
             filter_receptors=receptor_select,
             filter_em=em_select,
             filter_target_genes=target_select,
-            filter_all_molecules=all_mols_select,
+            filter_all_molecules=any_role_select,
             fs_bounds=fs_bounds,
             sw_threshold=sw_threshold,
             rnas_bounds=rnas_bounds,
@@ -92,7 +120,7 @@ def apply_filter_callback(
         )
 
         filtered_pathways_b = filter_pathways(
-            full_pathways,
+            all_pathways,
             "b",
             filter_senders=sender_select,
             filter_receivers=receiver_select,
@@ -100,19 +128,15 @@ def apply_filter_callback(
             filter_receptors=receptor_select,
             filter_em=em_select,
             filter_target_genes=target_select,
-            filter_all_molecules=all_mols_select,
+            filter_all_molecules=any_role_select,
             fs_bounds=fs_bounds,
             sw_threshold=sw_threshold,
             rnas_bounds=rnas_bounds,
             pval_threshold=pval_threshold,
         )
 
-        a_max_paths = np.max(
-            filtered_pathways_a.groupby([get_cn("sender"), get_cn("receiver")]).size()
-        )
-        b_max_paths = np.max(
-            filtered_pathways_b.groupby([get_cn("sender"), get_cn("receiver")]).size()
-        )
+        a_max_paths = np.max(filtered_pathways_a.groupby(["sender", "receiver"]).size())
+        b_max_paths = np.max(filtered_pathways_b.groupby(["sender", "receiver"]).size())
         if np.isnan(a_max_paths):
             a_max_paths = 0
         if np.isnan(b_max_paths):
@@ -147,13 +171,13 @@ def apply_filter_callback(
 
             sw_hist = get_hist(
                 filtered_pathways,
-                CN.SIGWEIGHT(full_pathways.columns, group),
+                CN.SIGWEIGHT(all_pathways.columns, group),
                 "sigweight",
             )
-            rnas_hist = get_hist(filtered_pathways, get_cn("rna_score"), "rna_score")
-            fs_hist = get_hist(filtered_pathways, get_cn("final_score"), "final_score")
+            rnas_hist = get_hist(filtered_pathways, "rna_score", "rna_score")
+            fs_hist = get_hist(filtered_pathways, "final_score", "final_score")
             pval_hist = get_hist(
-                filtered_pathways, CN.PVAL(full_pathways.columns, group), "p_val"
+                filtered_pathways, CN.PVAL(all_pathways.columns, group), "p_val"
             )
 
             return [
@@ -174,99 +198,97 @@ def apply_filter_callback(
             _get_group_figures(filtered_pathways_b, global_max_paths, "b"),
         )
 
+    def apply_cluster_edge_callback(app):
+        @app.callback(
+            Output("sender-select", "value"),
+            Output("receiver-select", "value"),
+            Output("view-radio", "value"),
+            Input("cytoscape-a", "tapEdgeData"),
+            Input("cytoscape-b", "tapEdgeData"),
+            State("sender-select", "value"),
+            State("receiver-select", "value"),
+            State("view-radio", "value"),
+            prevent_initial_call=True,
+        )
+        def cluster_edge_callback(
+            cs_down_data, cs_up_data, sender_select, receiver_select, view_radio
+        ):
+            data = cs_down_data or cs_up_data
+            if data:
+                return (
+                    update_filter_value([], data["source"]),
+                    update_filter_value([], data["target"]),
+                    "sankey",
+                )
+            else:
+                return sender_select, receiver_select, view_radio
 
-def apply_cluster_edge_callback(app):
-    @app.callback(
-        Output("sender-select", "value"),
-        Output("receiver-select", "value"),
-        Output("view-radio", "value"),
-        Input("cytoscape-a", "tapEdgeData"),
-        Input("cytoscape-b", "tapEdgeData"),
-        State("sender-select", "value"),
-        State("receiver-select", "value"),
-        State("view-radio", "value"),
-        prevent_initial_call=True,
-    )
-    def cluster_edge_callback(
-        cs_down_data, cs_up_data, sender_select, receiver_select, view_radio
+        return app
+
+    def apply_sankey_callbacks(
+        app: Dash,
     ):
-        data = cs_down_data or cs_up_data
-        if data:
-            return (
-                update_filter_value([], data["source"]),
-                update_filter_value([], data["target"]),
-                "sankey",
-            )
-        else:
-            return sender_select, receiver_select, view_radio
-
-    return app
-
-
-def apply_sankey_callbacks(
-    app: Dash,
-):
-    @app.callback(
-        Output(
-            "ligand-select",
-            "value",
-        ),
-        Output(
-            "receptor-select",
-            "value",
-        ),
-        Output(
-            "em-select",
-            "value",
-        ),
-        Output(
-            "target-select",
-            "value",
-        ),
-        Input("sankey-a", "clickData"),
-        Input("sankey-b", "clickData"),
-        State("ligand-select", "value"),
-        State("receptor-select", "value"),
-        State("em-select", "value"),
-        State("target-select", "value"),
-        prevent_initial_call=True,
-    )
-    def update_filters_click_node(
-        click_data_a,
-        click_data_b,
-        ligand_select,
-        receptor_select,
-        em_select,
-        target_select,
-    ):
-
-        def _update(current, new):
-            return list(
-                set(current + [new]) if isinstance(current, list) else set([new])
-            )
-
-        click_data = click_data_a or click_data_b
-
-        if click_data:
-
-            try:
-                customdata = click_data["points"][0]["customdata"]
-                node_label = customdata.split("_")[0]
-                node_type = customdata.split("_")[1]
-                if node_type == get_cn("ligand"):
-                    ligand_select = _update(ligand_select, node_label)
-                elif node_type == get_cn("receptor"):
-                    receptor_select = _update(receptor_select, node_label)
-                elif node_type == get_cn("em"):
-                    em_select = _update(em_select, node_label)
-                elif node_type == get_cn("target"):
-                    target_select = _update(target_select, node_label)
-            except Exception as e:
-                pass
-
-        return (
+        @app.callback(
+            Output(
+                "ligand-select",
+                "value",
+            ),
+            Output(
+                "receptor-select",
+                "value",
+            ),
+            Output(
+                "em-select",
+                "value",
+            ),
+            Output(
+                "target-select",
+                "value",
+            ),
+            Input("sankey-a", "clickData"),
+            Input("sankey-b", "clickData"),
+            State("ligand-select", "value"),
+            State("receptor-select", "value"),
+            State("em-select", "value"),
+            State("target-select", "value"),
+            prevent_initial_call=True,
+        )
+        def update_filters_click_node(
+            click_data_a,
+            click_data_b,
             ligand_select,
             receptor_select,
             em_select,
             target_select,
-        )
+        ):
+
+            def _update(current, new):
+                return list(
+                    set(current + [new]) if isinstance(current, list) else set([new])
+                )
+
+            click_data = click_data_a or click_data_b
+
+            if click_data:
+
+                try:
+                    customdata = click_data["points"][0]["customdata"]
+                    node_label = customdata.split("_")[0]
+                    node_type = customdata.split("_")[1]
+                    if node_type == "ligand":
+                        ligand_select = _update(ligand_select, node_label)
+                    elif node_type == "receptor":
+                        receptor_select = _update(receptor_select, node_label)
+                    elif node_type == "em":
+                        em_select = _update(em_select, node_label)
+                    elif node_type == "target":
+                        target_select = _update(target_select, node_label)
+                except Exception as e:
+                    pass
+
+            return (
+                ligand_select,
+                receptor_select,
+                em_select,
+                target_select,
+            )

@@ -3,7 +3,7 @@ import numpy as np
 import pdb
 import matplotlib.pyplot as plt
 
-from util import get_cn, CN, edge_width_map
+from util import CN, edge_width_map
 from typing import Optional, Literal
 
 
@@ -26,17 +26,17 @@ def filter_pathways(
     df: pd.DataFrame = full_pathways.copy()
 
     if not filter_senders:
-        filter_senders = full_pathways[get_cn("sender")].unique()
+        filter_senders = full_pathways["sender"].unique()
     if not filter_receivers:
-        filter_receivers = full_pathways[get_cn("receiver")].unique()
+        filter_receivers = full_pathways["receiver"].unique()
     if not filter_ligands:
-        filter_ligands = full_pathways[get_cn("ligand")].unique()
+        filter_ligands = full_pathways["ligand"].unique()
     if not filter_receptors:
-        filter_receptors = full_pathways[get_cn("receptor")].unique()
+        filter_receptors = full_pathways["receptor"].unique()
     if not filter_em:
-        filter_em = full_pathways[get_cn("em")].unique()
+        filter_em = full_pathways["em"].unique()
     if not filter_target_genes:
-        filter_target_genes = full_pathways[get_cn("target")].unique()
+        filter_target_genes = full_pathways["target"].unique()
 
     df = df[df[CN.SIGWEIGHT(full_pathways.columns, group)] >= sw_threshold]
     if pval_threshold:
@@ -44,34 +44,32 @@ def filter_pathways(
 
     if fs_bounds:
         df = df[
-            (df[get_cn("final_score")] >= fs_bounds[0])
-            & (df[get_cn("final_score")] <= fs_bounds[1])
+            (df["final_score"] >= fs_bounds[0]) & (df["final_score"] <= fs_bounds[1])
         ]
 
     if rnas_bounds:
         df = df[
-            (df[get_cn("rna_score")] >= rnas_bounds[0])
-            & (df[get_cn("rna_score")] <= rnas_bounds[1])
+            (df["rna_score"] >= rnas_bounds[0]) & (df["rna_score"] <= rnas_bounds[1])
         ]
 
     df = df[
-        df[get_cn("ligand")].isin(filter_ligands)
-        & df[get_cn("receptor")].isin(filter_receptors)
-        & df[get_cn("em")].isin(filter_em)
-        & df[get_cn("target")].isin(filter_target_genes)
-        & df[get_cn("sender")].isin(filter_senders)
-        & df[get_cn("receiver")].isin(filter_receivers)
+        df["ligand"].isin(filter_ligands)
+        & df["receptor"].isin(filter_receptors)
+        & df["em"].isin(filter_em)
+        & df["target"].isin(filter_target_genes)
+        & df["sender"].isin(filter_senders)
+        & df["receiver"].isin(filter_receivers)
     ]
 
-    if not filter_all_molecules:
-        return df
-    else:
-        return df[
-            df[get_cn("ligand")].isin(filter_all_molecules)
-            | df[get_cn("receptor")].isin(filter_all_molecules)
-            | df[get_cn("em")].isin(filter_all_molecules)
-            | df[get_cn("target")].isin(filter_all_molecules)
+    if filter_all_molecules:
+        df = df[
+            df["ligand"].isin(filter_all_molecules)
+            | df["receptor"].isin(filter_all_molecules)
+            | df["em"].isin(filter_all_molecules)
+            | df["target"].isin(filter_all_molecules)
         ]
+
+    return df
 
 
 def load_nodes(clusters: pd.DataFrame, group) -> list[dict]:
@@ -173,8 +171,8 @@ def load_edges(
     ## filter pathways if sender/receiver not in nodes
     node_labels = pd.Series([x["data"]["label"] for x in nodes])
     pathways = pathways[
-        (pathways[get_cn("sender")].isin(node_labels))
-        & (pathways[get_cn("receiver")].isin(node_labels))
+        (pathways["sender"].isin(node_labels))
+        & (pathways["receiver"].isin(node_labels))
     ]
 
     ## filter pathways that are below sigweight threshold
@@ -182,7 +180,7 @@ def load_edges(
     if len(pathways) == 0:
         return edges
 
-    s: pd.Series = pathways.groupby([get_cn("sender"), get_cn("receiver")]).size()
+    s: pd.Series = pathways.groupby(["sender", "receiver"]).size()
 
     sr_pairs = s.to_dict()
     for sr, weight in sr_pairs.items():
@@ -224,23 +222,23 @@ def pathways_df_to_sankey(
             .reset_index(name="value")
         )
         out.rename(
-            columns={source_colname: "source", target_colname: get_cn("target")},
+            columns={source_colname: "source", target_colname: "target"},
             inplace=True,
         )
         out["source_id"] = out["source"] + "_" + source_colname
-        out["target_id"] = out[get_cn("target")] + "_" + target_colname
+        out["target_id"] = out["target"] + "_" + target_colname
 
         return out
 
-    l_r = _get_values(sankey_df, get_cn("ligand"), get_cn("receptor"))
-    r_em = _get_values(sankey_df, get_cn("receptor"), get_cn("em"))
-    em_t = _get_values(sankey_df, get_cn("em"), get_cn("target"))
+    l_r = _get_values(sankey_df, "ligand", "receptor")
+    r_em = _get_values(sankey_df, "receptor", "em")
+    em_t = _get_values(sankey_df, "em", "target")
 
     included_links = [l_r, r_em]
 
     ## auto-determine if target genes should be included
     def _should_display_targets() -> bool:
-        num_targets = len(em_t[get_cn("target")].unique())
+        num_targets = len(em_t["target"].unique())
 
         return True if always_include_target_genes else num_targets <= 75
 

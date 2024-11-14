@@ -1,54 +1,13 @@
 import logging
-import pandas as pd
-from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
-from dash import Dash, html
+from dash import Dash, html, dcc
 
 from util import *
 import i_o
 import argparse
 
-from callbacks import (
-    apply_filter_callback,
-    apply_modal_callbacks,
-    apply_sankey_callbacks,
-    apply_cluster_edge_callback,
-    apply_node_tap_callback,
-)
-from components import (
-    sidebar,
-)
 
 logger = logging.getLogger(__name__)
-
-
-def apply_callbacks(
-    app, full_pathways, full_clusters, has_rna_score, has_final_score, has_p_value
-):
-
-    apply_filter_callback(
-        app,
-        full_pathways,
-        full_clusters,
-        has_rna_score=has_rna_score,
-        has_final_score=has_final_score,
-        has_p_value=has_p_value,
-    )
-    apply_sankey_callbacks(app)
-    apply_modal_callbacks(app)
-    apply_cluster_edge_callback(app)
-    apply_node_tap_callback(
-        app,
-        outputs=[Output("metrics-a", "children")],
-        inputs=[Input("cytoscape-a", "tapNode")],
-    )
-    apply_node_tap_callback(
-        app,
-        outputs=[Output("metrics-b", "children")],
-        inputs=[Input("cytoscape-b", "tapNode")],
-    )
-
-    return app
 
 
 def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
@@ -60,7 +19,7 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
     clusters_a = i_o.load_cell_clusters(clusters_a_filepath)
     clusters_b = i_o.load_cell_clusters(clusters_b_filepath)
 
-    clusters_merged = clusters_a.merge(
+    all_clusters = clusters_a.merge(
         clusters_b, on="type", how="outer", suffixes=("_a", "_b")
     )
 
@@ -70,30 +29,77 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
         suppress_callback_exceptions=True,
         external_stylesheets=[dbc.themes.BOOTSTRAP],
     )
+
     app.layout = html.Div(
         [
-            sidebar(
-                paths,
-                has_final_score=has_final_score,
-                has_p_value=has_p_value,
-                has_rna_score=has_rna_score,
+            html.Div(
+                [
+                    dcc.Store(id="has-rna", data=has_rna_score),
+                    dcc.Store(id="has-final", data=has_final_score),
+                    dcc.Store(id="has-p-value", data=has_p_value),
+                    html.Div(
+                        children=[
+                            html.Div(
+                                [
+                                    html.Div([], id="filter-container"),
+                                    html.Div(
+                                        dcc.RadioItems(
+                                            [
+                                                {
+                                                    "label": html.Div(
+                                                        ["Network View"],
+                                                    ),
+                                                    "value": "network",
+                                                },
+                                                {
+                                                    "label": html.Div(
+                                                        ["Pathways View"],
+                                                    ),
+                                                    "value": "sankey",
+                                                },
+                                            ],
+                                            value="network",
+                                            id="view-radio",
+                                            labelClassName="radioLabel",
+                                            className="radioContainer sidebarElement",
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            html.Div(
+                                [],
+                                id="slider-container",
+                                className="sliderContainer sidebarElement",
+                            ),
+                        ],
+                    ),
+                ],
+                className="sidebar",
             ),
             html.Div(
                 [
                     html.Div(
                         [
                             html.Div(
-                                [], id="group-a-container", className="groupContainer"
+                                [
+                                    html.Div([], id="hist-a-container"),
+                                    html.Div([], id="figure-a-container"),
+                                ],
+                                id="group-a-container",
+                                className="groupContainer",
                             ),
-                            html.Div([], id="metrics-a", className="metricsContainer"),
                         ]
                     ),
                     html.Div(
                         [
                             html.Div(
-                                [], id="group-b-container", className="groupContainer"
+                                [
+                                    html.Div([], id="hist-b-container"),
+                                    html.Div([], id="figure-b-container"),
+                                ],
+                                id="group-b-container",
+                                className="groupContainer",
                             ),
-                            html.Div([], id="metrics-b", className="metricsContainer"),
                         ]
                     ),
                     html.Div(
@@ -128,9 +134,10 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
         className="app",
     )
 
-    return apply_callbacks(
-        app, paths, clusters_merged, has_rna_score, has_final_score, has_p_value
-    )
+    return app
+    # return apply_callbacks(
+    #     app, paths, all_clusters, has_rna_score, has_final_score, has_p_value
+    # )
 
 
 if __name__ == "__main__":
