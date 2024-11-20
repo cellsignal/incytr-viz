@@ -1,8 +1,12 @@
 import logging
 import dash_bootstrap_components as dbc
 from dash import Dash, html, dcc
+import pdb
+
+from callbacks import apply_callbacks
 
 from util import *
+from components import *
 import i_o
 import argparse
 
@@ -12,16 +16,17 @@ logger = logging.getLogger(__name__)
 
 def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
 
-    paths, has_rna_score, has_final_score, has_p_value = i_o.load_pathways(
-        pathways_path
-    )
+    (
+        paths,
+        has_rna_score,
+        has_final_score,
+        has_p_value,
+        has_umap,
+        group_a_name,
+        group_b_name,
+    ) = i_o.load_pathways(pathways_path)
 
-    clusters_a = i_o.load_cell_clusters(clusters_a_filepath)
-    clusters_b = i_o.load_cell_clusters(clusters_b_filepath)
-
-    all_clusters = clusters_a.merge(
-        clusters_b, on="type", how="outer", suffixes=("_a", "_b")
-    )
+    clusters = i_o.load_cell_clusters(clusters_a_filepath, clusters_b_filepath)
 
     app = Dash(
         __name__,
@@ -37,11 +42,19 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                     dcc.Store(id="has-rna", data=has_rna_score),
                     dcc.Store(id="has-final", data=has_final_score),
                     dcc.Store(id="has-p-value", data=has_p_value),
+                    dcc.Store(id="has-umap", data=has_umap),
+                    dcc.Store(id="group-a-name", data=group_a_name),
+                    dcc.Store(id="group-b-name", data=group_b_name),
                     html.Div(
                         children=[
                             html.Div(
                                 [
-                                    html.Div([], id="filter-container"),
+                                    filter_container(paths),
+                                    slider_container(
+                                        has_rna_score=has_rna_score,
+                                        has_final_score=has_final_score,
+                                        has_p_value=has_p_value,
+                                    ),
                                     html.Div(
                                         dcc.RadioItems(
                                             [
@@ -66,11 +79,11 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                                     ),
                                 ],
                             ),
-                            html.Div(
-                                [],
-                                id="slider-container",
-                                className="sliderContainer sidebarElement",
-                            ),
+                            # html.Div(
+                            #     [],
+                            #     id="slider-container",
+                            #     className="sliderContainer sidebarElement",
+                            # ),
                         ],
                     ),
                 ],
@@ -78,6 +91,19 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
             ),
             html.Div(
                 [
+                    html.Div(
+                        [
+                            html.Div(
+                                [],
+                                id="umap-container",
+                                style=(
+                                    {"display": "none"}
+                                    if not has_umap
+                                    else {"width": "800px"}
+                                ),
+                            ),
+                        ]
+                    ),
                     html.Div(
                         [
                             html.Div(
@@ -134,10 +160,7 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
         className="app",
     )
 
-    return app
-    # return apply_callbacks(
-    #     app, paths, all_clusters, has_rna_score, has_final_score, has_p_value
-    # )
+    return apply_callbacks(app, paths, clusters)
 
 
 if __name__ == "__main__":

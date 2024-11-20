@@ -74,30 +74,39 @@ clusters_dtypes = {
 }
 
 
-def load_cell_clusters(clusters_path):
+def load_cell_clusters(*clusters_filepaths) -> pd.DataFrame:
 
-    clusters = pd.read_csv(clusters_path, dtype=clusters_dtypes)
+    out = pd.DataFrame()
 
-    clusters.columns = clusters.columns.str.lower().str.strip()
+    for p in clusters_filepaths:
 
-    if not all(c in clusters.columns for c in clusters_dtypes.keys()):
-        raise ValueError(
-            f"Invalid cell populations file: ensure the following columns are present: {clusters_dtypes.keys()}"
-        )
+        group_name = p.split("/")[-1].split("_")[0].lower()
 
-    clusters = clusters[list(clusters_dtypes.keys())].reset_index(drop=True)
+        df = pd.read_csv(p, dtype=clusters_dtypes)
+        df.columns = df.columns.str.lower().str.strip()
 
-    clusters["population"] = clusters["population"].fillna(0)
-    clusters["type"] = clusters["type"].str.strip()
+        if not all(c in df.columns for c in clusters_dtypes.keys()):
+            raise ValueError(
+                f"Invalid cell populations file: ensure the following columns are present: {clusters_dtypes.keys()}"
+            )
 
-    return clusters.set_index("type")
+        df = df[list(clusters_dtypes.keys())].reset_index(drop=True)
+
+        df["population"] = df["population"].fillna(0)
+        df["type"] = df["type"].str.strip()
+        df["group"] = group_name
+        df = df.set_index("type")
+
+        out = pd.concat([out, df], axis=0)
+
+    return out
 
 
 def load_pathways(pathways_path) -> list:
 
-    if "csv" in pathways_path:
+    if ".csv" in pathways_path:
         sep = ","
-    elif "tsv" in pathways_path:
+    elif ".tsv" in pathways_path:
         sep = "\t"
     else:
         raise ValueError("Pathways file must be a CSV or TSV -- check filename")
@@ -107,14 +116,33 @@ def load_pathways(pathways_path) -> list:
     )
 
     paths.columns = paths.columns.str.strip().str.lower()
-    paths["ligand"] = paths["path"].str.split("*").str[0]
-    paths["receptor"] = paths["path"].str.split("*").str[1]
-    paths["em"] = paths["path"].str.split("*").str[2]
-    paths["target"] = paths["path"].str.split("*").str[3]
+
+    paths["ligand"] = paths["path"].str.split("*").str[0].str.strip()
+    paths["receptor"] = paths["path"].str.split("*").str[1].str.strip()
+    paths["em"] = paths["path"].str.split("*").str[2].str.strip()
+    paths["target"] = paths["path"].str.split("*").str[3].str.strip()
+    paths["path"] = (
+        paths["path"]
+        .str.cat(paths["sender"], sep="*")
+        .str.cat(paths["receiver"], sep="*")
+    )
+
+    sigweight_cols = [c for c in paths.columns if "sigweight" in c]
+    pval_cols = [c for c in paths.columns if "p_value" in c]
+    rna_score_cols = [c for c in paths.columns if "rna_score" in c]
+    final_score_cols = [c for c in paths.columns if "final_score" in c]
+
+    if (not len(sigweight_cols) == 2) or (not len(pval_cols) == 2):
+        raise ValueError(
+            "Ambiguous input. Are there exactly 2 SigWeight/P-Value columns?"
+        )
+
+    group_a, group_b = [c.split("_")[1] for c in sigweight_cols]
 
     has_rna = CN.rna_score_available(paths)
     has_final = CN.final_score_available(paths)
     has_p_value = CN.p_value_available(paths)
+    has_umap = CN.umap_available(paths)
 
     TO_KEEP = [
         "path",
@@ -124,20 +152,26 @@ def load_pathways(pathways_path) -> list:
         "target",
         "sender",
         "receiver",
-        CN.SIGWEIGHT(cols=paths.columns, group="a"),
-        CN.SIGWEIGHT(cols=paths.columns, group="b"),
+        "umap1",
+        "umap2",
+        *sigweight_cols,
+        *pval_cols,
+        *rna_score_cols,
+        *final_score_cols,
     ]
 
-    if has_rna:
-        TO_KEEP.append("rna_score")
-    if has_final:
-        TO_KEEP.append("final_score")
-    if has_p_value:
-        TO_KEEP += [
-            CN.PVAL(paths.columns, "a"),
-            CN.PVAL(paths.columns, "b"),
-        ]
+    paths = paths[[c for c in TO_KEEP if c in paths.columns]]
 
-    out = paths[TO_KEEP]
+    duplicates = paths.duplicated()
+    print(f"{duplicates.sum()} duplicate rows found")
 
-    return [out, has_rna, has_final, has_p_value]
+    is_na = paths.isna().any(axis=1)
+    print(f"{is_na.sum()} rows with invalid values found in relevant columns")
+
+    invalid = duplicates | is_na
+
+    print(f"Removing {invalid.sum()} duplicate or invalid rows")
+
+    paths = paths[~invalid].reset_index(drop=True)
+
+    return [paths, has_rna, has_final, has_p_value, has_umap, group_a, group_b]

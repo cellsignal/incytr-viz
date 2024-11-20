@@ -4,24 +4,45 @@ import dash_cytoscape as cyto
 import plotly.graph_objects as go
 
 from util import *
-from data import pathways_df_to_sankey
 from stylesheet import cytoscape_styles
 
 
-def hist_container(group):
+def hist(df, col, title, num_bins=20):
+    try:
+        return html.Div(
+            dcc.Graph(
+                figure=px.histogram(
+                    df,
+                    x=col,
+                    title=title,
+                    nbins=num_bins,
+                    histfunc="count",
+                    width=300,
+                    height=300,
+                ),
+            ),
+            className="hist",
+        )
+    except:
+        return html.Div(
+            dcc.Graph(
+                figure=px.histogram(
+                    pd.DataFrame({title: []}), title=title, width=300, height=300
+                )
+            ),
+            className="hist",
+        )
+
+
+def hist_container(group_id, *histograms):
     return html.Div(
-        [
-            html.Div(dcc.Graph(id=f"sw-hist-{group}")),
-            html.Div(dcc.Graph(id=f"pval-hist-{group}")),
-            html.Div(dcc.Graph(id=f"rnas-hist-{group}")),
-            html.Div(dcc.Graph(id=f"fs-hist-{group}")),
-        ],
-        id=f"hist-container-{group}",
+        histograms,
+        id=f"hist-container-{group_id}",
         className="histContainer",
     )
 
 
-def get_cytoscape_component(
+def cytoscape_container(
     id,
     title,
     elements=[],
@@ -42,12 +63,7 @@ def get_cytoscape_component(
     )
 
 
-def get_sankey_component(pathways, id, title):
-
-    ids, labels, source, target, value = pathways_df_to_sankey(
-        sankey_df=pathways,
-        always_include_target_genes=False,
-    )
+def sankey_container(ids, labels, source, target, value, title, group_id):
 
     return html.Div(
         [
@@ -72,7 +88,7 @@ def get_sankey_component(pathways, id, title):
                         link=dict(source=source, target=target, value=value),
                     ),
                 ),
-                id=id,
+                id=f"sankey-{group_id}",
             ),
         ],
         className="sankeyContainer",
@@ -167,7 +183,13 @@ def filter_container(pathways):
                 clearable=True,
                 options=all_molecules,
             ),
+            dcc.Dropdown(
+                id="umap-select",
+                disabled=False,
+                options=[],
+            ),
         ],
+        id="filter-container",
     )
 
 
@@ -231,17 +253,50 @@ def slider_container(
             className="sliderContainer",
         )
 
-    sliders = [_slider("sw-slider", 0, 1, 0.01, 0.7, "SigWeight")]
+    sliders = [
+        _slider(
+            {"type": "numerical-filter", "index": "sigweight"},
+            0,
+            1,
+            0.01,
+            0.7,
+            "SigWeight",
+        )
+    ]
     if has_p_value:
-        sliders.append(_slider("pval-slider", 0, 1, 0.01, 1, "P-Value"))
+        sliders.append(
+            _slider(
+                {"type": "numerical-filter", "index": "p-value"},
+                minval=0,
+                maxval=1,
+                step=0.01,
+                value=1,
+                label="P-Value",
+            )
+        )
     if has_rna_score:
-        sliders.append(_range_slider("rnas-slider", -2, 2, 0.01, [-2, 2], "RNA Score"))
+        sliders.append(
+            _range_slider(
+                {"type": "numerical-filter", "index": "rna-score"},
+                minval=-2,
+                maxval=2,
+                step=0.01,
+                value=[-2, 2],
+                label="RNA Score",
+            )
+        )
     if has_final_score:
-        sliders.append(_range_slider("fs-slider", -2, 2, 0.01, [-2, 2], "Final Score"))
-    return html.Div(
-        sliders,
-        className="sidebarElement",
-    )
+        sliders.append(
+            _range_slider(
+                {"type": "numerical-filter", "index": "final-score"},
+                minval=-2,
+                maxval=2,
+                step=0.01,
+                value=[-2, 2],
+                label="Final Score",
+            )
+        )
+    return html.Div(sliders, className="sidebarElement", id="allSlidersContainer")
 
 
 def sidebar(

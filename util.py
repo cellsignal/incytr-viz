@@ -1,24 +1,11 @@
-import pdb
 import enum
-from math import pi
 
 import pandas as pd
 import plotly.express as px
 from dash import html, dcc
-from dash.dependencies import Input
 
 
 class CN(enum.Enum):
-    PATH = "path"
-    LIGAND = "ligand"
-    RECEPTOR = "receptor"
-    EM = "em"
-    TARGET = "target"
-    FINAL_SCORE = "final_score"
-    RNA_SCORE = "rna_score"
-    SENDER = "sender"
-    RECEIVER = "receiver"
-    ADJLOG2FC = "adjlog2fc"
 
     @classmethod
     def group_suffix(cls, cols, group):
@@ -52,6 +39,10 @@ class CN(enum.Enum):
     def p_value_available(cls, full_pathways):
         return any("p_value_" in c for c in full_pathways.columns)
 
+    @classmethod
+    def umap_available(cls, full_pathways):
+        return ("umap1" in full_pathways.columns) and ("umap2" in full_pathways.columns)
+
 
 def update_filter_value(current, new):
     return list(set(current + [new]) if isinstance(current, list) else set([new]))
@@ -68,33 +59,6 @@ def edge_width_map(pathways: int, global_max_paths: int, max_width_px: int = 10)
     floor = 0.5
     pixels = max((pathways / global_max_paths * max_width_px), floor)
     return str(pixels) + "px"
-
-
-def get_hist(df, col, title, num_bins=20):
-    try:
-        return html.Div(
-            dcc.Graph(
-                figure=px.histogram(
-                    df,
-                    x=col,
-                    title=title,
-                    nbins=num_bins,
-                    histfunc="count",
-                    width=300,
-                    height=300,
-                ),
-            ),
-            className="hist",
-        )
-    except:
-        return html.Div(
-            dcc.Graph(
-                figure=px.histogram(
-                    pd.DataFrame({title: []}), title=title, width=300, height=300
-                )
-            ),
-            className="hist",
-        )
 
 
 def get_group_name(full_pathways, group):
