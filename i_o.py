@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from util import CN
+import matplotlib.pyplot as plt
 import pdb
 
 pathway_dtypes = {
@@ -98,6 +99,18 @@ def load_cell_clusters(*clusters_filepaths) -> pd.DataFrame:
         df = df.set_index("type")
 
         out = pd.concat([out, df], axis=0)
+
+    # assign colors to each cell type
+    cmap = plt.get_cmap("tab20")
+
+    cell_types = out.index.unique()
+
+    plt_colors = cmap(np.linspace(0, 1, len(cell_types)))
+    rgb_colors = [[int(x * 256) for x in c[0:3]] for c in plt_colors]
+
+    colors = {t: rgb_colors[i] for i, t in enumerate(cell_types)}
+
+    out["color"] = out.index.map(colors)
 
     return out
 

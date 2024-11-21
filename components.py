@@ -9,26 +9,22 @@ from stylesheet import cytoscape_styles
 
 def hist(df, col, title, num_bins=20):
     try:
-        return html.Div(
-            dcc.Graph(
-                figure=px.histogram(
-                    df,
-                    x=col,
-                    title=title,
-                    nbins=num_bins,
-                    histfunc="count",
-                    width=300,
-                    height=300,
-                ),
+        return dcc.Graph(
+            figure=px.histogram(
+                df,
+                x=col,
+                title=title,
+                nbins=num_bins,
+                histfunc="count",
             ),
             className="hist",
         )
+
     except:
-        return html.Div(
-            dcc.Graph(
-                figure=px.histogram(
-                    pd.DataFrame({title: []}), title=title, width=300, height=300
-                )
+        return dcc.Graph(
+            figure=px.histogram(
+                pd.DataFrame({title: []}),
+                title=title,
             ),
             className="hist",
         )
@@ -36,7 +32,7 @@ def hist(df, col, title, num_bins=20):
 
 def hist_container(group_id, *histograms):
     return html.Div(
-        histograms,
+        children=list(histograms),
         id=f"hist-container-{group_id}",
         className="histContainer",
     )
@@ -57,6 +53,7 @@ def cytoscape_container(
                 elements=elements,
                 layout={"name": layout_name},
                 stylesheet=cytoscape_styles,
+                style={"width": "800px", "height": "800px"},
             ),
         ],
         className="cytoscapeContainer",
@@ -69,10 +66,6 @@ def sankey_container(ids, labels, source, target, value, title, group_id):
         [
             html.H2(title),
             dcc.Graph(
-                style={
-                    "height": "400px",
-                    "width": "100%",
-                },
                 figure=go.Figure(
                     go.Sankey(
                         arrangement="fixed",
@@ -89,6 +82,7 @@ def sankey_container(ids, labels, source, target, value, title, group_id):
                     ),
                 ),
                 id=f"sankey-{group_id}",
+                className="sankey",
             ),
         ],
         className="sankeyContainer",
@@ -112,7 +106,7 @@ def radio_container() -> html.Div:
                     "value": "sankey",
                 },
             ],
-            value="network",
+            value="sankey",
             id="view-radio",
             labelClassName="radioLabel",
             className="radioContainer sidebarElement",
@@ -134,62 +128,88 @@ def filter_container(pathways):
 
     return html.Div(
         children=[
-            dcc.Dropdown(
-                id="sender-select",
-                placeholder="Filter Senders",
-                multi=True,
-                clearable=True,
-                options=pathways["sender"].unique(),
+            html.Div(
+                [
+                    dcc.Dropdown(
+                        id="sender-select",
+                        placeholder="Filter Senders",
+                        multi=True,
+                        clearable=True,
+                        options=pathways["sender"].unique(),
+                        className="filter",
+                    ),
+                    dcc.Dropdown(
+                        id="receiver-select",
+                        placeholder="Filter Receivers",
+                        multi=True,
+                        clearable=True,
+                        options=pathways["receiver"].unique(),
+                        className="filter",
+                    ),
+                ],
+                className="filterColumn",
             ),
-            dcc.Dropdown(
-                id="receiver-select",
-                placeholder="Filter Receivers",
-                multi=True,
-                clearable=True,
-                options=pathways["receiver"].unique(),
+            html.Div(
+                [
+                    dcc.Dropdown(
+                        id="ligand-select",
+                        placeholder="Filter Ligands",
+                        multi=True,
+                        clearable=True,
+                        options=pathways["ligand"].unique(),
+                        className="filter",
+                    ),
+                    dcc.Dropdown(
+                        id="receptor-select",
+                        placeholder="Filter Receptors",
+                        multi=True,
+                        clearable=True,
+                        options=pathways["receptor"].unique(),
+                        className="filter",
+                    ),
+                ],
+                className="filterColumn",
             ),
-            dcc.Dropdown(
-                id="ligand-select",
-                placeholder="Filter Ligands",
-                multi=True,
-                clearable=True,
-                options=pathways["ligand"].unique(),
+            html.Div(
+                [
+                    dcc.Dropdown(
+                        id="em-select",
+                        placeholder="Filter Effectors",
+                        multi=True,
+                        clearable=True,
+                        options=pathways["em"].unique(),
+                        className="filter",
+                    ),
+                    dcc.Dropdown(
+                        id="target-select",
+                        placeholder="Filter Target Genes",
+                        multi=True,
+                        clearable=True,
+                        options=pathways["target"].unique(),
+                        className="filter",
+                    ),
+                ],
+                className="filterColumn",
             ),
-            dcc.Dropdown(
-                id="receptor-select",
-                placeholder="Filter Receptors",
-                multi=True,
-                clearable=True,
-                options=pathways["receptor"].unique(),
-            ),
-            dcc.Dropdown(
-                id="em-select",
-                placeholder="Filter Effectors",
-                multi=True,
-                clearable=True,
-                options=pathways["em"].unique(),
-            ),
-            dcc.Dropdown(
-                id="target-select",
-                placeholder="Filter Target Genes",
-                multi=True,
-                clearable=True,
-                options=pathways["target"].unique(),
-            ),
-            dcc.Dropdown(
-                id="any-role-select",
-                placeholder="Filter All",
-                multi=True,
-                clearable=True,
-                options=all_molecules,
-            ),
-            dcc.Dropdown(
-                id="umap-select",
-                disabled=False,
-                options=[],
+            html.Div(
+                [
+                    dcc.Dropdown(
+                        id="any-role-select",
+                        placeholder="Filter All",
+                        multi=True,
+                        clearable=True,
+                        options=all_molecules,
+                        className="filter",
+                    ),
+                    dcc.Dropdown(
+                        id="umap-select", disabled=False, options=[], className="filter"
+                    ),
+                ],
+                className="filterColumn",
             ),
         ],
         id="filter-container",
+        className="filterContainer",
     )
 
 
@@ -296,44 +316,10 @@ def slider_container(
                 label="Final Score",
             )
         )
-    return html.Div(sliders, className="sidebarElement", id="allSlidersContainer")
-
-
-def sidebar(
-    pathways: pd.DataFrame,
-    has_rna_score: bool,
-    has_final_score: bool,
-    has_p_value: bool,
-):
-
     return html.Div(
-        [
-            html.Div(
-                children=[
-                    html.Div(
-                        [
-                            filter_container(pathways),
-                            radio_container(),
-                        ],
-                    ),
-                    slider_container(
-                        has_rna_score=has_rna_score,
-                        has_final_score=has_final_score,
-                        has_p_value=has_p_value,
-                    ),
-                ],
-            ),
-        ],
-        className="sidebar",
-    )
-
-
-def group_component(group):
-    return html.Div(
-        [
-            hist_container(group),
-            html.Div([], id=f"figure-{group}-container"),
-        ]
+        sliders,
+        className="sidebarElement allSlidersContainer",
+        id="allSlidersContainer",
     )
 
 

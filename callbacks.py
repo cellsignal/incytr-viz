@@ -126,12 +126,6 @@ def load_nodes(clusters: pd.DataFrame, global_min_population) -> list[dict]:
 
         return str(diameter_px) + "px"
 
-    cmap = plt.get_cmap("tab20")
-
-    # rgba arrays, values 0-1
-    plt_colors = cmap(np.linspace(0, 1, len(clusters)))
-    clusters.loc[:, "rgb_colors"] = [[int(x * 256) for x in c[0:3]] for c in plt_colors]
-
     # ignore clusters with population zero
     clusters.loc[:, "population"] = clusters["population"].replace(0, np.nan)
 
@@ -143,7 +137,7 @@ def load_nodes(clusters: pd.DataFrame, global_min_population) -> list[dict]:
 
         node_type = row.name
         node_population = row["population"]
-        node_rgb_color = row["rgb_colors"]
+        node_rgb_color = row["color"]
 
         if (not node_population) or (np.isnan(node_population)):
             return np.nan
@@ -311,7 +305,6 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
             sliders_container_children=State("allSlidersContainer", "children"),
             view_radio=Input("view-radio", "value"),
         ),
-        # prevent_initial_call=True,
     )
     def update_figure_and_histogram(
         sdi,

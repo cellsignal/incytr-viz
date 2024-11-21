@@ -37,55 +37,42 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
 
     app.layout = html.Div(
         [
+            dcc.Store(id="has-rna", data=has_rna_score),
+            dcc.Store(id="has-final", data=has_final_score),
+            dcc.Store(id="has-p-value", data=has_p_value),
+            dcc.Store(id="has-umap", data=has_umap),
+            dcc.Store(id="group-a-name", data=group_a_name),
+            dcc.Store(id="group-b-name", data=group_b_name),
             html.Div(
-                [
-                    dcc.Store(id="has-rna", data=has_rna_score),
-                    dcc.Store(id="has-final", data=has_final_score),
-                    dcc.Store(id="has-p-value", data=has_p_value),
-                    dcc.Store(id="has-umap", data=has_umap),
-                    dcc.Store(id="group-a-name", data=group_a_name),
-                    dcc.Store(id="group-b-name", data=group_b_name),
-                    html.Div(
-                        children=[
-                            html.Div(
-                                [
-                                    filter_container(paths),
-                                    slider_container(
-                                        has_rna_score=has_rna_score,
-                                        has_final_score=has_final_score,
-                                        has_p_value=has_p_value,
-                                    ),
-                                    html.Div(
-                                        dcc.RadioItems(
-                                            [
-                                                {
-                                                    "label": html.Div(
-                                                        ["Network View"],
-                                                    ),
-                                                    "value": "network",
-                                                },
-                                                {
-                                                    "label": html.Div(
-                                                        ["Pathways View"],
-                                                    ),
-                                                    "value": "sankey",
-                                                },
-                                            ],
-                                            value="network",
-                                            id="view-radio",
-                                            labelClassName="radioLabel",
-                                            className="radioContainer sidebarElement",
-                                        ),
-                                    ),
-                                ],
-                            ),
-                            # html.Div(
-                            #     [],
-                            #     id="slider-container",
-                            #     className="sliderContainer sidebarElement",
-                            # ),
-                        ],
+                children=[
+                    slider_container(
+                        has_rna_score=has_rna_score,
+                        has_final_score=has_final_score,
+                        has_p_value=has_p_value,
                     ),
+                    html.Div(
+                        dcc.RadioItems(
+                            [
+                                {
+                                    "label": html.Div(
+                                        ["Network View"],
+                                    ),
+                                    "value": "network",
+                                },
+                                {
+                                    "label": html.Div(
+                                        ["Pathways View"],
+                                    ),
+                                    "value": "sankey",
+                                },
+                            ],
+                            value="sankey",
+                            id="view-radio",
+                            labelClassName="radioLabel",
+                            className="radioContainer sidebarElement",
+                        ),
+                    ),
+                    filter_container(paths),
                 ],
                 className="sidebar",
             ),
@@ -106,54 +93,23 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                     ),
                     html.Div(
                         [
-                            html.Div(
-                                [
-                                    html.Div([], id="hist-a-container"),
-                                    html.Div([], id="figure-a-container"),
-                                ],
-                                id="group-a-container",
-                                className="groupContainer",
-                            ),
-                        ]
-                    ),
-                    html.Div(
-                        [
-                            html.Div(
-                                [
-                                    html.Div([], id="hist-b-container"),
-                                    html.Div([], id="figure-b-container"),
-                                ],
-                                id="group-b-container",
-                                className="groupContainer",
-                            ),
-                        ]
-                    ),
-                    html.Div(
-                        [
-                            dbc.Button("Help", id="open", n_clicks=0),
-                            dbc.Modal(
-                                [
-                                    dbc.ModalHeader(dbc.ModalTitle("Header")),
-                                    dbc.ModalBody("This is the content of the modal"),
-                                    dbc.ModalFooter(
-                                        dbc.Button(
-                                            "Close",
-                                            id="close",
-                                            className="ms-auto",
-                                            n_clicks=0,
-                                        )
-                                    ),
-                                ],
-                                id="modal",
-                                size="lg",
-                                is_open=False,
-                            ),
+                            html.Div([], id="hist-a-container"),
+                            html.Div([], id="figure-a-container"),
                         ],
-                        className="modalContainer",
+                        id="group-a-container",
+                        className="groupContainer",
+                    ),
+                    html.Div(
+                        [
+                            html.Div([], id="hist-b-container"),
+                            html.Div([], id="figure-b-container"),
+                        ],
+                        id="group-b-container",
+                        className="groupContainer",
                     ),
                 ],
-                id="main-container",
                 className="mainContainer",
+                id="main-container",
             ),
         ],
         id="app-container",
@@ -191,3 +147,27 @@ if __name__ == "__main__":
     app = incytr_app(PATHWAYS_FILE, CLUSTERS_A_FILE, CLUSTERS_B_FILE)
 
     app.run(debug=True)
+
+    # html.Div(
+    #     [
+    #         dbc.Button("Help", id="open", n_clicks=0),
+    #         dbc.Modal(
+    #             [
+    #                 dbc.ModalHeader(dbc.ModalTitle("Header")),
+    #                 dbc.ModalBody("This is the content of the modal"),
+    #                 dbc.ModalFooter(
+    #                     dbc.Button(
+    #                         "Close",
+    #                         id="close",
+    #                         className="ms-auto",
+    #                         n_clicks=0,
+    #                     )
+    #                 ),
+    #             ],
+    #             id="modal",
+    #             size="lg",
+    #             is_open=False,
+    #         ),
+    #     ],
+    #     className="modalContainer",
+    # ),

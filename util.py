@@ -56,7 +56,7 @@ def clean_clusters(df) -> pd.DataFrame:
 
 
 def edge_width_map(pathways: int, global_max_paths: int, max_width_px: int = 10):
-    floor = 0.5
+    floor = 2
     pixels = max((pathways / global_max_paths * max_width_px), floor)
     return str(pixels) + "px"
 
