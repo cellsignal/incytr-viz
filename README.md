@@ -9,31 +9,39 @@ Dependencies:
 - plotly
 - dash
 - dash_cytoscape==0.3.0
+- dash-bootstrap-components==1.6.0
 
 ## Run in browser
 
 1. Install dependencies if necessary (pip install -r requirements.txt)
-2. Ensure your CSV has the following columns (currently case insensitive):
+2. Ensure your CSV has the following columns (case insensitive)
 
-- Path (ligand, em, receptor, target columns are generated from the Path column)
-- Sender
-- Receiver
-- Ligand
-- Receptor
-- EM
-- Target
-- SigWeight_x, where x can be any suffix representing experimental group
-- SigWeight_y, where y can be any suffix representing experimental group
+   \*\* asterisks indicate required columns
+
+- \*Path (ligand, em, receptor, target columns are generated from the Path column)
+- \*Sender
+- \*Receiver
+- \*SigWeight_x, where x can be any suffix representing experimental group
+- \*SigWeight_y, where y can be any suffix representing experimental group
 - p_value_x, where x can be any suffix representing experimental group
 - p_value_y, where y can be any suffix representing experimental group
-- RNA_score (optional)
-- final_score (optional)
+- RNA_score
+- final_score
+- umap1 (required for umap display)
+- umap2(required for umap display)
 
 3. Open run.sh and update --group_a_populations (exp group) --group_b_populations (wt group) and --pathways to appropriate file paths
 
+Example run.sh:
+
+```
+python app.py --group_a_populations data/covid/BL_clusters.csv --group_b_populations data/covid/HC_clusters.csv --pathways data/covid/hc_bl_incytr_heginput_p_rnascore_ligand-target.tsv
+
+```
+
 4. Run 'bash run.sh' and navigate to http://127.0.0.1:8050/ in your browser
 
-## Run in jupyter notebook
+## Run in jupyter notebook (beta)
 
 1. Update filepaths in notebook.ipynb
 2. Run notebook
