@@ -94,7 +94,7 @@ def load_cell_clusters(*clusters_filepaths) -> pd.DataFrame:
         df = df[list(clusters_dtypes.keys())].reset_index(drop=True)
 
         df["population"] = df["population"].fillna(0)
-        df["type"] = df["type"].str.strip()
+        df["type"] = df["type"].str.strip().str.lower()
         df["group"] = group_name
         df = df.set_index("type")
 
@@ -111,6 +111,7 @@ def load_cell_clusters(*clusters_filepaths) -> pd.DataFrame:
     colors = {t: rgb_colors[i] for i, t in enumerate(cell_types)}
 
     out["color"] = out.index.map(colors)
+    out["color"] = out["color"].apply(lambda x: f"rgb({x[0]},{x[1]},{x[2]})")
 
     return out
 
@@ -134,6 +135,8 @@ def load_pathways(pathways_path) -> list:
     paths["receptor"] = paths["path"].str.split("*").str[1].str.strip()
     paths["em"] = paths["path"].str.split("*").str[2].str.strip()
     paths["target"] = paths["path"].str.split("*").str[3].str.strip()
+    paths["sender"] = paths["sender"].str.strip().str.lower()
+    paths["receiver"] = paths["receiver"].str.strip().str.lower()
     paths["path"] = (
         paths["path"]
         .str.cat(paths["sender"], sep="*")

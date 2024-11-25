@@ -3,6 +3,7 @@ from typing import Optional
 import numpy as np
 import pdb
 import json
+from typing import Optional
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -153,7 +154,7 @@ def load_nodes(clusters: pd.DataFrame, global_min_population) -> list[dict]:
         data["cluster_size"] = node_population
         data["width"] = row["diameter"]
         data["height"] = row["diameter"]
-        data["background_color"] = "rgb({}, {}, {})".format(*node_rgb_color)
+        data["background_color"] = row["color"]
         return {"data": data}
 
     return list(
@@ -214,48 +215,51 @@ def load_edges(
 
 def pathways_df_to_sankey(
     sankey_df: pd.DataFrame,
+    all_clusters: pd.DataFrame,
+    sankey_color_flow: Optional[str] = None,  # sender or receiver
     always_include_target_genes: bool = False,
 ) -> tuple:
 
     def _get_values(
-        df: pd.DataFrame, source_colname: str, target_colname: str, color_colname: str
+        df: pd.DataFrame, source_colname: str, target_colname: str
     ) -> pd.DataFrame:
 
-        out = (
-            df.groupby([source_colname, color_colname])[target_colname]
-            .value_counts()
-            .reset_index(name="value")
-        )
+        if sankey_color_flow in ["sender", "receiver"]:
+            color_grouping_column = sankey_color_flow
+            out = (
+                df.groupby([source_colname, color_grouping_column])[target_colname]
+                .value_counts()
+                .reset_index(name="value")
+            )
+            out[color_grouping_column] = (
+                out[color_grouping_column].astype(str).str.lower()
+            )
+            out["color"] = out[color_grouping_column].map(
+                dict(zip(all_clusters.index, all_clusters["color"]))
+            )
+        else:
+            out = (
+                df.groupby([source_colname])[target_colname]
+                .value_counts()
+                .reset_index(name="value")
+            )
+            out["color"] = "lightgrey"
+
         out.rename(
             columns={
                 source_colname: "source",
                 target_colname: "target",
-                # color_colname: "color",
             },
             inplace=True,
         )
         out["source_id"] = out["source"] + "_" + source_colname
         out["target_id"] = out["target"] + "_" + target_colname
 
-        cmap = plt.get_cmap("tab20")
-
-        cell_types = out[color_colname].unique()
-
-        plt_colors = cmap(np.linspace(0, 1, len(cell_types)))
-        rgb_colors = [[int(x * 256) for x in c[0:3]] for c in plt_colors]
-        rgb_colors = [
-            "rgb({x}, {y}, {z})".format(x=x, y=y, z=z) for x, y, z in rgb_colors
-        ]
-
-        colors = {t: rgb_colors[i] for i, t in enumerate(cell_types)}
-
-        out.loc[:, "color"] = out[color_colname].map(colors)
-
         return out
 
-    l_r = _get_values(sankey_df, "ligand", "receptor", color_colname="sender")
-    r_em = _get_values(sankey_df, "receptor", "em", color_colname="sender")
-    em_t = _get_values(sankey_df, "em", "target", color_colname="sender")
+    l_r = _get_values(sankey_df, "ligand", "receptor")
+    r_em = _get_values(sankey_df, "receptor", "em")
+    em_t = _get_values(sankey_df, "em", "target")
 
     included_links = [l_r, r_em]
 
@@ -276,6 +280,7 @@ def pathways_df_to_sankey(
     source = [next(i for i, e in enumerate(ids) if e == x) for x in links["source_id"]]
     target = [next(i for i, e in enumerate(ids) if e == x) for x in links["target_id"]]
     value = links["value"]
+
     color = links["color"]
 
     return (ids, labels, source, target, value, color)
@@ -303,6 +308,7 @@ def pathway_component_filter_inputs():
         any_role_select=Input("any-role-select", "value"),
         umap_select_a=Input("umap-select-a", "value"),
         umap_select_b=Input("umap-select-b", "value"),
+        sankey_color_flow=Input("sankey-color-flow-dropdown", "value"),
     )
 
 
@@ -454,6 +460,8 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
 
                 ids, labels, source, target, value, color = pathways_df_to_sankey(
                     sankey_df=filtered_group_paths,
+                    sankey_color_flow=pcf.get("sankey_color_flow"),
+                    all_clusters=clusters,
                     always_include_target_genes=False,
                 )
 

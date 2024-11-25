@@ -67,7 +67,7 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                                     "value": "sankey",
                                 },
                             ],
-                            value="sankey",
+                            value="network",
                             id="view-radio",
                             labelClassName="radioLabel",
                             className="radioContainer sidebarElement",
@@ -76,8 +76,13 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                     html.Div(
                         [
                             dbc.Checkbox(id="show-umap", label="Show UMAP"),
-                            dbc.Checkbox(
-                                id="sankey-show-sender", label="Sankey Show Sender"
+                            dcc.Dropdown(
+                                id="sankey-color-flow-dropdown",
+                                placeholder="Color Sankey Flow By",
+                                multi=False,
+                                clearable=True,
+                                options=["sender", "receiver"],
+                                className="filter",
                             ),
                         ],
                         className="sidebarElement",
