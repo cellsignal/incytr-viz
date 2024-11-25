@@ -30,12 +30,15 @@ Dependencies:
 - umap1 (required for umap display)
 - umap2(required for umap display)
 
-3. Open run.sh and update --group_a_populations (exp group) --group_b_populations (wt group) and --pathways to appropriate file paths
+3. Open run.sh and update --group_a_populations (exp group) --group_b_populations (wt group) and --pathways to appropriate file paths (see cluster file naming convention must match group names in SigWeight columns)
 
 Example run.sh:
 
 ```
 python app.py --group_a_populations data/covid/BL_clusters.csv --group_b_populations data/covid/HC_clusters.csv --pathways data/covid/hc_bl_incytr_heginput_p_rnascore_ligand-target.tsv
+
+BL_clusters.csv --> SigWeight_BL
+HC_clusters.csv --> SigWeight_HC
 
 ```
 
