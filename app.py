@@ -4,6 +4,7 @@ from dash import Dash, html, dcc
 import pdb
 
 from callbacks import apply_callbacks
+from components import umap_container
 
 from util import *
 from components import *
@@ -72,6 +73,15 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                             className="radioContainer sidebarElement",
                         ),
                     ),
+                    html.Div(
+                        [
+                            dbc.Checkbox(id="show-umap", label="Show UMAP"),
+                            dbc.Checkbox(
+                                id="sankey-show-sender", label="Sankey Show Sender"
+                            ),
+                        ],
+                        className="sidebarElement",
+                    ),
                     filter_container(paths),
                 ],
                 className="sidebar",
@@ -80,32 +90,37 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                 [
                     html.Div(
                         [
+                            umap_container(
+                                group_id="a",
+                                has_umap=has_umap,
+                                all_pathways=paths,
+                            ),
                             html.Div(
-                                [],
-                                id="umap-container",
-                                style=(
-                                    {"display": "none"}
-                                    if not has_umap
-                                    else {"width": "800px"}
-                                ),
+                                [
+                                    html.Div([], id="hist-a-container"),
+                                    html.Div([], id="figure-a-container"),
+                                ],
+                                id="group-a-container",
+                                className="groupContainer",
                             ),
                         ]
                     ),
                     html.Div(
                         [
-                            html.Div([], id="hist-a-container"),
-                            html.Div([], id="figure-a-container"),
-                        ],
-                        id="group-a-container",
-                        className="groupContainer",
-                    ),
-                    html.Div(
-                        [
-                            html.Div([], id="hist-b-container"),
-                            html.Div([], id="figure-b-container"),
-                        ],
-                        id="group-b-container",
-                        className="groupContainer",
+                            umap_container(
+                                group_id="b",
+                                has_umap=has_umap,
+                                all_pathways=paths,
+                            ),
+                            html.Div(
+                                [
+                                    html.Div([], id="hist-b-container"),
+                                    html.Div([], id="figure-b-container"),
+                                ],
+                                id="group-b-container",
+                                className="groupContainer",
+                            ),
+                        ]
                     ),
                 ],
                 className="mainContainer",
