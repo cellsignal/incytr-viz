@@ -1,5 +1,6 @@
 import pandas as pd
 from dash import html, dcc
+import dash_bootstrap_components as dbc
 import dash_cytoscape as cyto
 import plotly.graph_objects as go
 
@@ -33,9 +34,30 @@ def hist(df, col, title, num_bins=20):
 def hist_container(group_id, *histograms):
     return html.Div(
         children=list(histograms),
-        id=f"hist-container-{group_id}",
+        id=f"hist-{group_id}-container",
         className="histContainer",
     )
+
+
+def umap_container(group_id, has_umap, all_pathways):
+    if has_umap:
+        fig = px.scatter(
+            all_pathways,
+            x="umap1",
+            y="umap2",
+            color="sigweight_bl",
+            custom_data=["path"],
+        )
+        scatter = dcc.Graph(
+            id=f"scatter-plot-{group_id}",
+            figure=fig,
+            style={"width": "600px", "height": "600px"},
+        )
+
+        return html.Div([scatter], className="umapContainer")
+
+    else:
+        return html.Div([], style={"display": "none"})
 
 
 def cytoscape_container(
@@ -60,7 +82,7 @@ def cytoscape_container(
     )
 
 
-def sankey_container(ids, labels, source, target, value, title, group_id):
+def sankey_container(ids, labels, source, target, value, color, title, group_id):
 
     return html.Div(
         [
@@ -78,11 +100,33 @@ def sankey_container(ids, labels, source, target, value, title, group_id):
                             hovertemplate="Node %{customdata} has total value %{value}<extra></extra>",
                             color=get_node_colors(ids),
                         ),
-                        link=dict(source=source, target=target, value=value),
+                        link=dict(
+                            source=source,
+                            target=target,
+                            value=value,
+                            color=color,
+                            customdata=color,
+                            hovertemplate="Link has value %{value} $%{customdata}<extra></extra>",
+                        ),
+                        # legend="legend2",
                     ),
+                    # layout=dict(
+                    #     legend2=dict(
+                    #         title=dict(text="By continent"),
+                    #         xref="container",
+                    #         yref="container",
+                    #         y=0.85,
+                    #         bgcolor="Gold",
+                    #     )
+                    # ),
                 ),
                 id=f"sankey-{group_id}",
                 className="sankey",
+            ),
+            dbc.Table(
+                id=f"metadata-table-{group_id}",
+                children=[html.Tr([html.Td("test")])],
+                bordered=False,
             ),
         ],
         className="sankeyContainer",
@@ -202,14 +246,23 @@ def filter_container(pathways):
                         className="filter",
                     ),
                     dcc.Dropdown(
-                        id="umap-select", disabled=False, options=[], className="filter"
+                        id="umap-select-a",
+                        disabled=False,
+                        options=[],
+                        className="filter",
+                    ),
+                    dcc.Dropdown(
+                        id="umap-select-b",
+                        disabled=False,
+                        options=[],
+                        className="filter",
                     ),
                 ],
                 className="filterColumn",
             ),
         ],
         id="filter-container",
-        className="filterContainer",
+        className="filterContainer sidebarElement",
     )
 
 

@@ -145,7 +145,7 @@ def load_pathways(pathways_path) -> list:
     rna_score_cols = [c for c in paths.columns if "rna_score" in c]
     final_score_cols = [c for c in paths.columns if "final_score" in c]
 
-    if (not len(sigweight_cols) == 2) or (not len(pval_cols) == 2):
+    if (not len(sigweight_cols) == 2) or (not len(pval_cols) in [0, 2]):
         raise ValueError(
             "Ambiguous input. Are there exactly 2 SigWeight/P-Value columns?"
         )

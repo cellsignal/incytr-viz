@@ -5,12 +5,17 @@ import pdb
 import json
 import pandas as pd
 import matplotlib.pyplot as plt
-import plotly.express as px
 
-from dash import Dash, ALL, html, dcc
+from dash import Dash, ALL
 from dash.dependencies import Input, Output, State
 
-from components import cytoscape_container, sankey_container, hist, hist_container
+from components import (
+    cytoscape_container,
+    sankey_container,
+    hist,
+    hist_container,
+    umap_container,
+)
 
 
 from util import edge_width_map, update_filter_value
@@ -114,7 +119,7 @@ def load_nodes(clusters: pd.DataFrame, global_min_population) -> list[dict]:
     # TODO clean clusters
     # clusters = clean_clusters(clusters)
 
-    def _node_size_mapping(population: int, min_pop, scaling_factor: int = 300) -> str:
+    def _node_size_mapping(population: int, min_pop, scaling_factor: int = 1000) -> str:
         log_pop, log_min_pop = (
             np.log2(population + 1),
             np.log2(min_pop + 1),
@@ -213,25 +218,44 @@ def pathways_df_to_sankey(
 ) -> tuple:
 
     def _get_values(
-        df: pd.DataFrame, source_colname: str, target_colname: str
+        df: pd.DataFrame, source_colname: str, target_colname: str, color_colname: str
     ) -> pd.DataFrame:
+
         out = (
-            df.groupby(source_colname)[target_colname]
+            df.groupby([source_colname, color_colname])[target_colname]
             .value_counts()
             .reset_index(name="value")
         )
         out.rename(
-            columns={source_colname: "source", target_colname: "target"},
+            columns={
+                source_colname: "source",
+                target_colname: "target",
+                # color_colname: "color",
+            },
             inplace=True,
         )
         out["source_id"] = out["source"] + "_" + source_colname
         out["target_id"] = out["target"] + "_" + target_colname
 
+        cmap = plt.get_cmap("tab20")
+
+        cell_types = out[color_colname].unique()
+
+        plt_colors = cmap(np.linspace(0, 1, len(cell_types)))
+        rgb_colors = [[int(x * 256) for x in c[0:3]] for c in plt_colors]
+        rgb_colors = [
+            "rgb({x}, {y}, {z})".format(x=x, y=y, z=z) for x, y, z in rgb_colors
+        ]
+
+        colors = {t: rgb_colors[i] for i, t in enumerate(cell_types)}
+
+        out.loc[:, "color"] = out[color_colname].map(colors)
+
         return out
 
-    l_r = _get_values(sankey_df, "ligand", "receptor")
-    r_em = _get_values(sankey_df, "receptor", "em")
-    em_t = _get_values(sankey_df, "em", "target")
+    l_r = _get_values(sankey_df, "ligand", "receptor", color_colname="sender")
+    r_em = _get_values(sankey_df, "receptor", "em", color_colname="sender")
+    em_t = _get_values(sankey_df, "em", "target", color_colname="sender")
 
     included_links = [l_r, r_em]
 
@@ -248,11 +272,13 @@ def pathways_df_to_sankey(
     # ids allow for repeating labels in ligand, receptor, etc. without pointing to same node
     ids = list(set(pd.concat([links["source_id"], links["target_id"]])))
     labels = [x.split("_")[0] for x in ids]
+
     source = [next(i for i, e in enumerate(ids) if e == x) for x in links["source_id"]]
     target = [next(i for i, e in enumerate(ids) if e == x) for x in links["target_id"]]
     value = links["value"]
+    color = links["color"]
 
-    return (ids, labels, source, target, value)
+    return (ids, labels, source, target, value, color)
 
 
 def store_data_inputs():
@@ -275,7 +301,8 @@ def pathway_component_filter_inputs():
         em_select=Input("em-select", "value"),
         target_select=Input("target-select", "value"),
         any_role_select=Input("any-role-select", "value"),
-        umap_select=Input("umap-select", "value"),
+        umap_select_a=Input("umap-select-a", "value"),
+        umap_select_b=Input("umap-select-b", "value"),
     )
 
 
@@ -314,9 +341,15 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
         view_radio,
     ):
 
-        umap_select = (
-            json.loads(pcf.get("umap_select"))
-            if (pcf.get("umap_select")) and sdi.get("has_umap")
+        umap_select_a = (
+            json.loads(pcf.get("umap_select_a"))
+            if (pcf.get("umap_select_a")) and sdi.get("has_umap")
+            else None
+        )
+
+        umap_select_b = (
+            json.loads(pcf.get("umap_select_b"))
+            if (pcf.get("umap_select_b")) and sdi.get("has_umap")
             else None
         )
 
@@ -368,7 +401,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
             filter_em=pcf.get("em_select", None),
             filter_target_genes=pcf.get("target_select", None),
             filter_all_molecules=pcf.get("any_role_select", None),
-            filter_umap=umap_select,
+            filter_umap=umap_select_a,
             fs_bounds=fs_bounds,
             sw_threshold=sw_threshold,
             rnas_bounds=rnas_bounds,
@@ -385,6 +418,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
             filter_em=pcf.get("em_select", None),
             filter_target_genes=pcf.get("target_select", None),
             filter_all_molecules=pcf.get("any_role_select", None),
+            filter_umap=umap_select_b,
             fs_bounds=fs_bounds,
             sw_threshold=sw_threshold,
             rnas_bounds=rnas_bounds,
@@ -393,6 +427,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
 
         def _get_group_figures(
             filtered_group_paths: pd.DataFrame,
+            all_pathways: pd.DataFrame,
             clusters: pd.DataFrame,
             group_name: str,
             group_id: str,
@@ -417,13 +452,20 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
 
             elif view_radio == "sankey":
 
-                ids, labels, source, target, value = pathways_df_to_sankey(
+                ids, labels, source, target, value, color = pathways_df_to_sankey(
                     sankey_df=filtered_group_paths,
                     always_include_target_genes=False,
                 )
 
                 sankey = sankey_container(
-                    ids, labels, source, target, value, "Sankey " + group_name, group_id
+                    ids,
+                    labels,
+                    source,
+                    target,
+                    value,
+                    color,
+                    "Sankey " + group_name,
+                    group_id,
                 )
 
                 graph_container = sankey
@@ -461,6 +503,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
         return (
             _get_group_figures(
                 filtered_group_paths=a_pathways,
+                all_pathways=all_pathways,
                 clusters=clusters,
                 global_max_paths=global_max_paths,
                 group_name=sdi.get("group_a_name"),
@@ -468,6 +511,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
             ),
             _get_group_figures(
                 filtered_group_paths=b_pathways,
+                all_pathways=all_pathways,
                 clusters=clusters,
                 global_max_paths=global_max_paths,
                 group_name=sdi.get("group_b_name"),
@@ -499,47 +543,32 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
     #     else:
     #         return sender_select, receiver_select, view_radio
 
-    @app.callback(
-        Output("umap-container", "children"),
-        inputs=dict(
-            sdi=store_data_inputs(),
-        ),
-    )
-    def umap_callback(
-        sdi,
-    ):
-
-        if sdi.get("has_umap"):
-            fig = px.scatter(
-                all_pathways,
-                x="umap1",
-                y="umap2",
-                color="sigweight_bl",
-                custom_data=["path"],
-            )
-
-            return dcc.Graph(
-                id="scatter-plot",
-                figure=fig,
-                style={"width": "800px", "height": "800px"},
-            )
-
-        else:
-            return html.Div()
-
-    @app.callback(
-        Output("umap-select", "value"),
-        inputs=Input("scatter-plot", "relayoutData"),
-        prevent_initial_call=True,
-    )
-    def umap_callback(
-        relayoutData,
-    ):
+    def _umap_callback(relayoutData):
         # {'xaxis.range[0]': -0.6369249007630504, 'xaxis.range[1]': 6.965720316453904, 'yaxis.range[0]': 3.7282259393124537, 'yaxis.range[1]': 9.59742380103187}
         if relayoutData and "xaxis.range[0]" in relayoutData:
             return json.dumps(relayoutData)
         else:
             return None
+
+    @app.callback(
+        Output("umap-select-a", "value"),
+        inputs=Input("scatter-plot-a", "relayoutData"),
+        prevent_initial_call=True,
+    )
+    def umap_callback(
+        relayoutData,
+    ):
+        return _umap_callback(relayoutData)
+
+    @app.callback(
+        Output("umap-select-b", "value"),
+        inputs=Input("scatter-plot-b", "relayoutData"),
+        prevent_initial_call=True,
+    )
+    def umap_callback(
+        relayoutData,
+    ):
+        return _umap_callback(relayoutData)
 
     @app.callback(
         Output("sender-select", "value"),

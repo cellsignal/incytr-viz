@@ -13,8 +13,8 @@
 }
 
 .hist {
-  max-width: 250px;
-  max-height: 250px;
+  max-width: 300px;
+  max-height: 300px;
 }
 
 .cytoscapeContainer {
@@ -49,6 +49,15 @@
 .groupContainer {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  border: 1px solid black;
+  max-width: 50vw;
+}
+
+.umapContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   flex: 1 1 auto;
   border: 1px solid black;
   max-width: 50vw;
@@ -132,7 +141,7 @@
   margin: 5px;
   padding: 5px;
   border: 1px solid black;
-  height: 200px;
+  height: 125px;
 }
 
 /* node {
