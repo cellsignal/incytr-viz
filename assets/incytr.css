@@ -51,7 +51,7 @@
   flex-direction: column;
   flex: 1 1 auto;
   border: 1px solid black;
-  max-width: 50vw;
+  width: 48vw;
 }
 
 .umapContainer {
@@ -60,7 +60,7 @@
   align-items: center;
   flex: 1 1 auto;
   border: 1px solid black;
-  max-width: 50vw;
+  max-width: 48vw;
 }
 
 .modalContainer {
@@ -97,6 +97,26 @@
   margin: 10rem;
 }
 
+.sankeyColorLegendBox {
+  width: 15px;
+  height: 15px;
+}
+
+.sankeyColorLegend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sankeyColorLegendsContainer {
+  min-width: 100px;
+  margin: 5px;
+}
+
+.sankeyTitleAndLegend {
+  display: flex;
+  justify-content: space-between;
+}
+
 .sankeyContainer {
   display: flex;
   flex-direction: column;
@@ -106,6 +126,19 @@
   min-height: 400px;
   width: 100%;
   flex-grow: 1;
+}
+
+.sankeyWarning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid black;
+  color: red;
+  width: 5%;
+  margin: 5px 5px 5px auto;
+  font-size: 30px;
+  font-weight: bold;
+  height: 40px;
 }
 
 .radioLabel {

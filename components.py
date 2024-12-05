@@ -82,11 +82,16 @@ def cytoscape_container(
     )
 
 
-def sankey_container(ids, labels, source, target, value, color, title, group_id):
+def sankey_container(ids, labels, source, target, value, color, title, group_id, warn):
+
+    warn_style = {"display": "none"} if not warn else {}
 
     return html.Div(
         [
-            html.H2(title),
+            html.Div(
+                [html.H2(title), sankey_legend_container()],
+                className="sankeyTitleAndLegend",
+            ),
             dcc.Graph(
                 figure=go.Figure(
                     go.Sankey(
@@ -123,38 +128,88 @@ def sankey_container(ids, labels, source, target, value, color, title, group_id)
                 id=f"sankey-{group_id}",
                 className="sankey",
             ),
-            dbc.Table(
-                id=f"metadata-table-{group_id}",
-                children=[html.Tr([html.Td("test")])],
-                bordered=False,
+            html.Div(
+                [
+                    dbc.Button(
+                        "!",
+                        id=f"sankey-warning-{group_id}",
+                        color="white",
+                        style=warn_style,
+                        className="sankeyWarning",
+                    ),
+                    dbc.Popover(
+                        dbc.PopoverBody(
+                            "Too many target genes to display. To display targets, please apply additional filters"
+                        ),
+                        trigger="hover",
+                        body=True,
+                        target=f"sankey-warning-{group_id}",
+                    ),
+                ],
+                style={"min-height": "50px", "margin": "5px"},
             ),
         ],
         className="sankeyContainer",
     )
 
 
-def radio_container() -> html.Div:
+def sankey_legend_container() -> html.Div:
     return html.Div(
-        dcc.RadioItems(
-            [
-                {
-                    "label": html.Div(
-                        ["Network View"],
+        [
+            html.Span(
+                [
+                    "Ligand",
+                    html.Div(
+                        [],
+                        style={
+                            "background-color": "red",
+                        },
+                        className="sankeyColorLegendBox",
                     ),
-                    "value": "network",
-                },
-                {
-                    "label": html.Div(
-                        ["Pathways View"],
+                ],
+                className="sankeyColorLegend",
+            ),
+            html.Span(
+                [
+                    "Receptor",
+                    html.Div(
+                        [],
+                        style={
+                            "background-color": "blue",
+                        },
+                        className="sankeyColorLegendBox",
                     ),
-                    "value": "sankey",
-                },
-            ],
-            value="sankey",
-            id="view-radio",
-            labelClassName="radioLabel",
-            className="radioContainer sidebarElement",
-        ),
+                ],
+                className="sankeyColorLegend",
+            ),
+            html.Span(
+                [
+                    "EM",
+                    html.Div(
+                        [],
+                        style={
+                            "background-color": "green",
+                        },
+                        className="sankeyColorLegendBox",
+                    ),
+                ],
+                className="sankeyColorLegend",
+            ),
+            html.Span(
+                [
+                    "Target",
+                    html.Div(
+                        [],
+                        style={
+                            "background-color": "purple",
+                        },
+                        className="sankeyColorLegendBox",
+                    ),
+                ],
+                className="sankeyColorLegend",
+            ),
+        ],
+        className="sankeyColorLegendsContainer",
     )
 
 
@@ -250,12 +305,14 @@ def filter_container(pathways):
                         disabled=False,
                         options=[],
                         className="filter",
+                        style={"display": "none"},
                     ),
                     dcc.Dropdown(
                         id="umap-select-b",
                         disabled=False,
                         options=[],
                         className="filter",
+                        style={"display": "none"},
                     ),
                 ],
                 className="filterColumn",

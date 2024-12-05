@@ -97,7 +97,7 @@ def filter_pathways(
     return df
 
 
-def load_nodes(clusters: pd.DataFrame, global_min_population) -> list[dict]:
+def load_nodes(clusters: pd.DataFrame) -> list[dict]:
     """
     Generate cytoscape nodes from clusters file
 
@@ -120,7 +120,9 @@ def load_nodes(clusters: pd.DataFrame, global_min_population) -> list[dict]:
     # TODO clean clusters
     # clusters = clean_clusters(clusters)
 
-    def _node_size_mapping(population: int, min_pop, scaling_factor: int = 1000) -> str:
+    global_min_population = clusters["population"].min() or 1
+
+    def _node_size_mapping(population: int, min_pop, scaling_factor: int = 2000) -> str:
         log_pop, log_min_pop = (
             np.log2(population + 1),
             np.log2(min_pop + 1),
@@ -135,7 +137,7 @@ def load_nodes(clusters: pd.DataFrame, global_min_population) -> list[dict]:
     # ignore clusters with population zero
     clusters.loc[:, "population"] = clusters["population"].replace(0, np.nan)
 
-    clusters.loc[:, "diameter"] = clusters["population"].apply(
+    clusters.loc[:, "diameter"] = clusters.loc[:, "population"].apply(
         lambda x: _node_size_mapping(x, global_min_population)
     )
 
@@ -217,7 +219,6 @@ def pathways_df_to_sankey(
     sankey_df: pd.DataFrame,
     all_clusters: pd.DataFrame,
     sankey_color_flow: Optional[str] = None,  # sender or receiver
-    always_include_target_genes: bool = False,
 ) -> tuple:
 
     def _get_values(
@@ -267,7 +268,7 @@ def pathways_df_to_sankey(
     def _should_display_targets() -> bool:
         num_targets = len(em_t["target"].unique())
 
-        return True if always_include_target_genes else num_targets <= 75
+        return num_targets <= 75
 
     if _should_display_targets():
         included_links.append(em_t)
@@ -433,7 +434,6 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
 
         def _get_group_figures(
             filtered_group_paths: pd.DataFrame,
-            all_pathways: pd.DataFrame,
             clusters: pd.DataFrame,
             group_name: str,
             group_id: str,
@@ -442,11 +442,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
 
             if view_radio == "network":
 
-                global_min_population = clusters["population"].min()
-
-                nodes = load_nodes(
-                    clusters[clusters["group"] == group_name], global_min_population
-                )
+                nodes = load_nodes(clusters[clusters["group"] == group_name])
 
                 edges = load_edges(nodes, filtered_group_paths, global_max_paths)
 
@@ -462,8 +458,9 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
                     sankey_df=filtered_group_paths,
                     sankey_color_flow=pcf.get("sankey_color_flow"),
                     all_clusters=clusters,
-                    always_include_target_genes=False,
                 )
+
+                warn = ids and not any(x.endswith("target") for x in ids)
 
                 sankey = sankey_container(
                     ids,
@@ -474,6 +471,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
                     color,
                     "Sankey " + group_name,
                     group_id,
+                    warn,
                 )
 
                 graph_container = sankey
@@ -511,7 +509,6 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
         return (
             _get_group_figures(
                 filtered_group_paths=a_pathways,
-                all_pathways=all_pathways,
                 clusters=clusters,
                 global_max_paths=global_max_paths,
                 group_name=sdi.get("group_a_name"),
@@ -519,7 +516,6 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
             ),
             _get_group_figures(
                 filtered_group_paths=b_pathways,
-                all_pathways=all_pathways,
                 clusters=clusters,
                 global_max_paths=global_max_paths,
                 group_name=sdi.get("group_b_name"),

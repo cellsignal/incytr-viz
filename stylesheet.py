@@ -15,10 +15,10 @@ cytoscape_styles = [
     {
         "selector": "edge",
         "style": {
-            "curve-style": "bezier",
+            "curve-style": "unbundled-bezier",
             "target-arrow-shape": "vee",
             "arrow-scale": ".75",
-            "label": "data(label)",
+            "loop-sweep": "30deg",
             "width": "data(width)",
             "line-color": "data(line_color)",
             "target-arrow-color": "data(line_color)",
