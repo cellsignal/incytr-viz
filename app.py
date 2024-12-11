@@ -73,7 +73,7 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                                     "value": "sankey",
                                 },
                             ],
-                            value="sankey",
+                            value="network",
                             id="view-radio",
                             labelClassName="radioLabel",
                             className="radioContainer sidebarElement",
