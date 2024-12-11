@@ -29,6 +29,12 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
 
     clusters = i_o.load_cell_clusters(clusters_a_filepath, clusters_b_filepath)
 
+    pf = PathwaysFilter(
+        all_paths=paths,
+        group_a_name=group_a_name,
+        group_b_name=group_b_name,
+    )
+
     app = Dash(
         __name__,
         serve_locally=True,
@@ -67,7 +73,7 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                                     "value": "sankey",
                                 },
                             ],
-                            value="network",
+                            value="sankey",
                             id="view-radio",
                             labelClassName="radioLabel",
                             className="radioContainer sidebarElement",
@@ -88,6 +94,13 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                         className="sidebarElement",
                     ),
                     filter_container(paths),
+                    html.Div(
+                        [
+                            html.Button("Download Current Paths", id="btn_csv"),
+                            dcc.Download(id="download-dataframe-a-csv"),
+                            dcc.Download(id="download-dataframe-b-csv"),
+                        ]
+                    ),
                 ],
                 className="sidebar",
             ),
@@ -97,8 +110,9 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                         [
                             umap_container(
                                 group_id="a",
+                                group_name=group_a_name,
                                 has_umap=has_umap,
-                                all_pathways=paths,
+                                all_pathways=pf.a_data,
                             ),
                             html.Div(
                                 [
@@ -114,8 +128,9 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                         [
                             umap_container(
                                 group_id="b",
+                                group_name=group_b_name,
                                 has_umap=has_umap,
-                                all_pathways=paths,
+                                all_pathways=pf.b_data,
                             ),
                             html.Div(
                                 [

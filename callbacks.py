@@ -7,7 +7,7 @@ from typing import Optional
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from dash import Dash, ALL
+from dash import Dash, ALL, dcc, ctx
 from dash.dependencies import Input, Output, State
 
 from components import (
@@ -19,82 +19,13 @@ from components import (
 )
 
 
-from util import edge_width_map, update_filter_value
-
-
-def filter_pathways(
-    all_pathways: pd.DataFrame,
-    group_name: str,
-    fs_bounds: list[float] = None,
-    sw_threshold: list[float] = None,
-    pval_threshold: float = None,
-    rnas_bounds: list[float] = None,
-    filter_senders: list[Optional[str]] = [],
-    filter_receivers: list[Optional[str]] = [],
-    filter_ligands: list[Optional[str]] = [],
-    filter_receptors: list[Optional[str]] = [],
-    filter_em: list[Optional[str]] = [],
-    filter_target_genes: list[Optional[str]] = [],
-    filter_all_molecules: list[Optional[str]] = [],
-    filter_umap: dict = None,
-) -> pd.DataFrame:
-
-    df: pd.DataFrame = all_pathways.copy()
-
-    if not filter_senders:
-        filter_senders = all_pathways["sender"].unique()
-    if not filter_receivers:
-        filter_receivers = all_pathways["receiver"].unique()
-    if not filter_ligands:
-        filter_ligands = all_pathways["ligand"].unique()
-    if not filter_receptors:
-        filter_receptors = all_pathways["receptor"].unique()
-    if not filter_em:
-        filter_em = all_pathways["em"].unique()
-    if not filter_target_genes:
-        filter_target_genes = all_pathways["target"].unique()
-
-    if filter_umap:
-        df = df[
-            (df["umap1"] >= filter_umap["xaxis.range[0]"])
-            & (df["umap1"] <= filter_umap["xaxis.range[1]"])
-            & (df["umap2"] >= filter_umap["yaxis.range[0]"])
-            & (df["umap2"] <= filter_umap["yaxis.range[1]"])
-        ]
-
-    df = df[df[f"sigweight_{group_name}"] >= sw_threshold]
-
-    if pval_threshold:
-        df = df[df[f"p_value_{group_name}"] <= pval_threshold]
-
-    if fs_bounds:
-        df = df[
-            (df["final_score"] >= fs_bounds[0]) & (df["final_score"] <= fs_bounds[1])
-        ]
-
-    if rnas_bounds:
-        df = df[
-            (df["rna_score"] >= rnas_bounds[0]) & (df["rna_score"] <= rnas_bounds[1])
-        ]
-
-    df = df[
-        df["ligand"].isin(filter_ligands)
-        & df["receptor"].isin(filter_receptors)
-        & df["em"].isin(filter_em)
-        & df["target"].isin(filter_target_genes)
-        & df["sender"].isin(filter_senders)
-        & df["receiver"].isin(filter_receivers)
-    ]
-
-    if filter_all_molecules:
-        df = df[
-            df["ligand"].isin(filter_all_molecules)
-            | df["receptor"].isin(filter_all_molecules)
-            | df["em"].isin(filter_all_molecules)
-            | df["target"].isin(filter_all_molecules)
-        ]
-
-    return df
+from util import (
+    edge_width_map,
+    update_filter_value,
+    parse_slider_values_from_tree,
+    parse_umap_filter_data,
+    PathwaysFilter,
+)
 
 
 def load_nodes(clusters: pd.DataFrame) -> list[dict]:
@@ -145,7 +76,6 @@ def load_nodes(clusters: pd.DataFrame) -> list[dict]:
 
         node_type = row.name
         node_population = row["population"]
-        node_rgb_color = row["color"]
 
         if (not node_population) or (np.isnan(node_population)):
             return np.nan
@@ -238,6 +168,7 @@ def pathways_df_to_sankey(
             out["color"] = out[color_grouping_column].map(
                 dict(zip(all_clusters.index, all_clusters["color"]))
             )
+
         else:
             out = (
                 df.groupby([source_colname])[target_colname]
@@ -287,29 +218,32 @@ def pathways_df_to_sankey(
     return (ids, labels, source, target, value, color)
 
 
-def store_data_inputs():
+def store_data_inputs(state=False):
+
+    klass = State if state else Input
     return dict(
-        has_rna=Input("has-rna", "data"),
-        has_final=Input("has-final", "data"),
-        has_p_value=Input("has-p-value", "data"),
-        has_umap=Input("has-umap", "data"),
-        group_a_name=Input("group-a-name", "data"),
-        group_b_name=Input("group-b-name", "data"),
+        has_rna=klass("has-rna", "data"),
+        has_final=klass("has-final", "data"),
+        has_p_value=klass("has-p-value", "data"),
+        has_umap=klass("has-umap", "data"),
+        group_a_name=klass("group-a-name", "data"),
+        group_b_name=klass("group-b-name", "data"),
     )
 
 
-def pathway_component_filter_inputs():
+def pathway_component_filter_inputs(state=False):
+    klass = State if state else Input
     return dict(
-        sender_select=Input("sender-select", "value"),
-        receiver_select=Input("receiver-select", "value"),
-        ligand_select=Input("ligand-select", "value"),
-        receptor_select=Input("receptor-select", "value"),
-        em_select=Input("em-select", "value"),
-        target_select=Input("target-select", "value"),
-        any_role_select=Input("any-role-select", "value"),
-        umap_select_a=Input("umap-select-a", "value"),
-        umap_select_b=Input("umap-select-b", "value"),
-        sankey_color_flow=Input("sankey-color-flow-dropdown", "value"),
+        sender_select=klass("sender-select", "value"),
+        receiver_select=klass("receiver-select", "value"),
+        ligand_select=klass("ligand-select", "value"),
+        receptor_select=klass("receptor-select", "value"),
+        em_select=klass("em-select", "value"),
+        target_select=klass("target-select", "value"),
+        any_role_select=klass("any-role-select", "value"),
+        sankey_color_flow=klass("sankey-color-flow-dropdown", "value"),
+        umap_select_a=klass("umap-select-a", "value"),
+        umap_select_b=klass("umap-select-b", "value"),
     )
 
 
@@ -341,96 +275,35 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
         ),
     )
     def update_figure_and_histogram(
-        sdi,
-        pcf,
-        slider_changed,
-        sliders_container_children,
-        view_radio,
+        sdi, pcf, slider_changed, sliders_container_children, view_radio
     ):
 
-        umap_select_a = (
-            json.loads(pcf.get("umap_select_a"))
-            if (pcf.get("umap_select_a")) and sdi.get("has_umap")
-            else None
+        filter_umap_a = parse_umap_filter_data(pcf.get("umap_select_a"))
+        filter_umap_b = parse_umap_filter_data(pcf.get("umap_select_b"))
+
+        slider_values = parse_slider_values_from_tree(sliders_container_children)
+
+        pf = PathwaysFilter(
+            all_paths=all_pathways,
+            group_a_name=sdi.get("group_a_name"),
+            group_b_name=sdi.get("group_b_name"),
+            filter_umap_a=filter_umap_a,
+            filter_umap_b=filter_umap_b,
+            filter_senders=pcf.get("sender_select"),
+            filter_receivers=pcf.get("receiver_select"),
+            filter_ligands=pcf.get("ligand_select"),
+            filter_receptors=pcf.get("receptor_select"),
+            filter_em=pcf.get("em_select"),
+            filter_target_genes=pcf.get("target_select"),
+            filter_all_molecules=pcf.get("any_role_select"),
+            fs_bounds=slider_values.get("final-score"),
+            sw_threshold=slider_values.get("sigweight"),
+            rnas_bounds=slider_values.get("rna-score"),
+            pval_threshold=slider_values.get("p-value"),
         )
 
-        umap_select_b = (
-            json.loads(pcf.get("umap_select_b"))
-            if (pcf.get("umap_select_b")) and sdi.get("has_umap")
-            else None
-        )
-
-        sliders = []
-
-        # TODO validate this matches up with store parameters
-        for el in sliders_container_children:
-            try:
-                s = el["props"]["children"][0]["props"]["children"]
-
-                if s["type"] in ("Slider", "RangeSlider"):
-                    sliders.append(s)
-
-            except:
-                pass
-
-        sw_threshold = next(
-            s for s in sliders if s["props"]["id"]["index"] == "sigweight"
-        )["props"]["value"]
-
-        if sdi.get("has_rna") == True:
-            rnas_bounds = next(
-                s for s in sliders if s["props"]["id"]["index"] == "rna-score"
-            )["props"]["value"]
-        else:
-            rnas_bounds = None
-
-        if sdi.get("has_final") == True:
-            fs_bounds = next(
-                s for s in sliders if s["props"]["id"]["index"] == "final-score"
-            )["props"]["value"]
-        else:
-            fs_bounds = None
-
-        if sdi.get("has_p_value") == True:
-            pval_threshold = next(
-                s for s in sliders if s["props"]["id"]["index"] == "p-value"
-            )["props"]["value"]
-        else:
-            pval_threshold = None
-
-        a_pathways = filter_pathways(
-            all_pathways=all_pathways,
-            group_name=sdi.get("group_a_name"),
-            filter_senders=pcf.get("sender_select", None),
-            filter_receivers=pcf.get("receiver_select", None),
-            filter_ligands=pcf.get("ligand_select", None),
-            filter_receptors=pcf.get("receptor_select", None),
-            filter_em=pcf.get("em_select", None),
-            filter_target_genes=pcf.get("target_select", None),
-            filter_all_molecules=pcf.get("any_role_select", None),
-            filter_umap=umap_select_a,
-            fs_bounds=fs_bounds,
-            sw_threshold=sw_threshold,
-            rnas_bounds=rnas_bounds,
-            pval_threshold=pval_threshold,
-        )
-
-        b_pathways = filter_pathways(
-            all_pathways=all_pathways,
-            group_name=sdi.get("group_b_name"),
-            filter_senders=pcf.get("sender_select", None),
-            filter_receivers=pcf.get("receiver_select", None),
-            filter_ligands=pcf.get("ligand_select", None),
-            filter_receptors=pcf.get("receptor_select", None),
-            filter_em=pcf.get("em_select", None),
-            filter_target_genes=pcf.get("target_select", None),
-            filter_all_molecules=pcf.get("any_role_select", None),
-            filter_umap=umap_select_b,
-            fs_bounds=fs_bounds,
-            sw_threshold=sw_threshold,
-            rnas_bounds=rnas_bounds,
-            pval_threshold=pval_threshold,
-        )
+        a_pathways = pf.filter("a", should_filter_umap=bool(filter_umap_a))
+        b_pathways = pf.filter("b", should_filter_umap=bool(filter_umap_b))
 
         def _get_group_figures(
             filtered_group_paths: pd.DataFrame,
@@ -463,6 +336,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
                 warn = ids and not any(x.endswith("target") for x in ids)
 
                 sankey = sankey_container(
+                    clusters,
                     ids,
                     labels,
                     source,
@@ -472,6 +346,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
                     "Sankey " + group_name,
                     group_id,
                     warn,
+                    show_celltype_legend=pcf.get("sankey_color_flow"),
                 )
 
                 graph_container = sankey
@@ -523,32 +398,15 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
             ),
         )
 
-    # @app.callback(
-    #     Output("sender-select", "value"),
-    #     Output("receiver-select", "value"),
-    #     Output("view-radio", "value"),
-    #     Input("cytoscape-a", "tapEdgeData"),
-    #     Input("cytoscape-b", "tapEdgeData"),
-    #     State("sender-select", "value"),
-    #     State("receiver-select", "value"),
-    #     State("view-radio", "value"),
-    #     prevent_initial_call=True,
-    # )
-    # def cluster_edge_callback(
-    #     cs_down_data, cs_up_data, sender_select, receiver_select, view_radio
-    # ):
-    #     data = cs_down_data or cs_up_data
-    #     if data:
-    #         return (
-    #             update_filter_value([], data["source"]),
-    #             update_filter_value([], data["target"]),
-    #             "sankey",
-    #         )
-    #     else:
-    #         return sender_select, receiver_select, view_radio
-
     def _umap_callback(relayoutData):
-        # {'xaxis.range[0]': -0.6369249007630504, 'xaxis.range[1]': 6.965720316453904, 'yaxis.range[0]': 3.7282259393124537, 'yaxis.range[1]': 9.59742380103187}
+        """
+        {
+            'xaxis.range[0]': -0.6369249007630504,
+            'xaxis.range[1]': 6.965720316453904,
+            'yaxis.range[0]': 3.7282259393124537,
+            'yaxis.range[1]': 9.59742380103187
+        }
+        """
         if relayoutData and "xaxis.range[0]" in relayoutData:
             return json.dumps(relayoutData)
         else:
@@ -661,6 +519,56 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
             em_select,
             target_select,
         )
+
+    @app.callback(
+        Output("download-dataframe-a-csv", "data"),
+        Output("download-dataframe-b-csv", "data"),
+        inputs=dict(
+            n_clicks=Input("btn_csv", "n_clicks"),
+        ),
+        state=dict(
+            sdi=store_data_inputs(state=True),
+            pcf=pathway_component_filter_inputs(state=True),
+            sliders_container_children=State("allSlidersContainer", "children"),
+        ),
+        prevent_initial_call=True,
+    )
+    def download(
+        n_clicks,
+        sdi,
+        pcf,
+        sliders_container_children,
+    ):
+
+        if n_clicks and n_clicks > 0:
+
+            slider_values = parse_slider_values_from_tree(sliders_container_children)
+            pf = PathwaysFilter(
+                all_paths=all_pathways,
+                group_a_name=sdi.get("group_a_name"),
+                group_b_name=sdi.get("group_b_name"),
+                filter_umap_a=parse_umap_filter_data(pcf.get("umap_select_a")),
+                filter_umap_b=parse_umap_filter_data(pcf.get("umap_select_b")),
+                filter_senders=pcf.get("sender_select"),
+                filter_receivers=pcf.get("receiver_select"),
+                filter_ligands=pcf.get("ligand_select"),
+                filter_receptors=pcf.get("receptor_select"),
+                filter_em=pcf.get("em_select"),
+                filter_target_genes=pcf.get("target_select"),
+                filter_all_molecules=pcf.get("any_role_select"),
+                fs_bounds=slider_values.get("final-score"),
+                sw_threshold=slider_values.get("sigweight"),
+                rnas_bounds=slider_values.get("rna-score"),
+                pval_threshold=slider_values.get("p-value"),
+            )
+
+            a_pathways = pf.filter("a", should_filter_umap=sdi.get("has_umap"))
+            b_pathways = pf.filter("b", should_filter_umap=sdi.get("has_umap"))
+
+            return (
+                dcc.send_data_frame(a_pathways.to_csv, "a.csv"),
+                dcc.send_data_frame(b_pathways.to_csv, "b.csv"),
+            )
 
     return app
 

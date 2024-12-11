@@ -18,6 +18,7 @@ cytoscape_styles = [
             "curve-style": "unbundled-bezier",
             "target-arrow-shape": "vee",
             "arrow-scale": ".75",
+            "label": "data(label)",
             "loop-sweep": "30deg",
             "width": "data(width)",
             "line-color": "data(line_color)",

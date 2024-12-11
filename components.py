@@ -3,6 +3,7 @@ from dash import html, dcc
 import dash_bootstrap_components as dbc
 import dash_cytoscape as cyto
 import plotly.graph_objects as go
+import plotly.express as px
 
 from util import *
 from stylesheet import cytoscape_styles
@@ -39,13 +40,13 @@ def hist_container(group_id, *histograms):
     )
 
 
-def umap_container(group_id, has_umap, all_pathways):
+def umap_container(group_id, group_name, has_umap, all_pathways):
     if has_umap:
         fig = px.scatter(
             all_pathways,
             x="umap1",
             y="umap2",
-            color="sigweight_bl",
+            color=f"sigweight",
             custom_data=["path"],
         )
         scatter = dcc.Graph(
@@ -82,10 +83,27 @@ def cytoscape_container(
     )
 
 
-def sankey_container(ids, labels, source, target, value, color, title, group_id, warn):
+def sankey_container(
+    clusters,
+    ids,
+    labels,
+    source,
+    target,
+    value,
+    color,
+    title,
+    group_id,
+    warn,
+    show_celltype_legend,
+):
 
     warn_style = {"display": "none"} if not warn else {}
+    celltype_legend_style = {"display": "none"} if not show_celltype_legend else {}
 
+    # pdb.set_trace()
+
+    # Drop duplicate rows based on row index
+    unique_clusters = clusters.loc[~clusters.index.duplicated(keep="first")]
     return html.Div(
         [
             html.Div(
@@ -130,6 +148,31 @@ def sankey_container(ids, labels, source, target, value, color, title, group_id,
             ),
             html.Div(
                 [
+                    html.H4("cell type"),
+                    html.Div(
+                        [
+                            dbc.Table(
+                                [
+                                    html.Tr(
+                                        [
+                                            html.Td(r[0]),
+                                            html.Td(
+                                                [],
+                                                style={
+                                                    "backgroundColor": r[1]["color"],
+                                                    "width": "20px",
+                                                },
+                                            ),
+                                        ],
+                                        className="sankeyCellTypeLegendRow",
+                                    )
+                                    for r in unique_clusters.iterrows()
+                                ]
+                            ),
+                        ],
+                        style=celltype_legend_style,
+                        className="sankeyCellTypeLegend",
+                    ),
                     dbc.Button(
                         "!",
                         id=f"sankey-warning-{group_id}",
@@ -146,7 +189,7 @@ def sankey_container(ids, labels, source, target, value, color, title, group_id,
                         target=f"sankey-warning-{group_id}",
                     ),
                 ],
-                style={"min-height": "50px", "margin": "5px"},
+                className="sankeyWarningAndLegendContainer",
             ),
         ],
         className="sankeyContainer",
@@ -332,25 +375,23 @@ def slider_container(
     def _slider(id: str, minval: int, maxval: int, step: int, value: int, label: str):
 
         tooltip_format = {
-            "placement": "bottom",
+            "placement": "left",
             "always_visible": True,
         }
 
         return html.Div(
             [
-                html.Div(
-                    dcc.Slider(
-                        min=minval,
-                        max=maxval,
-                        step=step,
-                        value=value,
-                        marks=None,
-                        tooltip=tooltip_format,
-                        id=id,
-                    ),
+                dcc.Slider(
+                    min=minval,
+                    max=maxval,
+                    step=step,
+                    value=value,
+                    marks=None,
+                    tooltip=tooltip_format,
+                    id=id,
                     className="slider",
                 ),
-                html.H4(label),
+                html.Span(label),
             ],
             className="sliderContainer",
         )
@@ -360,25 +401,23 @@ def slider_container(
     ):
 
         tooltip_format = {
-            "placement": "bottom",
+            "placement": "left",
             "always_visible": True,
         }
 
         return html.Div(
             [
-                html.Div(
-                    dcc.RangeSlider(
-                        min=minval,
-                        max=maxval,
-                        step=step,
-                        value=value,
-                        marks=None,
-                        tooltip=tooltip_format,
-                        id=id,
-                    ),
+                dcc.RangeSlider(
+                    min=minval,
+                    max=maxval,
+                    step=step,
+                    value=value,
+                    marks=None,
+                    tooltip=tooltip_format,
+                    id=id,
                     className="slider",
                 ),
-                html.H4(label),
+                html.Span(label),
             ],
             className="sliderContainer",
         )

@@ -1,8 +1,73 @@
 import numpy as np
 import pandas as pd
-from util import CN
 import matplotlib.pyplot as plt
 import pdb
+
+
+# pathway_dtypes = {
+#     "ligand": str,
+#     "receptor": str,
+#     "em": str,
+#     "target": str,
+#     "path": str,
+#     "sender.group": str,
+#     "receiver.group": str,
+#     "sigprob_5x": np.float64,
+#     "sigprob_wt": np.float64,
+#     "log2fc": np.float64,
+#     "afc": np.float64,
+#     "p_value_5x": np.float64,
+#     "p_value_wt": np.float64,
+#     "ligand_pr_log2fc": np.float64,
+#     "ligand_pr_afc": np.float64,
+#     "receptor_pr_log2fc": np.float64,
+#     "receptor_pr_afc": np.float64,
+#     "em_pr_log2fc": np.float64,
+#     "em_pr_afc": np.float64,
+#     "target_pr_log2fc": np.float64,
+#     "target_pr_afc": np.float64,
+#     "ligand_ps_log2fc": np.float64,
+#     "ligand_ps_afc": np.float64,
+#     "receptor_ps_log2fc": np.float64,
+#     "receptor_ps_afc": np.float64,
+#     "em_ps_log2fc": np.float64,
+#     "em_ps_afc": np.float64,
+#     "target_ps_log2fc": np.float64,
+#     "target_ps_afc": np.float64,
+#     "ligand_py_log2fc": np.float64,
+#     "ligand_py_afc": np.float64,
+#     "receptor_py_log2fc": np.float64,
+#     "receptor_py_afc": np.float64,
+#     "em_py_log2fc": np.float64,
+#     "em_py_afc": np.float64,
+#     "target_py_log2fc": np.float64,
+#     "target_py_afc": np.float64,
+#     "pr_up": np.int8,
+#     "pr_down": np.int8,
+#     "ps_up": np.int8,
+#     "ps_down": np.int8,
+#     "py_up": np.int8,
+#     "py_down": np.int8,
+#     "siks_r_of_em": str,
+#     "siks_r_of_t": str,
+#     "siks_em_of_t": str,
+#     "siks_r_of_em_eicondition1": str,
+#     "siks_r_of_em_eicondition2": str,
+#     "siks_r_of_t_eicondition1": str,
+#     "siks_r_of_t_eicondition2": str,
+#     "siks_em_of_t_eicondition1": str,
+#     "siks_em_of_t_eicondition2": str,
+#     "siks_score_5x": np.float64,
+#     "siks_score_wt": np.float64,
+#     "tprs": np.float64,
+#     "pprs": np.float64,
+#     "phprs_ps": np.float64,
+#     "phprs_py": np.float64,
+#     "multimodel_score": np.float64,
+#     "prs": np.float64,
+#     "id_1": str,
+#     "id_2": str,
+# }
 
 pathway_dtypes = {
     "ligand": str,
@@ -75,6 +140,22 @@ clusters_dtypes = {
 }
 
 
+def rna_score_available(full_pathways):
+    return "rna_score" in full_pathways.columns
+
+
+def final_score_available(full_pathways):
+    return "final_score" in full_pathways.columns
+
+
+def p_value_available(full_pathways):
+    return any("p_value_" in c for c in full_pathways.columns)
+
+
+def umap_available(full_pathways):
+    return ("umap1" in full_pathways.columns) and ("umap2" in full_pathways.columns)
+
+
 def load_cell_clusters(*clusters_filepaths) -> pd.DataFrame:
 
     out = pd.DataFrame()
@@ -106,10 +187,11 @@ def load_cell_clusters(*clusters_filepaths) -> pd.DataFrame:
     cell_types = out.index.unique()
 
     plt_colors = cmap(np.linspace(0, 1, len(cell_types)))
-    rgb_colors = [[int(x * 256) for x in c[0:3]] for c in plt_colors]
+
+    # 256 would not be websafe value
+    rgb_colors = [[int(x * 255) for x in c[0:3]] for c in plt_colors]
 
     colors = {t: rgb_colors[i] for i, t in enumerate(cell_types)}
-
     out["color"] = out.index.map(colors)
     out["color"] = out["color"].apply(lambda x: f"rgb({x[0]},{x[1]},{x[2]})")
 
@@ -155,10 +237,10 @@ def load_pathways(pathways_path) -> list:
 
     group_a, group_b = [c.split("_")[1] for c in sigweight_cols]
 
-    has_rna = CN.rna_score_available(paths)
-    has_final = CN.final_score_available(paths)
-    has_p_value = CN.p_value_available(paths)
-    has_umap = CN.umap_available(paths)
+    has_rna = rna_score_available(paths)
+    has_final = final_score_available(paths)
+    has_p_value = p_value_available(paths)
+    has_umap = umap_available(paths)
 
     TO_KEEP = [
         "path",

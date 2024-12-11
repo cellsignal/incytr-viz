@@ -1,3 +1,20 @@
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1; 
+}
+ 
+::-webkit-scrollbar-thumb {
+  background: #888; 
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555; 
+}
+
+
 .allSlidersContainer {
   display: flex;
   flex-direction: column;
@@ -122,11 +139,21 @@
   flex-direction: column;
 }
 
+
+.sankeyWarningAndLegendContainer {
+  min-height: 50px;
+  margin: 5px;
+  display: flex;
+  justify-content: space-between;
+
+}
+
 .sankey {
   min-height: 400px;
   width: 100%;
   flex-grow: 1;
 }
+
 
 .sankeyWarning {
   display: flex;
@@ -139,6 +166,18 @@
   font-size: 30px;
   font-weight: bold;
   height: 40px;
+}
+
+.sankeyCellTypeLegend {
+  height: 150px;
+  overflow: auto;
+  width: 50%;
+  padding: 5px 10px;
+}
+
+.sankeyCellTypeLegendRow {
+  margin: 10px;
+  padding: 10px;
 }
 
 .radioLabel {
@@ -156,11 +195,15 @@
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+  align-items: center;
   min-width: 500px;
+  max-height: 20%;
+  flex: 1 1 auto;
 }
 
 .slider {
   width: 70%;
+  padding: 12px !important;
 }
 
 .sidebar {
@@ -174,7 +217,7 @@
   margin: 5px;
   padding: 5px;
   border: 1px solid black;
-  height: 125px;
+  height: 150px;
 }
 
 /* node {
