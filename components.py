@@ -5,6 +5,7 @@ import dash_cytoscape as cyto
 import plotly.graph_objects as go
 import plotly.express as px
 
+
 from util import *
 from stylesheet import cytoscape_styles
 
@@ -46,8 +47,9 @@ def umap_container(group_id, group_name, has_umap, all_pathways):
             all_pathways,
             x="umap1",
             y="umap2",
-            color=f"sigweight",
+            color="adjlog2fc",
             custom_data=["path"],
+            color_continuous_scale=px.colors.diverging.Spectral[::-1],
         )
         scatter = dcc.Graph(
             id=f"scatter-plot-{group_id}",

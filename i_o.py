@@ -252,6 +252,7 @@ def load_pathways(pathways_path) -> list:
         "receiver",
         "umap1",
         "umap2",
+        "adjlog2fc",
         *sigweight_cols,
         *pval_cols,
         *rna_score_cols,
