@@ -353,12 +353,12 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
 
             sw_hist = hist(
                 filtered_group_paths,
-                f"sigweight_{group_name}",
+                "sigweight",
                 "sigweight",
             )
             rnas_hist = hist(filtered_group_paths, "rna_score", "rna_score")
             fs_hist = hist(filtered_group_paths, "final_score", "final_score")
-            pval_hist = hist(filtered_group_paths, f"p_value_{group_id}", "p_val")
+            pval_hist = hist(filtered_group_paths, "p_value", "p_val")
 
             return [
                 graph_container,
