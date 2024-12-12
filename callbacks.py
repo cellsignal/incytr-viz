@@ -15,7 +15,6 @@ from components import (
     sankey_container,
     hist,
     hist_container,
-    umap_container,
 )
 
 
@@ -53,10 +52,10 @@ def load_nodes(clusters: pd.DataFrame) -> list[dict]:
 
     global_min_population = clusters["population"].min() or 1
 
-    def _node_size_mapping(population: int, min_pop, scaling_factor: int = 2000) -> str:
+    def _node_size_mapping(population: int, min_pop, scaling_factor: int = 400) -> str:
         log_pop, log_min_pop = (
-            np.log2(population + 1),
-            np.log2(min_pop + 1),
+            np.log2(population * 100 + 1),
+            np.log2(min_pop * 100 + 1),
         )
 
         normalized = 1 + (log_pop - log_min_pop)
@@ -66,9 +65,9 @@ def load_nodes(clusters: pd.DataFrame) -> list[dict]:
         return str(diameter_px) + "px"
 
     # ignore clusters with population zero
-    clusters.loc[:, "population"] = clusters["population"].replace(0, np.nan)
+    clusters.loc[:, ["population"]] = clusters["population"].replace(0, np.nan)
 
-    clusters.loc[:, "diameter"] = clusters.loc[:, "population"].apply(
+    clusters.loc[:, ["diameter"]] = clusters.loc[:, "population"].apply(
         lambda x: _node_size_mapping(x, global_min_population)
     )
 
@@ -249,20 +248,6 @@ def pathway_component_filter_inputs(state=False):
 
 def apply_callbacks(app: Dash, all_pathways, clusters):
 
-    # @app.callback(
-    #     Output("modal", "is_open"),
-    #     [Input("open", "n_clicks"), Input("close", "n_clicks")],
-    #     [State("modal", "is_open")],
-    # )
-    # def toggle_modal(n1, n2, is_open):
-    #     if n1 or n2:
-    #         return not is_open
-    #     return is_open
-
-    # @app.callback()
-    # def update_histograms():
-    #     pass
-
     @app.callback(
         Output("group-a-container", "children"),
         Output("group-b-container", "children"),
@@ -346,7 +331,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
                     "Sankey " + group_name,
                     group_id,
                     warn,
-                    show_celltype_legend=pcf.get("sankey_color_flow"),
+                    color_flow=pcf.get("sankey_color_flow"),
                 )
 
                 graph_container = sankey
@@ -417,7 +402,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
         inputs=Input("scatter-plot-a", "relayoutData"),
         prevent_initial_call=True,
     )
-    def umap_callback(
+    def umap_callback_a(
         relayoutData,
     ):
         return _umap_callback(relayoutData)
@@ -427,10 +412,26 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
         inputs=Input("scatter-plot-b", "relayoutData"),
         prevent_initial_call=True,
     )
-    def umap_callback(
+    def umap_callback_b(
         relayoutData,
     ):
         return _umap_callback(relayoutData)
+
+    @app.callback(
+        Output("cytoscape-a", "stylesheet"),
+        Output("cytoscape-b", "stylesheet"),
+        inputs=Input("show-network-weights", "value"),
+        state=State("cytoscape-a", "stylesheet"),
+        prevent_initial_call=True,
+    )
+    def show_network_weights_callback(show_network_weights, stylesheet):
+
+        label_value = "data(label)" if show_network_weights else ""
+
+        for i, el in enumerate(stylesheet):
+            if el["selector"] == "edge":
+                stylesheet[i] = {**el, "style": {**el["style"], "label": label_value}}
+        return (stylesheet, stylesheet)
 
     @app.callback(
         Output("sender-select", "value"),
@@ -570,7 +571,21 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
                 dcc.send_data_frame(b_pathways.to_csv, "b.csv"),
             )
 
+    @app.callback(
+        Output("modal", "is_open"),
+        [Input("open", "n_clicks"), Input("close", "n_clicks")],
+        [State("modal", "is_open")],
+    )
+    def toggle_modal(n1, n2, is_open):
+        if n1 or n2:
+            return not is_open
+        return is_open
+
     return app
+
+    # @app.callback()
+    # def update_histograms():
+    #     pass
 
     # # @app.callback(*outputs, *inputs)
     # # def display_tooltip(node):

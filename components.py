@@ -7,7 +7,6 @@ import plotly.express as px
 
 
 from util import *
-from stylesheet import cytoscape_styles
 
 
 def hist(df, col, title, num_bins=20):
@@ -72,12 +71,38 @@ def cytoscape_container(
 
     return html.Div(
         [
-            html.H3(title),
             cyto.Cytoscape(
                 id=id,
                 elements=elements,
                 layout={"name": layout_name},
-                stylesheet=cytoscape_styles,
+                stylesheet=[
+                    {
+                        "selector": "node",
+                        "style": {
+                            "label": "data(id)",
+                            "text-wrap": "ellipsis",
+                            "text-valign": "top",
+                            "text-halign": "right",
+                            "font-size": "20px",
+                            "height": "data(height)",
+                            "width": "data(width)",
+                            "background-color": "data(background_color)",
+                        },
+                    },
+                    {
+                        "selector": "edge",
+                        "style": {
+                            "curve-style": "unbundled-bezier",
+                            "target-arrow-shape": "vee",
+                            "arrow-scale": ".75",
+                            # "label": "data(label)",
+                            "loop-sweep": "30deg",
+                            "width": "data(width)",
+                            "line-color": "data(line_color)",
+                            "target-arrow-color": "data(line_color)",
+                        },
+                    },
+                ],
                 style={"width": "800px", "height": "800px"},
             ),
         ],
@@ -96,20 +121,52 @@ def sankey_container(
     title,
     group_id,
     warn,
-    show_celltype_legend,
+    color_flow,
 ):
 
     warn_style = {"display": "none"} if not warn else {}
-    celltype_legend_style = {"display": "none"} if not show_celltype_legend else {}
-
-    # pdb.set_trace()
+    celltype_legend_style = {"display": "none"} if not color_flow else {}
 
     # Drop duplicate rows based on row index
     unique_clusters = clusters.loc[~clusters.index.duplicated(keep="first")]
+
     return html.Div(
         [
             html.Div(
-                [html.H2(title), sankey_legend_container()],
+                [
+                    sankey_legend_container(),
+                    html.Div(
+                        [
+                            html.H4("cell type"),
+                            html.Div(
+                                [
+                                    dbc.Table(
+                                        [
+                                            html.Tr(
+                                                [
+                                                    html.Td(r[0]),
+                                                    html.Td(
+                                                        [],
+                                                        style={
+                                                            "backgroundColor": r[1][
+                                                                "color"
+                                                            ],
+                                                            "width": "20px",
+                                                        },
+                                                    ),
+                                                ],
+                                                className="sankeyCellTypeLegendRow",
+                                            )
+                                            for r in unique_clusters.iterrows()
+                                        ]
+                                    ),
+                                ],
+                            ),
+                        ],
+                        className="sankeyCellTypeLegend",
+                        style=celltype_legend_style,
+                    ),
+                ],
                 className="sankeyTitleAndLegend",
             ),
             dcc.Graph(
@@ -133,48 +190,13 @@ def sankey_container(
                             customdata=color,
                             hovertemplate="Link has value %{value} $%{customdata}<extra></extra>",
                         ),
-                        # legend="legend2",
                     ),
-                    # layout=dict(
-                    #     legend2=dict(
-                    #         title=dict(text="By continent"),
-                    #         xref="container",
-                    #         yref="container",
-                    #         y=0.85,
-                    #         bgcolor="Gold",
-                    #     )
-                    # ),
                 ),
                 id=f"sankey-{group_id}",
                 className="sankey",
             ),
             html.Div(
                 [
-                    html.H4("cell type"),
-                    html.Div(
-                        [
-                            dbc.Table(
-                                [
-                                    html.Tr(
-                                        [
-                                            html.Td(r[0]),
-                                            html.Td(
-                                                [],
-                                                style={
-                                                    "backgroundColor": r[1]["color"],
-                                                    "width": "20px",
-                                                },
-                                            ),
-                                        ],
-                                        className="sankeyCellTypeLegendRow",
-                                    )
-                                    for r in unique_clusters.iterrows()
-                                ]
-                            ),
-                        ],
-                        style=celltype_legend_style,
-                        className="sankeyCellTypeLegend",
-                    ),
                     dbc.Button(
                         "!",
                         id=f"sankey-warning-{group_id}",
@@ -381,6 +403,16 @@ def slider_container(
             "always_visible": True,
         }
 
+        if label.lower() == "sigweight":
+            class_name = "slider invertedSlider"
+        else:
+            class_name = "slider"
+
+        if label.lower() in ["sigweight", "p-value"]:
+            marks = {0: "0", 1: "1"}
+        else:
+            marks = None
+
         return html.Div(
             [
                 dcc.Slider(
@@ -388,10 +420,10 @@ def slider_container(
                     max=maxval,
                     step=step,
                     value=value,
-                    marks=None,
+                    marks=marks,
                     tooltip=tooltip_format,
                     id=id,
-                    className="slider",
+                    className=class_name,
                 ),
                 html.Span(label),
             ],
@@ -407,6 +439,11 @@ def slider_container(
             "always_visible": True,
         }
 
+        if label.lower() in ["rna score", "final score"]:
+            marks = {-2: "-2", 2: "2"}
+        else:
+            marks = None
+
         return html.Div(
             [
                 dcc.RangeSlider(
@@ -414,7 +451,7 @@ def slider_container(
                     max=maxval,
                     step=step,
                     value=value,
-                    marks=None,
+                    marks=marks,
                     tooltip=tooltip_format,
                     id=id,
                     className="slider",

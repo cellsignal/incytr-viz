@@ -10,6 +10,7 @@ from util import *
 from components import *
 import i_o
 import argparse
+from modal_content import content
 
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
         has_umap,
         group_a_name,
         group_b_name,
-    ) = i_o.load_pathways(pathways_path)
+    ) = i_o.process_input_data(pathways_path)
 
     clusters = i_o.load_cell_clusters(clusters_a_filepath, clusters_b_filepath)
 
@@ -81,25 +82,56 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                     ),
                     html.Div(
                         [
-                            dbc.Checkbox(id="show-umap", label="Show UMAP"),
-                            dcc.Dropdown(
-                                id="sankey-color-flow-dropdown",
-                                placeholder="Color Sankey Flow By",
-                                multi=False,
-                                clearable=True,
-                                options=["sender", "receiver"],
-                                className="filter",
+                            html.Div(
+                                [
+                                    html.H6("Network Options"),
+                                    dbc.Checkbox(
+                                        id="show-network-weights",
+                                        label="Show Network Weights",
+                                    ),
+                                ]
+                            ),
+                            html.Div(
+                                [
+                                    html.H6("Sankey Options"),
+                                    dcc.Dropdown(
+                                        id="sankey-color-flow-dropdown",
+                                        placeholder="Color Sankey Flow By",
+                                        multi=False,
+                                        clearable=True,
+                                        options=["sender", "receiver"],
+                                        className="filter",
+                                    ),
+                                ]
                             ),
                         ],
-                        className="sidebarElement",
+                        className="sidebarElement figureSpecificOptions",
                     ),
                     filter_container(paths),
                     html.Div(
                         [
-                            html.Button("Download Current Paths", id="btn_csv"),
-                            dcc.Download(id="download-dataframe-a-csv"),
-                            dcc.Download(id="download-dataframe-b-csv"),
-                        ]
+                            dbc.Button("Help", id="open", n_clicks=0),
+                            dbc.Modal(
+                                [
+                                    dbc.ModalHeader(
+                                        dbc.ModalTitle("Incytr Data Visualization")
+                                    ),
+                                    dbc.ModalBody(content),
+                                    dbc.ModalFooter(
+                                        dbc.Button(
+                                            "Close",
+                                            id="close",
+                                            className="ms-auto",
+                                            n_clicks=0,
+                                        )
+                                    ),
+                                ],
+                                id="modal",
+                                size="xl",
+                                is_open=False,
+                            ),
+                        ],
+                        className="sidebarElement",
                     ),
                 ],
                 className="sidebar",
@@ -108,6 +140,11 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                 [
                     html.Div(
                         [
+                            html.Div(
+                                html.H3(group_a_name),
+                                className="groupTitle",
+                                style={"fontWeight": "bold"},
+                            ),
                             umap_container(
                                 group_id="a",
                                 group_name=group_a_name,
@@ -122,10 +159,11 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                                 id="group-a-container",
                                 className="groupContainer",
                             ),
-                        ]
+                        ],
                     ),
                     html.Div(
                         [
+                            html.Div(html.H3(group_b_name), className="groupTitle"),
                             umap_container(
                                 group_id="b",
                                 group_name=group_b_name,
@@ -145,6 +183,13 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                 ],
                 className="mainContainer",
                 id="main-container",
+            ),
+            html.Div(
+                [
+                    html.Button("Download Current Paths", id="btn_csv"),
+                    dcc.Download(id="download-dataframe-a-csv"),
+                    dcc.Download(id="download-dataframe-b-csv"),
+                ]
             ),
         ],
         id="app-container",
@@ -179,30 +224,4 @@ if __name__ == "__main__":
     CLUSTERS_B_FILE = args.group_b_populations
     PATHWAYS_FILE = args.pathways
 
-    app = incytr_app(PATHWAYS_FILE, CLUSTERS_A_FILE, CLUSTERS_B_FILE)
-
-    app.run(debug=True)
-
-    # html.Div(
-    #     [
-    #         dbc.Button("Help", id="open", n_clicks=0),
-    #         dbc.Modal(
-    #             [
-    #                 dbc.ModalHeader(dbc.ModalTitle("Header")),
-    #                 dbc.ModalBody("This is the content of the modal"),
-    #                 dbc.ModalFooter(
-    #                     dbc.Button(
-    #                         "Close",
-    #                         id="close",
-    #                         className="ms-auto",
-    #                         n_clicks=0,
-    #                     )
-    #                 ),
-    #             ],
-    #             id="modal",
-    #             size="lg",
-    #             is_open=False,
-    #         ),
-    #     ],
-    #     className="modalContainer",
-    # ),
+    incytr_app(PATHWAYS_FILE, CLUSTERS_A_FILE, CLUSTERS_B_FILE).run(debug=True)

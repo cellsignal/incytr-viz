@@ -2,6 +2,8 @@
   width: 10px;
 }
 
+
+
 ::-webkit-scrollbar-track {
   background: #f1f1f1; 
 }
@@ -20,6 +22,15 @@
   flex-direction: column;
   justify-content: space-between;
   min-width: 500px;
+  padding: 10px
+}
+
+.invertedSlider .rc-slider-track {
+  background-color: #e9e9e9;
+}
+
+.invertedSlider .rc-slider-rail {
+  background-color: #abe2fb;
 }
 
 .app {
@@ -61,6 +72,14 @@
 
 .filter {
   flex: 1 1 auto;
+}
+
+.groupTitle {
+  border: 1px solid black;
+  height: 75px;
+  display: flex;
+  justify-content: center;
+  align-items: end;
 }
 
 .groupContainer {
@@ -217,7 +236,14 @@
   margin: 5px;
   padding: 5px;
   border: 1px solid black;
-  height: 150px;
+  height: 175px;
+}
+
+.figureSpecificOptions {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px 10px;
 }
 
 /* node {

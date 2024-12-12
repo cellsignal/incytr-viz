@@ -198,18 +198,7 @@ def load_cell_clusters(*clusters_filepaths) -> pd.DataFrame:
     return out
 
 
-def load_pathways(pathways_path) -> list:
-
-    if ".csv" in pathways_path:
-        sep = ","
-    elif ".tsv" in pathways_path:
-        sep = "\t"
-    else:
-        raise ValueError("Pathways file must be a CSV or TSV -- check filename")
-
-    paths = pd.read_csv(
-        pathways_path, dtype=pathway_dtypes, sep=sep, compression="infer"
-    )
+def format_pathways(paths) -> pd.DataFrame:
 
     paths.columns = paths.columns.str.strip().str.lower()
 
@@ -224,6 +213,27 @@ def load_pathways(pathways_path) -> list:
         .str.cat(paths["sender"], sep="*")
         .str.cat(paths["receiver"], sep="*")
     )
+
+    return paths
+
+
+def filter_duplicates(paths):
+    duplicates = paths.duplicated()
+    print(f"{duplicates.sum()} duplicate rows found")
+
+    is_na = paths.isna().any(axis=1)
+    print(f"{is_na.sum()} rows with invalid values found in relevant columns")
+
+    invalid = duplicates | is_na
+
+    print(f"Removing {invalid.sum()} duplicate or invalid rows")
+
+    paths = paths[~invalid].reset_index(drop=True)
+
+    return paths
+
+
+def filter_pathway_data(paths):
 
     sigweight_cols = [c for c in paths.columns if "sigweight" in c]
     pval_cols = [c for c in paths.columns if "p_value" in c]
@@ -261,16 +271,22 @@ def load_pathways(pathways_path) -> list:
 
     paths = paths[[c for c in TO_KEEP if c in paths.columns]]
 
-    duplicates = paths.duplicated()
-    print(f"{duplicates.sum()} duplicate rows found")
-
-    is_na = paths.isna().any(axis=1)
-    print(f"{is_na.sum()} rows with invalid values found in relevant columns")
-
-    invalid = duplicates | is_na
-
-    print(f"Removing {invalid.sum()} duplicate or invalid rows")
-
-    paths = paths[~invalid].reset_index(drop=True)
+    paths = filter_duplicates(paths)
 
     return [paths, has_rna, has_final, has_p_value, has_umap, group_a, group_b]
+
+
+def process_input_data(pathways_path):
+
+    if ".csv" in pathways_path:
+        sep = ","
+    elif ".tsv" in pathways_path:
+        sep = "\t"
+    else:
+        raise ValueError("Pathways file must be a CSV or TSV -- check filename")
+
+    paths = pd.read_csv(
+        pathways_path, dtype=pathway_dtypes, sep=sep, compression="infer"
+    )
+
+    return filter_pathway_data(format_pathways(paths))

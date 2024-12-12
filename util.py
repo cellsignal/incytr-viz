@@ -1,10 +1,8 @@
 import pandas as pd
-import numpy as np
-from typing import Optional
-from dash.dependencies import Input, Output, State
 import json
 import pdb
 import re
+from dataclasses import dataclass, field
 
 
 def parse_umap_filter_data(umap_json_str):
@@ -46,65 +44,50 @@ def parse_slider_values_from_tree(children):
     return out
 
 
+@dataclass
 class PathwaysFilter:
 
     NAMESPACED_COLUMNS = ["sigweight", "p_value", "siks_score"]
 
-    def __init__(
-        self,
-        all_paths,
-        group_a_name,
-        group_b_name,
-        sw_threshold: float = None,
-        pval_threshold: float = None,
-        fs_bounds: list[float] = None,
-        rnas_bounds: list[float] = None,
-        filter_senders=None,
-        filter_receivers=None,
-        filter_ligands=None,
-        filter_receptors=None,
-        filter_em=None,
-        filter_target_genes=None,
-        filter_all_molecules=None,
-        filter_umap_a: dict = None,
-        filter_umap_b: dict = None,
-    ):
-        self.all_paths = all_paths
-        self.group_a_name = group_a_name
-        self.group_b_name = group_b_name
-        self.a_suffix = f"_{group_a_name}"
-        self.b_suffix = f"_{group_b_name}"
-        self.sw_threshold = sw_threshold
-        self.pval_threshold = pval_threshold
-        self.fs_bounds = fs_bounds
-        self.rnas_bounds = rnas_bounds
-        self.filter_umap_a = filter_umap_a
-        self.filter_umap_b = filter_umap_b
-        self.filter_all_molecules = filter_all_molecules
-        self.filter_senders = filter_senders
-        self.filter_receivers = filter_receivers
-        self.filter_ligands = filter_ligands
-        self.filter_receptors = filter_receptors
-        self.filter_em = filter_em
-        self.filter_target_genes = filter_target_genes
+    all_paths: pd.DataFrame
+    group_a_name: str
+    group_b_name: str
+    sw_threshold: float = 0
+    pval_threshold: float = 1
+    fs_bounds: list[float] = field(default_factory=list)
+    rnas_bounds: list[float] = field(default_factory=list)
+    filter_senders: list[str] = field(default_factory=list)
+    filter_receivers: list[str] = field(default_factory=list)
+    filter_ligands: list[str] = field(default_factory=list)
+    filter_receptors: list[str] = field(default_factory=list)
+    filter_em: list[str] = field(default_factory=list)
+    filter_target_genes: list[str] = field(default_factory=list)
+    filter_all_molecules: list[str] = field(default_factory=list)
+    filter_umap_a: dict = field(default_factory=dict)
+    filter_umap_b: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+
+        self.a_suffix = f"_{self.group_a_name}"
+        self.b_suffix = f"_{self.group_b_name}"
 
         if not self.filter_senders:
-            self.filter_senders = all_paths["sender"].unique()
+            self.filter_senders = self.all_paths["sender"].unique()
 
         if not self.filter_receivers:
-            self.filter_receivers = all_paths["receiver"].unique()
+            self.filter_receivers = self.all_paths["receiver"].unique()
 
         if not self.filter_ligands:
-            self.filter_ligands = all_paths["ligand"].unique()
+            self.filter_ligands = self.all_paths["ligand"].unique()
 
         if not self.filter_receptors:
-            self.filter_receptors = all_paths["receptor"].unique()
+            self.filter_receptors = self.all_paths["receptor"].unique()
 
         if not self.filter_em:
-            self.filter_em = all_paths["em"].unique()
+            self.filter_em = self.all_paths["em"].unique()
 
         if not self.filter_target_genes:
-            self.filter_target_genes = all_paths["target"].unique()
+            self.filter_target_genes = self.all_paths["target"].unique()
 
     def get_namespaced_columns(self):
         return [
@@ -116,9 +99,7 @@ class PathwaysFilter:
     @property
     def a_data(self):
 
-        df = self.all_paths.loc[
-            :, ~self.all_paths.columns.str.endswith(self.b_suffix)
-        ].copy()
+        df = self.all_paths.loc[:, ~self.all_paths.columns.str.endswith(self.b_suffix)]
 
         pattern = re.compile(f"_{self.group_a_name}$")
 
@@ -150,15 +131,26 @@ class PathwaysFilter:
             filter_umap = self.filter_umap_a
         elif group_id == "b":
             df = self.b_data
-            filter_umap = self.filter_umap_a
+            filter_umap = self.filter_umap_b
 
         if should_filter_umap:
-            df = df[
-                (df["umap1"] >= filter_umap["xaxis.range[0]"])
-                & (df["umap1"] <= filter_umap["xaxis.range[1]"])
-                & (df["umap2"] >= filter_umap["yaxis.range[0]"])
-                & (df["umap2"] <= filter_umap["yaxis.range[1]"])
-            ]
+
+            if filter_umap.get("xaxis.range[0]"):
+                df = df.loc[
+                    (
+                        (df["umap1"] >= filter_umap["xaxis.range[0]"])
+                        & (df["umap1"] <= filter_umap["xaxis.range[1]"])
+                    ),
+                    :,
+                ]
+            if filter_umap.get("yaxis.range[0]"):
+                df = df.loc[
+                    (
+                        (df["umap2"] >= filter_umap["yaxis.range[0]"])
+                        & (df["umap2"] <= filter_umap["yaxis.range[1]"])
+                    ),
+                    :,
+                ]
 
         df = df[df["sigweight"] >= self.sw_threshold]
 
