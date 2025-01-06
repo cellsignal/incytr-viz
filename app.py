@@ -11,6 +11,9 @@ from components import *
 import i_o
 import argparse
 from modal_content import content
+import dash_cytoscape as cyto
+
+# enable svg export
 
 
 logger = logging.getLogger(__name__)
@@ -35,6 +38,8 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
         group_a_name=group_a_name,
         group_b_name=group_b_name,
     )
+
+    cyto.load_extra_layouts()
 
     app = Dash(
         __name__,
