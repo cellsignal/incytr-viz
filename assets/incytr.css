@@ -168,7 +168,7 @@
 }
 
 .sankey {
-  min-height: 400px;
+  min-height: 200px;
   width: 100%;
   flex-grow: 1;
 }

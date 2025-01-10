@@ -198,7 +198,7 @@ def pathways_df_to_sankey(
     def _should_display_targets() -> bool:
         num_targets = len(em_t["target"].unique())
 
-        return num_targets <= 75
+        return num_targets <= 200
 
     if _should_display_targets():
         included_links.append(em_t)

@@ -124,6 +124,20 @@ def sankey_container(
     color_flow,
 ):
 
+    def get_sankey_height(num_targets, num_links):
+        if (num_links == 0) or (num_targets == 0):
+            out = 400
+        elif num_targets < 50:
+            out = num_targets * 20
+        else:
+            out = num_targets * 15
+        return f"{max(out, 400)}px"
+
+    # pdb.set_trace()
+    num_targets = len([x for x in ids if "_target" in x])
+    num_links = len(ids)
+    sankey_style = {"height": get_sankey_height(num_targets, num_links)}
+
     warn_style = {"display": "none"} if not warn else {}
     celltype_legend_style = {"display": "none"} if not color_flow else {}
 
@@ -194,6 +208,7 @@ def sankey_container(
                 ),
                 id=f"sankey-{group_id}",
                 className="sankey",
+                style=sankey_style,
             ),
             html.Div(
                 [
