@@ -72,15 +72,16 @@
 
 .filter {
   flex: 1 1 auto;
-  max-width: 150px;
+  max-width: 200px;
 }
 
 .groupTitle {
   border: 1px solid black;
   height: 75px;
   display: flex;
-  justify-content: center;
-  align-items: end;
+  justify-content: space-between;
+  font-weight: bold;
+  padding: 5px;
 }
 
 .groupContainer {

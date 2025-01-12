@@ -96,7 +96,7 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                                         placeholder="Color Sankey Flow By",
                                         multi=False,
                                         clearable=True,
-                                        options=["sender", "receiver"],
+                                        options=["sender", "receiver", "kinase"],
                                         className="filter",
                                     ),
                                 ]
@@ -126,6 +126,13 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                                 id="modal",
                                 size="xl",
                                 is_open=False,
+                            ),
+                            html.Div(
+                                [
+                                    html.Button("Download Current Paths", id="btn_csv"),
+                                    dcc.Download(id="download-dataframe-a-csv"),
+                                    dcc.Download(id="download-dataframe-b-csv"),
+                                ]
                             ),
                         ],
                         className="sidebarElement",
@@ -164,16 +171,31 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                     html.Div(
                         [
                             html.Div(
-                                html.H3(pi.group_a),
+                                [
+                                    html.H3(
+                                        pi.group_a,
+                                        style={"textTransform": "uppercase"},
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.Span("Pathways Displayed: "),
+                                            html.Span(0, id="pathways-count-a"),
+                                        ],
+                                        style={
+                                            "width": "20%",
+                                            "display": "flex",
+                                            "justify-content": "space-between",
+                                        },
+                                    ),
+                                ],
                                 className="groupTitle",
-                                style={"fontWeight": "bold"},
                             ),
-                            # umap_container(
-                            #     group_id="a",
-                            #     group_name=group_a_name,
-                            #     has_umap=has_umap,
-                            #     all_pathways=pf.a_data,
-                            # ),
+                            umap_container(
+                                group_id="a",
+                                group_name=pi.group_a,
+                                has_umap=pi.has_umap,
+                                all_pathways=pf.a_data,
+                            ),
                             html.Div(
                                 [
                                     html.Div([], id="hist-a-container"),
@@ -186,13 +208,32 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                     ),
                     html.Div(
                         [
-                            html.Div(html.H3(pi.group_b), className="groupTitle"),
-                            # umap_container(
-                            #     group_id="b",
-                            #     group_name=group_b_name,
-                            #     has_umap=has_umap,
-                            #     all_pathways=pf.b_data,
-                            # ),
+                            html.Div(
+                                [
+                                    html.H3(
+                                        pi.group_b,
+                                        style={"textTransform": "uppercase"},
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.Span("Pathways Displayed: "),
+                                            html.Span(0, id="pathways-count-b"),
+                                        ],
+                                        style={
+                                            "width": "20%",
+                                            "display": "flex",
+                                            "justify-content": "space-between",
+                                        },
+                                    ),
+                                ],
+                                className="groupTitle",
+                            ),
+                            umap_container(
+                                group_id="b",
+                                group_name=pi.group_b,
+                                has_umap=pi.has_umap,
+                                all_pathways=pf.b_data,
+                            ),
                             html.Div(
                                 [
                                     html.Div([], id="hist-b-container"),
@@ -206,13 +247,6 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                 ],
                 className="mainContainer",
                 id="main-container",
-            ),
-            html.Div(
-                [
-                    html.Button("Download Current Paths", id="btn_csv"),
-                    dcc.Download(id="download-dataframe-a-csv"),
-                    dcc.Download(id="download-dataframe-b-csv"),
-                ]
             ),
         ],
         id="app-container",

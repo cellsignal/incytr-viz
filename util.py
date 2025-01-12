@@ -11,7 +11,7 @@ def parse_umap_filter_data(umap_json_str):
         out = json.loads(umap_json_str)
         if out.get("xaxis.range[0]"):
             return out
-    return None
+    return {}
 
 
 def parse_slider_values_from_tree(children):
@@ -57,6 +57,7 @@ class PathwaysFilter:
     pval_threshold: float = 1
     fs_bounds: list[float] = field(default_factory=list)
     rnas_bounds: list[float] = field(default_factory=list)
+    filter_kinase: str = ""
     filter_senders: list[str] = field(default_factory=list)
     filter_receivers: list[str] = field(default_factory=list)
     filter_ligands: list[str] = field(default_factory=list)
@@ -186,6 +187,20 @@ class PathwaysFilter:
                 | df["em"].isin(self.filter_all_molecules)
                 | df["target"].isin(self.filter_all_molecules)
             ]
+
+        if self.filter_kinase:
+            val = self.filter_kinase
+            if not all(
+                x in df.columns
+                for x in ["kinase_r_of_em", "kinase_r_of_t", "kinase_em_of_t"]
+            ):
+                df = pd.DataFrame()
+            elif val == "r_em":
+                df = df[~df["kinase_r_of_em"].isna()]
+            elif val == "r_t":
+                df = df[~df["kinase_r_of_t"].isna()]
+            elif val == "em_t":
+                df = df[~df["kinase_em_of_t"].isna()]
 
         return df
 

@@ -425,6 +425,14 @@ def filter_container(pathways):
                         className="filter",
                     ),
                     dcc.Dropdown(
+                        id="kinase-select",
+                        placeholder="Filter Kinase Component",
+                        multi=False,
+                        clearable=True,
+                        options=["r_em", "r_t", "em_t"],
+                        className="filter",
+                    ),
+                    dcc.Dropdown(
                         id="umap-select-a",
                         disabled=False,
                         options=[],

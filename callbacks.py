@@ -54,15 +54,16 @@ def load_nodes(
 
     def calculate_node_diameters(clusters, node_scale_factor):
 
+        clusters = clusters.copy()
         if (clusters["population"] <= 0).all():
 
             clusters.loc[:, "node_diameter"] = 0
             return clusters
 
         min_pop = clusters[clusters["population"] > 0]["population"].min()
-        clusters.loc[:, "pop_min_ratio"] = clusters["population"] / min_pop
+        clusters.loc[:, "pop_min_ratio"] = clusters.loc[:, "population"] / min_pop
         clusters.loc[:, "normalized_ratio"] = (
-            clusters["pop_min_ratio"] * node_scale_factor
+            clusters.loc[:, "pop_min_ratio"] * node_scale_factor
         )
         clusters.loc[:, "node_area"] = np.round(
             400 * (log_base(clusters["normalized_ratio"], node_scale_factor)),
@@ -250,6 +251,7 @@ def pathway_component_filter_inputs(state=False):
         sankey_color_flow=klass("sankey-color-flow-dropdown", "value"),
         umap_select_a=klass("umap-select-a", "value"),
         umap_select_b=klass("umap-select-b", "value"),
+        kinase_select=klass("kinase-select", "value"),
     )
 
 
@@ -266,6 +268,8 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
     @app.callback(
         Output("group-a-container", "children"),
         Output("group-b-container", "children"),
+        Output("pathways-count-a", "children"),
+        Output("pathways-count-b", "children"),
         inputs=dict(
             sdi=store_data_inputs(),
             pcf=pathway_component_filter_inputs(),
@@ -301,6 +305,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
             filter_receivers=pcf.get("receiver_select"),
             filter_ligands=pcf.get("ligand_select"),
             filter_receptors=pcf.get("receptor_select"),
+            filter_kinase=pcf.get("kinase_select"),
             filter_em=pcf.get("em_select"),
             filter_target_genes=pcf.get("target_select"),
             filter_all_molecules=pcf.get("any_role_select"),
@@ -403,6 +408,8 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
                 group_name=sdi.get("group_b_name"),
                 group_id="b",
             ),
+            len(a_pathways),
+            len(b_pathways),
         )
 
     def _umap_callback(relayoutData):
@@ -589,8 +596,12 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
             b_pathways = pf.filter("b", should_filter_umap=sdi.get("has_umap"))
 
             return (
-                dcc.send_data_frame(a_pathways.to_csv, "a.csv"),
-                dcc.send_data_frame(b_pathways.to_csv, "b.csv"),
+                dcc.send_data_frame(
+                    a_pathways.to_csv, f"{sdi.get('group_a_name')}.csv"
+                ),
+                dcc.send_data_frame(
+                    b_pathways.to_csv, f"{sdi.get('group_b_name')}.csv"
+                ),
             )
 
     @app.callback(

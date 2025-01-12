@@ -5,21 +5,6 @@ import pdb
 import re
 
 
-class PathwayInput:
-    def __init__(self, raw, group_a, group_b):
-        self.raw = raw
-        self.group_a = group_a
-        self.group_b = group_b
-        self.paths = filter_pathways(self.raw, self.group_a, self.group_b)
-        self.has_rna = "rna_score" in self.paths.columns
-        self.has_final = "final_score" in self.paths.columns
-        self.has_p_value = all(
-            x in self.paths.columns
-            for x in ["p_value_" + group_a, "p_value_" + group_b]
-        )
-        self.has_umap = all(x in self.paths.columns for x in ["umap1", "umap2"])
-
-
 pathway_dtypes = {
     "ligand": str,
     "receptor": str,
@@ -91,15 +76,24 @@ clusters_dtypes = {
 }
 
 
+class PathwayInput:
+    def __init__(self, raw):
+        self.raw = raw
+        self.paths, self.group_a, self.group_b = validate_pathways(self.raw)
+        self.has_rna = "rna_score" in self.paths.columns
+        self.has_final = "final_score" in self.paths.columns
+        self.has_p_value = all(
+            x in self.paths.columns
+            for x in ["p_value_" + self.group_a, "p_value_" + self.group_b]
+        )
+        self.has_umap = all(x in self.paths.columns for x in ["umap1", "umap2"])
+
+
 def validate_pathways(raw):
 
     raw.columns = raw.columns.str.strip().str.lower()
 
     required_fixed = [
-        "ligand",
-        "receptor",
-        "em",
-        "target",
         "path",
         "sender",
         "receiver",
@@ -125,8 +119,7 @@ def validate_pathways(raw):
             "Expected exactly 2 sigweight columns in input data (check input)"
         )
 
-    print("sigweight columns found: ")
-    print(" ".join(sigweight_cols))
+    print("sigweight columns found: ", " ".join(sigweight_cols))
 
     print("parsing sigweight columns for condition names")
     matches = [re.match(r"sigweight_(.+)", x) for x in sigweight_cols]
@@ -141,8 +134,78 @@ def validate_pathways(raw):
     print("condition 1: ", group_a)
     print("condition 2: ", group_b)
 
-    return group_a, group_b
-    # assert
+    TO_KEEP = [
+        "path",
+        "ligand",
+        "receptor",
+        "em",
+        "target",
+        "sender",
+        "receiver",
+        "adjlog2fc",
+        "rna_score",
+        "final_score",
+        "kinase_r_of_em",
+        "kinase_r_of_t",
+        "kinase_em_of_t",
+        "umap1",
+        "umap2",
+        *sigweight_cols,
+        *["p_value_" + group_a, "p_value_" + group_b],
+    ]
+
+    paths = raw[[c for c in TO_KEEP if c in raw.columns]]
+
+    num_invalid = 0
+
+    incomplete_paths = paths["path"].str.strip().str.split("*").str.len() != 4
+
+    print(
+        f"{incomplete_paths.sum()} rows with invalid pathway format found. Expecting form L*R*EM*T"
+    )
+    num_invalid += len(incomplete_paths)
+
+    paths = raw.loc[~incomplete_paths].copy()
+
+    paths["ligand"] = paths["path"].str.split("*").str[0].str.strip()
+    paths["receptor"] = paths["path"].str.split("*").str[1].str.strip()
+    paths["em"] = paths["path"].str.split("*").str[2].str.strip()
+    paths["target"] = paths["path"].str.split("*").str[3].str.strip()
+    paths["sender"] = paths["sender"].str.strip().str.lower()
+    paths["receiver"] = paths["receiver"].str.strip().str.lower()
+    paths["path"] = (
+        paths["path"]
+        .str.cat(paths["sender"], sep="*")
+        .str.cat(paths["receiver"], sep="*")
+    )
+
+    duplicates = paths.duplicated()
+    print(f"{duplicates.sum()} duplicate rows found")
+
+    is_na = paths[
+        paths[
+            [
+                "path",
+                "ligand",
+                "receptor",
+                "em",
+                "target",
+                "sender",
+                "receiver",
+                "adjlog2fc",
+                *sigweight_cols,
+            ]
+        ].isna()
+    ].any(axis=1)
+
+    print(f"{is_na.sum()} rows with invalid values found in required columns")
+
+    invalid = duplicates | is_na
+
+    print(f"Removing {invalid.sum()} duplicate or invalid rows")
+    paths = paths[~invalid].reset_index(drop=True)
+
+    return paths, group_a, group_b
 
 
 def load_cell_clusters(*clusters_filepaths) -> pd.DataFrame:
@@ -191,76 +254,6 @@ def load_cell_clusters(*clusters_filepaths) -> pd.DataFrame:
     return out
 
 
-def filter_pathways(paths: pd.DataFrame, group_a, group_b):
-
-    paths.columns = paths.columns.str.strip().str.lower()
-
-    paths["ligand"] = paths["path"].str.split("*").str[0].str.strip()
-    paths["receptor"] = paths["path"].str.split("*").str[1].str.strip()
-    paths["em"] = paths["path"].str.split("*").str[2].str.strip()
-    paths["target"] = paths["path"].str.split("*").str[3].str.strip()
-    paths["sender"] = paths["sender"].str.strip().str.lower()
-    paths["receiver"] = paths["receiver"].str.strip().str.lower()
-    paths["path"] = (
-        paths["path"]
-        .str.cat(paths["sender"], sep="*")
-        .str.cat(paths["receiver"], sep="*")
-    )
-
-    sigweight_cols = ["sigweight_" + group_a, "sigweight_" + group_b]
-    pval_cols = ["p_value_" + group_a, "p_value_" + group_b]
-
-    TO_KEEP = [
-        "path",
-        "ligand",
-        "receptor",
-        "em",
-        "target",
-        "sender",
-        "receiver",
-        "adjlog2fc",
-        "rna_score",
-        "final_score",
-        "kinase_r_of_em",
-        "kinase_r_of_t",
-        "kinase_em_of_t",
-        "umap1",
-        "umap2",
-        *sigweight_cols,
-        *pval_cols,
-    ]
-
-    paths = paths[[c for c in TO_KEEP if c in paths.columns]]
-
-    duplicates = paths.duplicated()
-    print(f"{duplicates.sum()} duplicate rows found")
-
-    is_na = paths[
-        paths[
-            [
-                "path",
-                "ligand",
-                "receptor",
-                "em",
-                "target",
-                "sender",
-                "receiver",
-                "adjlog2fc",
-                *sigweight_cols,
-            ]
-        ].isna()
-    ].any(axis=1)
-
-    print(f"{is_na.sum()} rows with invalid values found in required columns")
-
-    invalid = duplicates | is_na
-
-    print(f"Removing {invalid.sum()} duplicate or invalid rows")
-    paths = paths[~invalid].reset_index(drop=True)
-
-    return paths
-
-
 def process_input_data(pathways_path):
 
     if ".csv" in pathways_path:
@@ -278,7 +271,4 @@ def process_input_data(pathways_path):
         low_memory=False,
     )
 
-    group_a, group_b = validate_pathways(raw)
-
-    pi = PathwayInput(raw, group_a, group_b)
-    return pi
+    return PathwayInput(raw)
