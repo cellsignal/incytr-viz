@@ -25,10 +25,11 @@ dependencies = [
   "plotly",
   "matplotlib",
 ]
+scripts = {"incytr-viz" = "incytr_viz.__main__:main" }
 
 
 [project.urls]
-Homepage = "https://github.com/cellsignal/incytr-viz"
+"Source code" = "https://github.com/cellsignal/incytr-viz"
 
 
 [tool.setuptools.packages.find]

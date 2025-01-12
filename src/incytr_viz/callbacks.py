@@ -10,14 +10,14 @@ import matplotlib.pyplot as plt
 from dash import Dash, ALL, dcc, ctx
 from dash.dependencies import Input, Output, State
 
-from components import (
+from incytr_viz.components import (
     cytoscape_container,
     sankey_container,
     hist_container,
 )
 
 
-from util import (
+from incytr_viz.util import (
     edge_width_map,
     update_filter_value,
     parse_slider_values_from_tree,
@@ -615,24 +615,3 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
         return is_open
 
     return app
-
-    # # @app.callback(*outputs, *inputs)
-    # # def display_tooltip(node):
-    # #     if node:
-
-    # #         id = node["data"]["id"]
-    # #         title = node["data"]["label"]
-    # #         size = node["data"]["cluster_size"]
-    # #         sum_outward = sum(
-    # #             [e["weight"] for e in node["edgesData"] if e["source"] == id]
-    # #         )
-    # #         sum_inward = sum(
-    # #             [e["weight"] for e in node["edgesData"] if e["target"] == id]
-    # #         )
-
-    # #         return [
-    # #             html.H4(f"{title}"),
-    # #             html.P(f"Node Size: {size}"),
-    # #             html.P(f"Sum of Outward Edges: {sum_outward}"),
-    # #             html.P(f"Sum of Inward Edges: {sum_inward}"),
-    # #         ]

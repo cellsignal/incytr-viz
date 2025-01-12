@@ -8,7 +8,7 @@ from plotly.subplots import make_subplots
 import plotly.express as px
 
 
-from util import *
+from incytr_viz.util import *
 
 
 def hist_container(group_id, filtered_group_paths):
@@ -117,6 +117,8 @@ def cytoscape_container(
                 id=id,
                 elements=elements,
                 layout={"name": layout_name},
+                minZoom=0.1,
+                maxZoom=10,
                 stylesheet=[
                     {
                         "selector": "node",

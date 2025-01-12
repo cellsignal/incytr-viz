@@ -1,21 +1,19 @@
-import argparse
-
 import dash_bootstrap_components as dbc
 import dash_cytoscape as cyto
-import i_o
-from callbacks import apply_callbacks
-from components import *
-from components import slider, umap_container
+import incytr_viz.i_o as i_o
+from incytr_viz.callbacks import apply_callbacks
+from incytr_viz.components import *
+from incytr_viz.components import slider, umap_container
 from dash import Dash, dcc, html
-from modal_content import content
-from util import *
+from incytr_viz.modal_content import content
+from incytr_viz.util import *
 
 
-def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
+def create_app(pathways, clusters_a, clusters_b):
 
-    clusters = i_o.load_cell_clusters(clusters_a_filepath, clusters_b_filepath)
+    clusters = i_o.load_cell_clusters(clusters_a, clusters_b)
 
-    pi = i_o.process_input_data(pathways_path)
+    pi = i_o.process_input_data(pathways)
 
     pf = PathwaysFilter(
         all_paths=pi.paths,
@@ -27,7 +25,6 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
 
     app = Dash(
         __name__,
-        serve_locally=True,
         suppress_callback_exceptions=True,
         external_stylesheets=[dbc.themes.BOOTSTRAP],
     )
@@ -245,33 +242,4 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
         className="app",
     )
 
-    return apply_callbacks(app, pi.paths, clusters)
-
-
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(description="Run the InCytr visualization app.")
-    parser.add_argument(
-        "--group_a_populations",
-        type=str,
-        required=True,
-        help="Path to clusters A CSV file",
-    )
-    parser.add_argument(
-        "--group_b_populations",
-        type=str,
-        required=True,
-        help="Path to clusters B CSV file",
-    )
-    parser.add_argument(
-        "--pathways", type=str, required=True, help="Path to pathways CSV file"
-    )
-
-    args = parser.parse_args()
-
-    CLUSTERS_A_FILE = args.group_a_populations
-    CLUSTERS_B_FILE = args.group_b_populations
-    PATHWAYS_FILE = args.pathways
-
-    print(ascii())
-    incytr_app(PATHWAYS_FILE, CLUSTERS_A_FILE, CLUSTERS_B_FILE).run(debug=True)
+    return apply_callbacks(app, pi.paths, clusters).server
