@@ -1,6 +1,8 @@
-local
 .vscode
-data/**
+data
+local
+build
 **/__pycache__
 **/.env
-!.gitkeep
+!**/.gitkeep
+**/*.egg-info

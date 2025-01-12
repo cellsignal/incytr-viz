@@ -1,22 +1,14 @@
-import logging
-import dash_bootstrap_components as dbc
-from dash import Dash, html, dcc
-import pdb
-
-from callbacks import apply_callbacks
-from components import umap_container, slider
-
-from util import *
-from components import *
-import i_o
 import argparse
-from modal_content import content
+
+import dash_bootstrap_components as dbc
 import dash_cytoscape as cyto
-
-# enable svg export
-
-
-logger = logging.getLogger(__name__)
+import i_o
+from callbacks import apply_callbacks
+from components import *
+from components import slider, umap_container
+from dash import Dash, dcc, html
+from modal_content import content
+from util import *
 
 
 def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):

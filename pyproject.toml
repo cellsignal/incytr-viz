@@ -1,0 +1,40 @@
+[build-system]
+requires = [ "setuptools>=61.0",]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "incytr_viz"
+version="0.0.1"
+authors = [
+  { name="Ian Cossentino", email="ian.cossentino@cellsignal.com" },
+]
+description = "A browser-based tool to visualize and interact with signaling pathways returned by the Incytr program."  
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  "dash",
+  "dash_cytoscape==0.3.0",
+  "dash-bootstrap-components==1.6.0",
+  "pandas",
+  "plotly",
+  "matplotlib",
+]
+
+
+[project.urls]
+Homepage = "https://github.com/cellsignal/incytr-viz"
+
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+
+[tool.setuptools.package-data]
+mypkg = ["incytr_viz/assets/incytr.css"]
+
