@@ -72,6 +72,7 @@
 
 .filter {
   flex: 1 1 auto;
+  max-width: 150px;
 }
 
 .groupTitle {
@@ -236,7 +237,7 @@
   margin: 5px;
   padding: 5px;
   border: 1px solid black;
-  height: 175px;
+  min-height: 175px;
 }
 
 .figureSpecificOptions {

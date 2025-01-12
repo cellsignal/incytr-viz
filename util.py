@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import json
 import pdb
 import re
@@ -200,9 +201,13 @@ def clean_clusters(df) -> pd.DataFrame:
     return df
 
 
-def edge_width_map(pathways: int, global_max_paths: int, max_width_px: int = 10):
+def edge_width_map(
+    pathways: int, global_max_paths: int, edge_scale_factor, max_width_px: int = 10
+):
     floor = 2
-    pixels = max((pathways / global_max_paths * max_width_px), floor)
+    pixels = (
+        max((pathways / global_max_paths * max_width_px), floor) ** edge_scale_factor
+    )
     return str(pixels) + "px"
 
 
@@ -215,3 +220,30 @@ def get_node_colors(ids):
         "target": "purple",
     }
     return [colors[x.split("_")[1]] for x in ids]
+
+
+def log_base(x, base):
+    """
+    Calculates the logarithm of x to the given base.
+
+    Args:
+      x: The number for which to calculate the logarithm.
+      base: The base of the logarithm.
+
+    Returns:
+      The logarithm of x to the base 'base'.
+    """
+    return np.log(x) / np.log(base)
+
+
+def ascii():
+    return """
+  _____                      _          __      __ _      
+ |_   _|                    | |         \ \    / /(_)     
+   | |   _ __    ___  _   _ | |_  _ __   \ \  / /  _  ____
+   | |  | '_ \  / __|| | | || __|| '__|   \ \/ /  | ||_  /
+  _| |_ | | | || (__ | |_| || |_ | |       \  /   | | / / 
+ |_____||_| |_| \___| \__, | \__||_|        \/    |_|/___|
+                       __/ |                              
+                      |___/                               
+"""

@@ -2,72 +2,23 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import pdb
+import re
 
 
-# pathway_dtypes = {
-#     "ligand": str,
-#     "receptor": str,
-#     "em": str,
-#     "target": str,
-#     "path": str,
-#     "sender.group": str,
-#     "receiver.group": str,
-#     "sigprob_5x": np.float64,
-#     "sigprob_wt": np.float64,
-#     "log2fc": np.float64,
-#     "afc": np.float64,
-#     "p_value_5x": np.float64,
-#     "p_value_wt": np.float64,
-#     "ligand_pr_log2fc": np.float64,
-#     "ligand_pr_afc": np.float64,
-#     "receptor_pr_log2fc": np.float64,
-#     "receptor_pr_afc": np.float64,
-#     "em_pr_log2fc": np.float64,
-#     "em_pr_afc": np.float64,
-#     "target_pr_log2fc": np.float64,
-#     "target_pr_afc": np.float64,
-#     "ligand_ps_log2fc": np.float64,
-#     "ligand_ps_afc": np.float64,
-#     "receptor_ps_log2fc": np.float64,
-#     "receptor_ps_afc": np.float64,
-#     "em_ps_log2fc": np.float64,
-#     "em_ps_afc": np.float64,
-#     "target_ps_log2fc": np.float64,
-#     "target_ps_afc": np.float64,
-#     "ligand_py_log2fc": np.float64,
-#     "ligand_py_afc": np.float64,
-#     "receptor_py_log2fc": np.float64,
-#     "receptor_py_afc": np.float64,
-#     "em_py_log2fc": np.float64,
-#     "em_py_afc": np.float64,
-#     "target_py_log2fc": np.float64,
-#     "target_py_afc": np.float64,
-#     "pr_up": np.int8,
-#     "pr_down": np.int8,
-#     "ps_up": np.int8,
-#     "ps_down": np.int8,
-#     "py_up": np.int8,
-#     "py_down": np.int8,
-#     "siks_r_of_em": str,
-#     "siks_r_of_t": str,
-#     "siks_em_of_t": str,
-#     "siks_r_of_em_eicondition1": str,
-#     "siks_r_of_em_eicondition2": str,
-#     "siks_r_of_t_eicondition1": str,
-#     "siks_r_of_t_eicondition2": str,
-#     "siks_em_of_t_eicondition1": str,
-#     "siks_em_of_t_eicondition2": str,
-#     "siks_score_5x": np.float64,
-#     "siks_score_wt": np.float64,
-#     "tprs": np.float64,
-#     "pprs": np.float64,
-#     "phprs_ps": np.float64,
-#     "phprs_py": np.float64,
-#     "multimodel_score": np.float64,
-#     "prs": np.float64,
-#     "id_1": str,
-#     "id_2": str,
-# }
+class PathwayInput:
+    def __init__(self, raw, group_a, group_b):
+        self.raw = raw
+        self.group_a = group_a
+        self.group_b = group_b
+        self.paths = filter_pathways(self.raw, self.group_a, self.group_b)
+        self.has_rna = "rna_score" in self.paths.columns
+        self.has_final = "final_score" in self.paths.columns
+        self.has_p_value = all(
+            x in self.paths.columns
+            for x in ["p_value_" + group_a, "p_value_" + group_b]
+        )
+        self.has_umap = all(x in self.paths.columns for x in ["umap1", "umap2"])
+
 
 pathway_dtypes = {
     "ligand": str,
@@ -136,24 +87,62 @@ pathway_dtypes = {
 
 clusters_dtypes = {
     "type": str,
-    "population": np.float64,
+    "population": np.float64,  # fraction of total
 }
 
 
-def rna_score_available(full_pathways):
-    return "rna_score" in full_pathways.columns
+def validate_pathways(raw):
 
+    raw.columns = raw.columns.str.strip().str.lower()
 
-def final_score_available(full_pathways):
-    return "final_score" in full_pathways.columns
+    required_fixed = [
+        "ligand",
+        "receptor",
+        "em",
+        "target",
+        "path",
+        "sender",
+        "receiver",
+        "adjlog2fc",
+    ]
 
+    print("scanning input for required columns: ")
+    print(" ".join(required_fixed))
 
-def p_value_available(full_pathways):
-    return any("p_value_" in c for c in full_pathways.columns)
+    missing = [c for c in required_fixed if c not in raw.columns]
 
+    if missing:
+        raise ValueError(
+            f"Could not detect one or more required columns (check input): {missing}"
+        )
 
-def umap_available(full_pathways):
-    return ("umap1" in full_pathways.columns) and ("umap2" in full_pathways.columns)
+    print("scanning input for condition-specific columns: ")
+
+    sigweight_cols = [c for c in raw.columns if "sigweight" in c]
+
+    if not len(sigweight_cols) == 2:
+        raise ValueError(
+            "Expected exactly 2 sigweight columns in input data (check input)"
+        )
+
+    print("sigweight columns found: ")
+    print(" ".join(sigweight_cols))
+
+    print("parsing sigweight columns for condition names")
+    matches = [re.match(r"sigweight_(.+)", x) for x in sigweight_cols]
+
+    if not all(matches):
+        raise ValueError(
+            "Sigweight columns not in the expected format (sigweight_<groupname>)"
+        )
+
+    group_a, group_b = [m.group(1) for m in matches]
+
+    print("condition 1: ", group_a)
+    print("condition 2: ", group_b)
+
+    return group_a, group_b
+    # assert
 
 
 def load_cell_clusters(*clusters_filepaths) -> pd.DataFrame:
@@ -174,10 +163,14 @@ def load_cell_clusters(*clusters_filepaths) -> pd.DataFrame:
 
         df = df[list(clusters_dtypes.keys())].reset_index(drop=True)
 
-        df["population"] = df["population"].fillna(0)
         df["type"] = df["type"].str.strip().str.lower()
         df["group"] = group_name
         df = df.set_index("type")
+
+        df["population"] = df["population"].fillna(0)
+        df["pop_min_ratio"] = df["population"] / (
+            df[df["population"] > 0]["population"].min()
+        )
 
         out = pd.concat([out, df], axis=0)
 
@@ -198,7 +191,7 @@ def load_cell_clusters(*clusters_filepaths) -> pd.DataFrame:
     return out
 
 
-def format_pathways(paths) -> pd.DataFrame:
+def filter_pathways(paths: pd.DataFrame, group_a, group_b):
 
     paths.columns = paths.columns.str.strip().str.lower()
 
@@ -214,43 +207,8 @@ def format_pathways(paths) -> pd.DataFrame:
         .str.cat(paths["receiver"], sep="*")
     )
 
-    return paths
-
-
-def filter_duplicates(paths):
-    duplicates = paths.duplicated()
-    print(f"{duplicates.sum()} duplicate rows found")
-
-    is_na = paths.isna().any(axis=1)
-    print(f"{is_na.sum()} rows with invalid values found in relevant columns")
-
-    invalid = duplicates | is_na
-
-    print(f"Removing {invalid.sum()} duplicate or invalid rows")
-
-    paths = paths[~invalid].reset_index(drop=True)
-
-    return paths
-
-
-def filter_pathway_data(paths):
-
-    sigweight_cols = [c for c in paths.columns if "sigweight" in c]
-    pval_cols = [c for c in paths.columns if "p_value" in c]
-    rna_score_cols = [c for c in paths.columns if "rna_score" in c]
-    final_score_cols = [c for c in paths.columns if "final_score" in c]
-
-    if (not len(sigweight_cols) == 2) or (not len(pval_cols) in [0, 2]):
-        raise ValueError(
-            "Ambiguous input. Are there exactly 2 SigWeight/P-Value columns?"
-        )
-
-    group_a, group_b = [c.split("_")[1] for c in sigweight_cols]
-
-    has_rna = rna_score_available(paths)
-    has_final = final_score_available(paths)
-    has_p_value = p_value_available(paths)
-    has_umap = umap_available(paths)
+    sigweight_cols = ["sigweight_" + group_a, "sigweight_" + group_b]
+    pval_cols = ["p_value_" + group_a, "p_value_" + group_b]
 
     TO_KEEP = [
         "path",
@@ -260,20 +218,47 @@ def filter_pathway_data(paths):
         "target",
         "sender",
         "receiver",
+        "adjlog2fc",
+        "rna_score",
+        "final_score",
+        "kinase_r_of_em",
+        "kinase_r_of_t",
+        "kinase_em_of_t",
         "umap1",
         "umap2",
-        "adjlog2fc",
         *sigweight_cols,
         *pval_cols,
-        *rna_score_cols,
-        *final_score_cols,
     ]
 
     paths = paths[[c for c in TO_KEEP if c in paths.columns]]
 
-    paths = filter_duplicates(paths)
+    duplicates = paths.duplicated()
+    print(f"{duplicates.sum()} duplicate rows found")
 
-    return [paths, has_rna, has_final, has_p_value, has_umap, group_a, group_b]
+    is_na = paths[
+        paths[
+            [
+                "path",
+                "ligand",
+                "receptor",
+                "em",
+                "target",
+                "sender",
+                "receiver",
+                "adjlog2fc",
+                *sigweight_cols,
+            ]
+        ].isna()
+    ].any(axis=1)
+
+    print(f"{is_na.sum()} rows with invalid values found in required columns")
+
+    invalid = duplicates | is_na
+
+    print(f"Removing {invalid.sum()} duplicate or invalid rows")
+    paths = paths[~invalid].reset_index(drop=True)
+
+    return paths
 
 
 def process_input_data(pathways_path):
@@ -285,8 +270,15 @@ def process_input_data(pathways_path):
     else:
         raise ValueError("Pathways file must be a CSV or TSV -- check filename")
 
-    paths = pd.read_csv(
-        pathways_path, dtype=pathway_dtypes, sep=sep, compression="infer"
+    raw = pd.read_csv(
+        pathways_path,
+        dtype=pathway_dtypes,
+        sep=sep,
+        compression="infer",
+        low_memory=False,
     )
 
-    return filter_pathway_data(format_pathways(paths))
+    group_a, group_b = validate_pathways(raw)
+
+    pi = PathwayInput(raw, group_a, group_b)
+    return pi

@@ -13,7 +13,6 @@ from dash.dependencies import Input, Output, State
 from components import (
     cytoscape_container,
     sankey_container,
-    hist,
     hist_container,
 )
 
@@ -23,11 +22,14 @@ from util import (
     update_filter_value,
     parse_slider_values_from_tree,
     parse_umap_filter_data,
+    log_base,
     PathwaysFilter,
 )
 
 
-def load_nodes(clusters: pd.DataFrame) -> list[dict]:
+def load_nodes(
+    clusters: pd.DataFrame, node_scale_factor, edge_size_factor
+) -> list[dict]:
     """
     Generate cytoscape nodes from clusters file
 
@@ -50,26 +52,28 @@ def load_nodes(clusters: pd.DataFrame) -> list[dict]:
     # TODO clean clusters
     # clusters = clean_clusters(clusters)
 
-    global_min_population = clusters["population"].min() or 1
+    def calculate_node_diameters(clusters, node_scale_factor):
 
-    def _node_size_mapping(population: int, min_pop, scaling_factor: int = 400) -> str:
-        log_pop, log_min_pop = (
-            np.log2(population * 100 + 1),
-            np.log2(min_pop * 100 + 1),
+        if (clusters["population"] <= 0).all():
+
+            clusters.loc[:, "node_diameter"] = 0
+            return clusters
+
+        min_pop = clusters[clusters["population"] > 0]["population"].min()
+        clusters.loc[:, "pop_min_ratio"] = clusters["population"] / min_pop
+        clusters.loc[:, "normalized_ratio"] = (
+            clusters["pop_min_ratio"] * node_scale_factor
         )
+        clusters.loc[:, "node_area"] = np.round(
+            400 * (log_base(clusters["normalized_ratio"], node_scale_factor)),
+            4,
+        )
+        clusters.loc[:, "node_diameter"] = np.round(
+            np.sqrt(4 * clusters["node_area"] / np.pi), 4
+        )
+        return clusters
 
-        normalized = 1 + (log_pop - log_min_pop)
-        area_px = np.round(normalized * scaling_factor, 4)
-        diameter_px = np.round(np.sqrt(4 * area_px / np.pi), 4)
-
-        return str(diameter_px) + "px"
-
-    # ignore clusters with population zero
-    clusters.loc[:, ["population"]] = clusters["population"].replace(0, np.nan)
-
-    clusters.loc[:, ["diameter"]] = clusters.loc[:, "population"].apply(
-        lambda x: _node_size_mapping(x, global_min_population)
-    )
+    clusters = calculate_node_diameters(clusters, node_scale_factor)
 
     def _add_node(row: pd.Series) -> dict:
 
@@ -83,8 +87,8 @@ def load_nodes(clusters: pd.DataFrame) -> list[dict]:
         data["id"] = node_type
         data["label"] = node_type
         data["cluster_size"] = node_population
-        data["width"] = row["diameter"]
-        data["height"] = row["diameter"]
+        data["width"] = row["node_diameter"]
+        data["height"] = row["node_diameter"]
         data["background_color"] = row["color"]
         return {"data": data}
 
@@ -100,6 +104,7 @@ def load_edges(
     nodes: list[dict],
     pathways: pd.DataFrame,
     global_max_paths: int,
+    edge_scale_factor: float,
 ):
     """add pathways from source to target"""
     edges = []
@@ -138,7 +143,9 @@ def load_edges(
     if edges:
         for e in edges:
             e["data"]["width"] = edge_width_map(
-                abs(e["data"]["weight"]), global_max_paths
+                abs(e["data"]["weight"]),
+                edge_scale_factor=edge_scale_factor,
+                global_max_paths=global_max_paths,
             )
 
     return edges
@@ -246,6 +253,14 @@ def pathway_component_filter_inputs(state=False):
     )
 
 
+def network_style_inputs(state=False):
+    klass = State if state else Input
+    return dict(
+        node_scale_factor=klass("node-scale-factor", "value"),
+        edge_scale_factor=klass("edge-scale-factor", "value"),
+    )
+
+
 def apply_callbacks(app: Dash, all_pathways, clusters):
 
     @app.callback(
@@ -254,13 +269,21 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
         inputs=dict(
             sdi=store_data_inputs(),
             pcf=pathway_component_filter_inputs(),
+            nsi=network_style_inputs(),
             slider_changed=Input({"type": "numerical-filter", "index": ALL}, "value"),
             sliders_container_children=State("allSlidersContainer", "children"),
             view_radio=Input("view-radio", "value"),
         ),
+        state=dict(show_network_weights=State("show-network-weights", "value")),
     )
     def update_figure_and_histogram(
-        sdi, pcf, slider_changed, sliders_container_children, view_radio
+        sdi,
+        pcf,
+        nsi,
+        slider_changed,
+        sliders_container_children,
+        view_radio,
+        show_network_weights,
     ):
 
         filter_umap_a = parse_umap_filter_data(pcf.get("umap_select_a"))
@@ -300,12 +323,26 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
 
             if view_radio == "network":
 
-                nodes = load_nodes(clusters[clusters["group"] == group_name])
+                nodes = load_nodes(
+                    clusters.loc[clusters["group"] == group_name],
+                    node_scale_factor=nsi.get("node_scale_factor", 2),
+                    edge_size_factor=nsi.get("edge_scale_factor", 0.1),
+                )
 
-                edges = load_edges(nodes, filtered_group_paths, global_max_paths)
+                edges = load_edges(
+                    nodes,
+                    filtered_group_paths,
+                    global_max_paths,
+                    edge_scale_factor=nsi.get(
+                        "edge_scale_factor",
+                    ),
+                )
 
                 cytoscape = cytoscape_container(
-                    f"cytoscape-{group_id}", group_name, nodes + edges
+                    f"cytoscape-{group_id}",
+                    group_name,
+                    nodes + edges,
+                    show_network_weights=show_network_weights,
                 )
 
                 graph_container = cytoscape
@@ -336,24 +373,9 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
 
                 graph_container = sankey
 
-            sw_hist = hist(
-                filtered_group_paths,
-                "sigweight",
-                "sigweight",
-            )
-            rnas_hist = hist(filtered_group_paths, "rna_score", "rna_score")
-            fs_hist = hist(filtered_group_paths, "final_score", "final_score")
-            pval_hist = hist(filtered_group_paths, "p_value", "p_val")
-
             return [
                 graph_container,
-                hist_container(
-                    group_id,
-                    sw_hist,
-                    pval_hist,
-                    rnas_hist,
-                    fs_hist,
-                ),
+                hist_container(group_id, filtered_group_paths),
             ]
 
         a_max_paths = np.max(a_pathways.groupby(["sender", "receiver"]).size())
@@ -535,9 +557,9 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
         prevent_initial_call=True,
     )
     def download(
-        n_clicks,
-        sdi,
-        pcf,
+        n_clicks: int,
+        sdi: dict,
+        pcf: dict,
         sliders_container_children,
     ):
 
@@ -582,10 +604,6 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
         return is_open
 
     return app
-
-    # @app.callback()
-    # def update_histograms():
-    #     pass
 
     # # @app.callback(*outputs, *inputs)
     # # def display_tooltip(node):

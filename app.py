@@ -4,7 +4,7 @@ from dash import Dash, html, dcc
 import pdb
 
 from callbacks import apply_callbacks
-from components import umap_container
+from components import umap_container, slider
 
 from util import *
 from components import *
@@ -21,22 +21,14 @@ logger = logging.getLogger(__name__)
 
 def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
 
-    (
-        paths,
-        has_rna_score,
-        has_final_score,
-        has_p_value,
-        has_umap,
-        group_a_name,
-        group_b_name,
-    ) = i_o.process_input_data(pathways_path)
-
     clusters = i_o.load_cell_clusters(clusters_a_filepath, clusters_b_filepath)
 
+    pi = i_o.process_input_data(pathways_path)
+
     pf = PathwaysFilter(
-        all_paths=paths,
-        group_a_name=group_a_name,
-        group_b_name=group_b_name,
+        all_paths=pi.paths,
+        group_a_name=pi.group_a,
+        group_b_name=pi.group_b,
     )
 
     cyto.load_extra_layouts()
@@ -50,18 +42,18 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
 
     app.layout = html.Div(
         [
-            dcc.Store(id="has-rna", data=has_rna_score),
-            dcc.Store(id="has-final", data=has_final_score),
-            dcc.Store(id="has-p-value", data=has_p_value),
-            dcc.Store(id="has-umap", data=has_umap),
-            dcc.Store(id="group-a-name", data=group_a_name),
-            dcc.Store(id="group-b-name", data=group_b_name),
+            dcc.Store(id="has-rna", data=pi.has_rna),
+            dcc.Store(id="has-final", data=pi.has_final),
+            dcc.Store(id="has-p-value", data=pi.has_p_value),
+            dcc.Store(id="has-umap", data=pi.has_umap),
+            dcc.Store(id="group-a-name", data=pi.group_a),
+            dcc.Store(id="group-b-name", data=pi.group_b),
             html.Div(
                 children=[
                     slider_container(
-                        has_rna_score=has_rna_score,
-                        has_final_score=has_final_score,
-                        has_p_value=has_p_value,
+                        has_rna_score=pi.has_rna,
+                        has_final_score=pi.has_final,
+                        has_p_value=pi.has_p_value,
                     ),
                     html.Div(
                         dcc.RadioItems(
@@ -112,7 +104,7 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                         ],
                         className="sidebarElement figureSpecificOptions",
                     ),
-                    filter_container(paths),
+                    filter_container(pi.paths),
                     html.Div(
                         [
                             dbc.Button("Help", id="open", n_clicks=0),
@@ -143,19 +135,45 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
             ),
             html.Div(
                 [
+                    slider(
+                        id="node-scale-factor",
+                        minval=1.1,
+                        maxval=10,
+                        step=0.01,
+                        value=2,
+                        label="Node Scale Factor",
+                        vertical=False,
+                    ),
+                    slider(
+                        id="edge-scale-factor",
+                        minval=0.1,
+                        maxval=3,
+                        step=0.1,
+                        value=1,
+                        label="Edge Scale Factor",
+                        vertical=False,
+                    ),
+                ],
+                style={
+                    "height": "175px",
+                    "border": "1px solid #000",
+                },
+            ),
+            html.Div(
+                [
                     html.Div(
                         [
                             html.Div(
-                                html.H3(group_a_name),
+                                html.H3(pi.group_a),
                                 className="groupTitle",
                                 style={"fontWeight": "bold"},
                             ),
-                            umap_container(
-                                group_id="a",
-                                group_name=group_a_name,
-                                has_umap=has_umap,
-                                all_pathways=pf.a_data,
-                            ),
+                            # umap_container(
+                            #     group_id="a",
+                            #     group_name=group_a_name,
+                            #     has_umap=has_umap,
+                            #     all_pathways=pf.a_data,
+                            # ),
                             html.Div(
                                 [
                                     html.Div([], id="hist-a-container"),
@@ -168,13 +186,13 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
                     ),
                     html.Div(
                         [
-                            html.Div(html.H3(group_b_name), className="groupTitle"),
-                            umap_container(
-                                group_id="b",
-                                group_name=group_b_name,
-                                has_umap=has_umap,
-                                all_pathways=pf.b_data,
-                            ),
+                            html.Div(html.H3(pi.group_b), className="groupTitle"),
+                            # umap_container(
+                            #     group_id="b",
+                            #     group_name=group_b_name,
+                            #     has_umap=has_umap,
+                            #     all_pathways=pf.b_data,
+                            # ),
                             html.Div(
                                 [
                                     html.Div([], id="hist-b-container"),
@@ -201,7 +219,7 @@ def incytr_app(pathways_path, clusters_a_filepath, clusters_b_filepath):
         className="app",
     )
 
-    return apply_callbacks(app, paths, clusters)
+    return apply_callbacks(app, pi.paths, clusters)
 
 
 if __name__ == "__main__":
@@ -229,4 +247,5 @@ if __name__ == "__main__":
     CLUSTERS_B_FILE = args.group_b_populations
     PATHWAYS_FILE = args.pathways
 
+    print(ascii())
     incytr_app(PATHWAYS_FILE, CLUSTERS_A_FILE, CLUSTERS_B_FILE).run(debug=True)

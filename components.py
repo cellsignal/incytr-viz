@@ -1,40 +1,81 @@
 import pandas as pd
+import numpy as np
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 import dash_cytoscape as cyto
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import plotly.express as px
 
 
 from util import *
 
 
-def hist(df, col, title, num_bins=20):
-    try:
-        return dcc.Graph(
-            figure=px.histogram(
-                df,
-                x=col,
-                title=title,
-                nbins=num_bins,
-                histfunc="count",
-            ),
-            className="hist",
-        )
+def hist_container(group_id, filtered_group_paths):
 
-    except:
-        return dcc.Graph(
-            figure=px.histogram(
-                pd.DataFrame({title: []}),
-                title=title,
-            ),
-            className="hist",
-        )
+    # Create subplots
 
+    def add_hist(fig, col, row, name, **kwargs):
+        pass
 
-def hist_container(group_id, *histograms):
+    common_hist_params = dict(
+        nbinsx=100,
+    )
+
+    fig = make_subplots(2, 2)
+
+    # Add histograms to subplots
+    fig.add_trace(
+        go.Histogram(
+            x=filtered_group_paths["rna_score"],
+            name="RNA Score",
+            **common_hist_params,
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Histogram(
+            x=filtered_group_paths["final_score"],
+            name="Final Score",
+            **common_hist_params,
+        ),
+        row=1,
+        col=2,
+    )
+    fig.add_trace(
+        go.Histogram(
+            x=filtered_group_paths["sigweight"], name="SigProb", **common_hist_params
+        ),
+        row=2,
+        col=1,
+    )
+    fig.add_trace(
+        go.Histogram(
+            x=filtered_group_paths["p_value"], name="P-Value", **common_hist_params
+        ),
+        row=2,
+        col=2,
+    )
+
+    # Update layout for subplots
+    fig.update_xaxes(title_text="Value")
+    fig.update_yaxes(title_text="Count")
+
+    # Create subplots grid
+    fig.update_layout(
+        # xaxis=dict(domain=[0, 0.5]),  # Adjust x-axis domain for the first two subplots
+        # xaxis2=dict(
+        #     domain=[0.5, 1]
+        # ),  # Adjust x-axis domain for the second two subplots
+        # yaxis=dict(domain=[0, 0.5]),  # Adjust y-axis domain for the first two subplots
+        # yaxis2=dict(
+        #     domain=[0.5, 1]
+        # ),  # Adjust y-axis domain for the second two subplots
+        showlegend=True,
+    )
     return html.Div(
-        children=list(histograms),
+        dcc.Graph(figure=fig),
         id=f"hist-{group_id}-container",
         className="histContainer",
     )
@@ -66,6 +107,7 @@ def cytoscape_container(
     id,
     title,
     elements=[],
+    show_network_weights=False,
     layout_name="circle",
 ):
 
@@ -95,7 +137,7 @@ def cytoscape_container(
                             "curve-style": "unbundled-bezier",
                             "target-arrow-shape": "vee",
                             "arrow-scale": ".75",
-                            # "label": "data(label)",
+                            "label": "data(label)" if show_network_weights else "",
                             "loop-sweep": "30deg",
                             "width": "data(width)",
                             "line-color": "data(line_color)",
@@ -405,79 +447,82 @@ def filter_container(pathways):
     )
 
 
+def slider(
+    id: str,
+    minval: int,
+    maxval: int,
+    step: int,
+    value: int,
+    label: str,
+    **slider_kwargs,
+):
+
+    tooltip_format = {
+        "placement": "left",
+        "always_visible": True,
+    }
+
+    class_name = "slider invertedSlider" if label.lower() == "sigweight" else "slider"
+
+    marks = {0: "0", 1: "1"} if label.lower() in ["sigweight", "p-value"] else None
+
+    return html.Div(
+        [
+            dcc.Slider(
+                min=minval,
+                max=maxval,
+                step=step,
+                value=value,
+                marks=marks,
+                tooltip=tooltip_format,
+                id=id,
+                className=class_name,
+                **slider_kwargs,
+            ),
+            html.Span(label),
+        ],
+        className="sliderContainer",
+    )
+
+
+def range_slider(id: str, minval: int, maxval: int, step: int, value: list, label: str):
+
+    tooltip_format = {
+        "placement": "left",
+        "always_visible": True,
+    }
+
+    if label.lower() in ["rna score", "final score"]:
+        marks = {-2: "-2", 2: "2"}
+    else:
+        marks = None
+
+    return html.Div(
+        [
+            dcc.RangeSlider(
+                min=minval,
+                max=maxval,
+                step=step,
+                value=value,
+                marks=marks,
+                tooltip=tooltip_format,
+                id=id,
+                className="slider",
+            ),
+            html.Span(label),
+        ],
+        className="sliderContainer",
+    )
+
+
 def slider_container(
     has_rna_score,
     has_final_score,
     has_p_value,
 ):
 
-    def _slider(id: str, minval: int, maxval: int, step: int, value: int, label: str):
-
-        tooltip_format = {
-            "placement": "left",
-            "always_visible": True,
-        }
-
-        if label.lower() == "sigweight":
-            class_name = "slider invertedSlider"
-        else:
-            class_name = "slider"
-
-        if label.lower() in ["sigweight", "p-value"]:
-            marks = {0: "0", 1: "1"}
-        else:
-            marks = None
-
-        return html.Div(
-            [
-                dcc.Slider(
-                    min=minval,
-                    max=maxval,
-                    step=step,
-                    value=value,
-                    marks=marks,
-                    tooltip=tooltip_format,
-                    id=id,
-                    className=class_name,
-                ),
-                html.Span(label),
-            ],
-            className="sliderContainer",
-        )
-
-    def _range_slider(
-        id: str, minval: int, maxval: int, step: int, value: list, label: str
-    ):
-
-        tooltip_format = {
-            "placement": "left",
-            "always_visible": True,
-        }
-
-        if label.lower() in ["rna score", "final score"]:
-            marks = {-2: "-2", 2: "2"}
-        else:
-            marks = None
-
-        return html.Div(
-            [
-                dcc.RangeSlider(
-                    min=minval,
-                    max=maxval,
-                    step=step,
-                    value=value,
-                    marks=marks,
-                    tooltip=tooltip_format,
-                    id=id,
-                    className="slider",
-                ),
-                html.Span(label),
-            ],
-            className="sliderContainer",
-        )
-
     sliders = [
-        _slider(
+        slider(
             {"type": "numerical-filter", "index": "sigweight"},
             0,
             1,
@@ -488,7 +533,7 @@ def slider_container(
     ]
     if has_p_value:
         sliders.append(
-            _slider(
+            slider(
                 {"type": "numerical-filter", "index": "p-value"},
                 minval=0,
                 maxval=1,
@@ -499,7 +544,7 @@ def slider_container(
         )
     if has_rna_score:
         sliders.append(
-            _range_slider(
+            range_slider(
                 {"type": "numerical-filter", "index": "rna-score"},
                 minval=-2,
                 maxval=2,
@@ -510,7 +555,7 @@ def slider_container(
         )
     if has_final_score:
         sliders.append(
-            _range_slider(
+            range_slider(
                 {"type": "numerical-filter", "index": "final-score"},
                 minval=-2,
                 maxval=2,
