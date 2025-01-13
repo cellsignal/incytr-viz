@@ -195,7 +195,7 @@ def sankey_container(
                     sankey_legend_container(),
                     html.Div(
                         [
-                            html.H4("cell type"),
+                            html.H4("Cell type"),
                             html.Div(
                                 [
                                     dbc.Table(

@@ -1,8 +1,5 @@
 import argparse
-import gunicorn
 import subprocess
-import gunicorn.app
-from incytr_viz.app import create_app
 
 
 def main():
@@ -29,7 +26,7 @@ def main():
     CLUSTERS_A = args.group_a_populations
     CLUSTERS_B = args.group_b_populations
 
-    app_string = f"incytr_viz.app:create_app(pathways='{PATHWAYS}', clusters_a='{CLUSTERS_A}', clusters_b='{CLUSTERS_B}')"
+    app_string = f"incytr_viz.app:get_server(pathways='{PATHWAYS}', clusters_a='{CLUSTERS_A}', clusters_b='{CLUSTERS_B}')"
 
     subprocess.run(["gunicorn", app_string])
 

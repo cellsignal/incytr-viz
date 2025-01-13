@@ -8,6 +8,20 @@ from dash import Dash, dcc, html
 from incytr_viz.modal_content import content
 from incytr_viz.util import *
 
+# import dash_bootstrap_components as dbc
+# from dash import Input, Output, State, html
+
+
+# @app.callback(
+#     Output("collapse", "is_open"),
+#     [Input("collapse-button", "n_clicks")],
+#     [State("collapse", "is_open")],
+# )
+# def toggle_collapse(n, is_open):
+#     if n:
+#         return not is_open
+#     return is_open
+
 
 def create_app(pathways, clusters_a, clusters_b):
 
@@ -75,6 +89,52 @@ def create_app(pathways, clusters_a, clusters_b):
                                         id="show-network-weights",
                                         label="Show Network Weights",
                                     ),
+                                    html.Div(
+                                        [
+                                            dbc.Button(
+                                                "Open collapse",
+                                                id="collapse-button",
+                                                className="mb-3",
+                                                color="primary",
+                                                n_clicks=0,
+                                            ),
+                                            dbc.Collapse(
+                                                dbc.Card(
+                                                    dbc.CardBody(
+                                                        [
+                                                            dcc.Slider(
+                                                                id="node-scale-factor",
+                                                                min=1.1,
+                                                                max=10,
+                                                                step=0.01,
+                                                                value=2,
+                                                                marks=None,
+                                                                # label="Node Scale Factor",
+                                                                vertical=False,
+                                                            ),
+                                                            dcc.Slider(
+                                                                id="edge-scale-factor",
+                                                                min=0.1,
+                                                                max=3,
+                                                                step=0.1,
+                                                                value=1,
+                                                                marks=None,
+                                                                # label="Edge Scale Factor",
+                                                                vertical=False,
+                                                            ),
+                                                        ],
+                                                        style={
+                                                            "height": "175px",
+                                                            "width": "200px",
+                                                            "border": "1px solid #000",
+                                                        },
+                                                    ),
+                                                ),
+                                                id="collapse",
+                                                is_open=True,
+                                            ),
+                                        ]
+                                    ),
                                 ]
                             ),
                             html.Div(
@@ -128,32 +188,6 @@ def create_app(pathways, clusters_a, clusters_b):
                     ),
                 ],
                 className="sidebar",
-            ),
-            html.Div(
-                [
-                    slider(
-                        id="node-scale-factor",
-                        minval=1.1,
-                        maxval=10,
-                        step=0.01,
-                        value=2,
-                        label="Node Scale Factor",
-                        vertical=False,
-                    ),
-                    slider(
-                        id="edge-scale-factor",
-                        minval=0.1,
-                        maxval=3,
-                        step=0.1,
-                        value=1,
-                        label="Edge Scale Factor",
-                        vertical=False,
-                    ),
-                ],
-                style={
-                    "height": "175px",
-                    "border": "1px solid #000",
-                },
             ),
             html.Div(
                 [
@@ -242,4 +276,8 @@ def create_app(pathways, clusters_a, clusters_b):
         className="app",
     )
 
-    return apply_callbacks(app, pi.paths, clusters).server
+    return apply_callbacks(app, pi.paths, clusters)
+
+
+def get_server(pathways, clusters_a, clusters_b):
+    return create_app(pathways, clusters_a, clusters_b).server
