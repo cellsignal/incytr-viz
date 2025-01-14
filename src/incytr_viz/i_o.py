@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import pdb
 import re
+from tabulate import tabulate
 
 
 pathway_dtypes = {
@@ -18,31 +19,31 @@ pathway_dtypes = {
     "target_sclog2fc": np.float64,
     "path": str,
     "log2fc": np.float64,
-    "adjlog2fc": np.float64,
+    "afc": np.float64,
     "ligand_pr_log2fc": np.float64,
-    "ligand_pr_adjlog2fc": np.float64,
+    "ligand_pr_afc": np.float64,
     "receptor_pr_log2fc": np.float64,
-    "receptor_pr_adjlog2fc": np.float64,
+    "receptor_pr_afc": np.float64,
     "em_pr_log2fc": np.float64,
-    "em_pr_adjlog2fc": np.float64,
+    "em_pr_afc": np.float64,
     "target_pr_log2fc": np.float64,
-    "target_pr_adjlog2fc": np.float64,
+    "target_pr_afc": np.float64,
     "ligand_ps_log2fc": np.float64,
-    "ligand_ps_adjlog2fc": np.float64,
+    "ligand_ps_afc": np.float64,
     "receptor_ps_log2fc": np.float64,
-    "receptor_ps_adjlog2fc": np.float64,
+    "receptor_ps_afc": np.float64,
     "em_ps_log2fc": np.float64,
-    "em_ps_adjlog2fc": np.float64,
+    "em_ps_afc": np.float64,
     "target_ps_log2fc": np.float64,
-    "target_ps_adjlog2fc": np.float64,
+    "target_ps_afc": np.float64,
     "ligand_py_log2fc": np.float64,
-    "ligand_py_adjlog2fc": np.float64,
+    "ligand_py_afc": np.float64,
     "receptor_py_log2fc": np.float64,
-    "receptor_py_adjlog2fc": np.float64,
+    "receptor_py_afc": np.float64,
     "em_py_log2fc": np.float64,
-    "em_py_adjlog2fc": np.float64,
+    "em_py_afc": np.float64,
     "target_py_log2fc": np.float64,
-    "target_py_adjlog2fc": np.float64,
+    "target_py_afc": np.float64,
     "sc_up": np.int8,
     "sc_down": np.int8,
     "pr_up": np.int8,
@@ -51,11 +52,11 @@ pathway_dtypes = {
     "ps_down": np.int8,
     "py_up": np.int8,
     "py_down": np.int8,
-    "rna_score": np.float64,
+    "tprs": np.float64,
     "pr_score": np.float64,
     "ps_score": np.float64,
     "py_score": np.float64,
-    "final_score": np.float64,
+    "prs": np.float64,
     "final_score_wkinase": np.float64,
     "kinase_r_of_em": str,
     "kinase_r_of_t": str,
@@ -80,8 +81,8 @@ class PathwayInput:
     def __init__(self, raw):
         self.raw = raw
         self.paths, self.group_a, self.group_b = validate_pathways(self.raw)
-        self.has_rna = "rna_score" in self.paths.columns
-        self.has_final = "final_score" in self.paths.columns
+        self.has_tprs = "tprs" in self.paths.columns
+        self.has_prs = "prs" in self.paths.columns
         self.has_p_value = all(
             x in self.paths.columns
             for x in ["p_value_" + self.group_a, "p_value_" + self.group_b]
@@ -97,7 +98,7 @@ def validate_pathways(raw):
         "path",
         "sender",
         "receiver",
-        "adjlog2fc",
+        "afc",
     ]
 
     print("scanning input for required columns: ")
@@ -112,21 +113,21 @@ def validate_pathways(raw):
 
     print("scanning input for condition-specific columns: ")
 
-    sigweight_cols = [c for c in raw.columns if "sigweight" in c]
+    sigprob_cols = [c for c in raw.columns if "sigprob" in c]
 
-    if not len(sigweight_cols) == 2:
+    if not len(sigprob_cols) == 2:
         raise ValueError(
-            "Expected exactly 2 sigweight columns in input data (check input)"
+            "Expected exactly 2 sigprob columns in input data (check input)"
         )
 
-    print("sigweight columns found: ", " ".join(sigweight_cols))
+    print("sigprob columns found: ", " ".join(sigprob_cols))
 
-    print("parsing sigweight columns for condition names")
-    matches = [re.match(r"sigweight_(.+)", x) for x in sigweight_cols]
+    print("parsing sigprob columns for condition names")
+    matches = [re.match(r"sigprob_(.+)", x) for x in sigprob_cols]
 
     if not all(matches):
         raise ValueError(
-            "Sigweight columns not in the expected format (sigweight_<groupname>)"
+            "sigprob columns not in the expected format (sigprob_<groupname>)"
         )
 
     group_a, group_b = [m.group(1) for m in matches]
@@ -142,15 +143,15 @@ def validate_pathways(raw):
         "target",
         "sender",
         "receiver",
-        "adjlog2fc",
-        "rna_score",
-        "final_score",
+        "afc",
+        "tprs",
+        "prs",
         "kinase_r_of_em",
         "kinase_r_of_t",
         "kinase_em_of_t",
         "umap1",
         "umap2",
-        *sigweight_cols,
+        *sigprob_cols,
         *["p_value_" + group_a, "p_value_" + group_b],
     ]
 
@@ -192,8 +193,8 @@ def validate_pathways(raw):
                 "target",
                 "sender",
                 "receiver",
-                "adjlog2fc",
-                *sigweight_cols,
+                "afc",
+                *sigprob_cols,
             ]
         ].isna()
     ].any(axis=1)

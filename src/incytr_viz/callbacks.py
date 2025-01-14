@@ -117,7 +117,7 @@ def load_edges(
         & (pathways["receiver"].isin(node_labels))
     ]
 
-    ## filter pathways that are below sigweight threshold
+    ## filter pathways that are below sigprob threshold
 
     if len(pathways) == 0:
         return edges
@@ -229,8 +229,8 @@ def store_data_inputs(state=False):
 
     klass = State if state else Input
     return dict(
-        has_rna=klass("has-rna", "data"),
-        has_final=klass("has-final", "data"),
+        has_tprs=klass("has-tprs", "data"),
+        has_prs=klass("has-prs", "data"),
         has_p_value=klass("has-p-value", "data"),
         has_umap=klass("has-umap", "data"),
         group_a_name=klass("group-a-name", "data"),
@@ -309,9 +309,9 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
             filter_em=pcf.get("em_select"),
             filter_target_genes=pcf.get("target_select"),
             filter_all_molecules=pcf.get("any_role_select"),
-            fs_bounds=slider_values.get("final-score"),
-            sw_threshold=slider_values.get("sigweight"),
-            rnas_bounds=slider_values.get("rna-score"),
+            prs_bounds=slider_values.get("prs"),
+            sw_threshold=slider_values.get("sigprob"),
+            tprs_bounds=slider_values.get("tprs"),
             pval_threshold=slider_values.get("p-value"),
         )
 
@@ -586,9 +586,9 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
                 filter_em=pcf.get("em_select"),
                 filter_target_genes=pcf.get("target_select"),
                 filter_all_molecules=pcf.get("any_role_select"),
-                fs_bounds=slider_values.get("final-score"),
-                sw_threshold=slider_values.get("sigweight"),
-                rnas_bounds=slider_values.get("rna-score"),
+                prs_bounds=slider_values.get("prs"),
+                sw_threshold=slider_values.get("sigprob"),
+                tprs_bounds=slider_values.get("tprs"),
                 pval_threshold=slider_values.get("p-value"),
             )
 
@@ -610,6 +610,15 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
         [State("modal", "is_open")],
     )
     def toggle_modal(n1, n2, is_open):
+        if n1 or n2:
+            return not is_open
+        return is_open
+
+    @app.callback(
+        Output("umap", "is_open"),
+        Input("show-umap", "value"),
+    )
+    def toggle_umap(n1, n2, is_open):
         if n1 or n2:
             return not is_open
         return is_open

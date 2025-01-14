@@ -32,7 +32,7 @@ def parse_slider_values_from_tree(children):
             "value"
         ]
 
-    slider_ids = ["sigweight", "rna-score", "final-score", "p-value"]
+    slider_ids = ["sigprob", "tprs", "prs", "p-value"]
 
     out = {id: None for id in slider_ids}
 
@@ -48,15 +48,15 @@ def parse_slider_values_from_tree(children):
 @dataclass
 class PathwaysFilter:
 
-    NAMESPACED_COLUMNS = ["sigweight", "p_value", "siks_score"]
+    NAMESPACED_COLUMNS = ["sigprob", "p_value", "siks_score"]
 
     all_paths: pd.DataFrame
     group_a_name: str
     group_b_name: str
     sw_threshold: float = 0
     pval_threshold: float = 1
-    fs_bounds: list[float] = field(default_factory=list)
-    rnas_bounds: list[float] = field(default_factory=list)
+    prs_bounds: list[float] = field(default_factory=list)
+    tprs_bounds: list[float] = field(default_factory=list)
     filter_kinase: str = ""
     filter_senders: list[str] = field(default_factory=list)
     filter_receivers: list[str] = field(default_factory=list)
@@ -154,21 +154,19 @@ class PathwaysFilter:
                     :,
                 ]
 
-        df = df[df["sigweight"] >= self.sw_threshold]
-
+        df = df[df["sigprob"] >= self.sw_threshold]
         if self.pval_threshold:
             df = df[df["p_value"] <= self.pval_threshold]
 
-        if self.fs_bounds:
+        if self.prs_bounds:
             df = df[
-                (df["final_score"] >= self.fs_bounds[0])
-                & (df["final_score"] <= self.fs_bounds[1])
+                (df["prs"] >= self.prs_bounds[0]) & (df["prs"] <= self.prs_bounds[1])
             ]
 
-        if self.rnas_bounds:
+        if self.tprs_bounds:
             df = df[
-                (df["rna_score"] >= self.rnas_bounds[0])
-                & (df["rna_score"] <= self.rnas_bounds[1])
+                (df["tprs"] >= self.tprs_bounds[0])
+                & (df["tprs"] <= self.tprs_bounds[1])
             ]
 
         df = df[

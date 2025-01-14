@@ -27,8 +27,8 @@ def hist_container(group_id, filtered_group_paths):
     # Add histograms to subplots
     fig.add_trace(
         go.Histogram(
-            x=filtered_group_paths["rna_score"],
-            name="RNA Score",
+            x=filtered_group_paths["tprs"],
+            name="TPRS",
             **common_hist_params,
         ),
         row=1,
@@ -36,8 +36,8 @@ def hist_container(group_id, filtered_group_paths):
     )
     fig.add_trace(
         go.Histogram(
-            x=filtered_group_paths["final_score"],
-            name="Final Score",
+            x=filtered_group_paths["prs"],
+            name="PRS",
             **common_hist_params,
         ),
         row=1,
@@ -45,18 +45,18 @@ def hist_container(group_id, filtered_group_paths):
     )
     fig.add_trace(
         go.Histogram(
-            x=filtered_group_paths["sigweight"], name="SigProb", **common_hist_params
+            x=filtered_group_paths["sigprob"], name="SigProb", **common_hist_params
         ),
         row=2,
         col=1,
     )
-    fig.add_trace(
-        go.Histogram(
-            x=filtered_group_paths["p_value"], name="P-Value", **common_hist_params
-        ),
-        row=2,
-        col=2,
-    )
+    # fig.add_trace(
+    #     go.Histogram(
+    #         x=filtered_group_paths["p_value"], name="P-Value", **common_hist_params
+    #     ),
+    #     row=2,
+    #     col=2,
+    # )
 
     # Update layout for subplots
     fig.update_xaxes(title_text="Value")
@@ -81,13 +81,13 @@ def hist_container(group_id, filtered_group_paths):
     )
 
 
-def umap_container(group_id, group_name, has_umap, all_pathways):
-    if has_umap:
+def umap_container(group_id, show_umap, all_pathways):
+    if show_umap:
         fig = px.scatter(
             all_pathways,
             x="umap1",
             y="umap2",
-            color="adjlog2fc",
+            color="afc",
             custom_data=["path"],
             color_continuous_scale=px.colors.diverging.Spectral[::-1],
         )
@@ -177,7 +177,6 @@ def sankey_container(
             out = num_targets * 15
         return f"{max(out, 400)}px"
 
-    # pdb.set_trace()
     num_targets = len([x for x in ids if "_target" in x])
     num_links = len(ids)
     sankey_style = {"height": get_sankey_height(num_targets, num_links)}
@@ -420,7 +419,7 @@ def filter_container(pathways):
                 [
                     dcc.Dropdown(
                         id="any-role-select",
-                        placeholder="Filter All",
+                        placeholder="Filter Any Role",
                         multi=True,
                         clearable=True,
                         options=all_molecules,
@@ -428,7 +427,7 @@ def filter_container(pathways):
                     ),
                     dcc.Dropdown(
                         id="kinase-select",
-                        placeholder="Filter Kinase Component",
+                        placeholder="Filter Kinase Interaction",
                         multi=False,
                         clearable=True,
                         options=["r_em", "r_t", "em_t"],
@@ -472,9 +471,9 @@ def slider(
         "always_visible": True,
     }
 
-    class_name = "slider invertedSlider" if label.lower() == "sigweight" else "slider"
+    class_name = "slider invertedSlider" if label.lower() == "sigprob" else "slider"
 
-    marks = {0: "0", 1: "1"} if label.lower() in ["sigweight", "p-value"] else None
+    marks = {0: "0", 1: "1"} if label.lower() in ["sigprob", "p-value"] else None
 
     return html.Div(
         [
@@ -502,7 +501,7 @@ def range_slider(id: str, minval: int, maxval: int, step: int, value: list, labe
         "always_visible": True,
     }
 
-    if label.lower() in ["rna score", "final score"]:
+    if label.lower() in ["tprs", "prs"]:
         marks = {-2: "-2", 2: "2"}
     else:
         marks = None
@@ -526,19 +525,19 @@ def range_slider(id: str, minval: int, maxval: int, step: int, value: list, labe
 
 
 def slider_container(
-    has_rna_score,
-    has_final_score,
+    has_tprs,
+    has_prs,
     has_p_value,
 ):
 
     sliders = [
         slider(
-            {"type": "numerical-filter", "index": "sigweight"},
+            {"type": "numerical-filter", "index": "sigprob"},
             0,
             1,
             0.01,
             0.7,
-            "SigWeight",
+            "Sigprob",
         )
     ]
     if has_p_value:
@@ -552,26 +551,26 @@ def slider_container(
                 label="P-Value",
             )
         )
-    if has_rna_score:
+    if has_tprs:
         sliders.append(
             range_slider(
-                {"type": "numerical-filter", "index": "rna-score"},
+                {"type": "numerical-filter", "index": "tprs"},
                 minval=-2,
                 maxval=2,
                 step=0.01,
                 value=[-2, 2],
-                label="RNA Score",
+                label="TPRS",
             )
         )
-    if has_final_score:
+    if has_prs:
         sliders.append(
             range_slider(
-                {"type": "numerical-filter", "index": "final-score"},
+                {"type": "numerical-filter", "index": "prs"},
                 minval=-2,
                 maxval=2,
                 step=0.01,
                 value=[-2, 2],
-                label="Final Score",
+                label="PRS",
             )
         )
     return html.Div(
@@ -579,29 +578,3 @@ def slider_container(
         className="sidebarElement allSlidersContainer",
         id="allSlidersContainer",
     )
-
-
-# import dash_bootstrap_components as dbc
-# from dash import Input, Output, State, html
-
-# collapse = html.Div(
-#     [
-#         ,
-#         dbc.Collapse(
-#             dbc.Card(dbc.CardBody("This content is hidden in the collapse")),
-#             id="collapse",
-#             is_open=False,
-#         ),
-#     ]
-# )
-
-
-# @app.callback(
-#     Output("collapse", "is_open"),
-#     [Input("collapse-button", "n_clicks")],
-#     [State("collapse", "is_open")],
-# )
-# def toggle_collapse(n, is_open):
-#     if n:
-#         return not is_open
-#     return is_open

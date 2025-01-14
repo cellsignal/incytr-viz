@@ -45,22 +45,17 @@ def create_app(pathways, clusters_a, clusters_b):
 
     app.layout = html.Div(
         [
-            dcc.Store(id="has-rna", data=pi.has_rna),
-            dcc.Store(id="has-final", data=pi.has_final),
+            dcc.Store(id="has-tprs", data=pi.has_tprs),
+            dcc.Store(id="has-prs", data=pi.has_prs),
             dcc.Store(id="has-p-value", data=pi.has_p_value),
             dcc.Store(id="has-umap", data=pi.has_umap),
             dcc.Store(id="group-a-name", data=pi.group_a),
             dcc.Store(id="group-b-name", data=pi.group_b),
             html.Div(
                 children=[
-                    slider_container(
-                        has_rna_score=pi.has_rna,
-                        has_final_score=pi.has_final,
-                        has_p_value=pi.has_p_value,
-                    ),
                     html.Div(
-                        dcc.RadioItems(
-                            [
+                        dbc.RadioItems(
+                            options=[
                                 {
                                     "label": html.Div(
                                         ["Network View"],
@@ -69,91 +64,87 @@ def create_app(pathways, clusters_a, clusters_b):
                                 },
                                 {
                                     "label": html.Div(
-                                        ["Pathways View"],
+                                        ["River View"],
                                     ),
                                     "value": "sankey",
                                 },
                             ],
                             value="network",
                             id="view-radio",
-                            labelClassName="radioLabel",
-                            className="radioContainer sidebarElement",
+                            style={
+                                "display": "flex",
+                                "justify-content": "center",
+                                "align-items": "center",
+                                "border": "1px solid #d3d3d3",
+                            },
+                            inputClassName="btn-check",
+                            labelClassName="btn btn-outline-primary",
+                            labelCheckedClassName="active",
                         ),
                     ),
                     html.Div(
                         [
                             html.Div(
                                 [
-                                    html.H6("Network Options"),
-                                    dbc.Checkbox(
-                                        id="show-network-weights",
-                                        label="Show Network Weights",
-                                    ),
-                                    html.Div(
-                                        [
-                                            dbc.Button(
-                                                "Open collapse",
-                                                id="collapse-button",
-                                                className="mb-3",
-                                                color="primary",
-                                                n_clicks=0,
-                                            ),
-                                            dbc.Collapse(
-                                                dbc.Card(
-                                                    dbc.CardBody(
-                                                        [
-                                                            dcc.Slider(
-                                                                id="node-scale-factor",
-                                                                min=1.1,
-                                                                max=10,
-                                                                step=0.01,
-                                                                value=2,
-                                                                marks=None,
-                                                                # label="Node Scale Factor",
-                                                                vertical=False,
-                                                            ),
-                                                            dcc.Slider(
-                                                                id="edge-scale-factor",
-                                                                min=0.1,
-                                                                max=3,
-                                                                step=0.1,
-                                                                value=1,
-                                                                marks=None,
-                                                                # label="Edge Scale Factor",
-                                                                vertical=False,
-                                                            ),
-                                                        ],
-                                                        style={
-                                                            "height": "175px",
-                                                            "width": "200px",
-                                                            "border": "1px solid #000",
-                                                        },
+                                    dbc.DropdownMenu(
+                                        label="Options",
+                                        children=[
+                                            html.Div(
+                                                [
+                                                    dbc.Checkbox(
+                                                        id="show-network-weights",
+                                                        label="Show Network Weights",
                                                     ),
-                                                ),
-                                                id="collapse",
-                                                is_open=True,
+                                                    dcc.Slider(
+                                                        id="node-scale-factor",
+                                                        min=1.1,
+                                                        max=10,
+                                                        step=0.01,
+                                                        value=2,
+                                                        marks=None,
+                                                        # label="Node Scale Factor",
+                                                        vertical=False,
+                                                    ),
+                                                    dcc.Slider(
+                                                        id="edge-scale-factor",
+                                                        min=0.1,
+                                                        max=3,
+                                                        step=0.1,
+                                                        value=1,
+                                                        marks=None,
+                                                        # label="Edge Scale Factor",
+                                                        vertical=False,
+                                                    ),
+                                                ]
                                             ),
-                                        ]
-                                    ),
-                                ]
-                            ),
-                            html.Div(
-                                [
-                                    html.H6("Sankey Options"),
-                                    dcc.Dropdown(
-                                        id="sankey-color-flow-dropdown",
-                                        placeholder="Color Sankey Flow By",
-                                        multi=False,
-                                        clearable=True,
-                                        options=["sender", "receiver", "kinase"],
-                                        className="filter",
+                                            html.Div(
+                                                [
+                                                    dcc.Dropdown(
+                                                        id="sankey-color-flow-dropdown",
+                                                        placeholder="Color Sankey Flow By",
+                                                        multi=False,
+                                                        clearable=True,
+                                                        options=[
+                                                            "sender",
+                                                            "receiver",
+                                                            "kinase",
+                                                        ],
+                                                        className="filter",
+                                                    ),
+                                                    dbc.Checkbox(
+                                                        id="show-umap",
+                                                        label="Show UMAP",
+                                                        value=False,
+                                                        disabled=not pi.has_umap,
+                                                    ),
+                                                ]
+                                            ),
+                                        ],
                                     ),
                                 ]
                             ),
                         ],
-                        className="sidebarElement figureSpecificOptions",
                     ),
-                    filter_container(pi.paths),
                     html.Div(
                         [
                             dbc.Button("Help", id="open", n_clicks=0),
@@ -189,6 +180,12 @@ def create_app(pathways, clusters_a, clusters_b):
                 ],
                 className="sidebar",
             ),
+            slider_container(
+                has_tprs=pi.has_tprs,
+                has_prs=pi.has_prs,
+                has_p_value=pi.has_p_value,
+            ),
+            html.Div(filter_container(pi.paths), className="sidebar"),
             html.Div(
                 [
                     html.Div(
@@ -215,8 +212,7 @@ def create_app(pathways, clusters_a, clusters_b):
                             ),
                             umap_container(
                                 group_id="a",
-                                group_name=pi.group_a,
-                                has_umap=pi.has_umap,
+                                show_umap=False,
                                 all_pathways=pf.a_data,
                             ),
                             html.Div(
@@ -253,8 +249,7 @@ def create_app(pathways, clusters_a, clusters_b):
                             ),
                             umap_container(
                                 group_id="b",
-                                group_name=pi.group_b,
-                                has_umap=pi.has_umap,
+                                show_umap=False,
                                 all_pathways=pf.b_data,
                             ),
                             html.Div(
