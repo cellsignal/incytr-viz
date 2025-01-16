@@ -28,7 +28,7 @@ from incytr_viz.util import (
 
 
 def load_nodes(
-    clusters: pd.DataFrame, node_scale_factor, edge_size_factor
+    clusters: pd.DataFrame, node_scale_factor, edge_scale_factor, label_scale_factor
 ) -> list[dict]:
     """
     Generate cytoscape nodes from clusters file
@@ -106,6 +106,7 @@ def load_edges(
     pathways: pd.DataFrame,
     global_max_paths: int,
     edge_scale_factor: float,
+    label_scale_factor: int,
 ):
     """add pathways from source to target"""
     edges = []
@@ -260,6 +261,7 @@ def network_style_inputs(state=False):
     return dict(
         node_scale_factor=klass("node-scale-factor", "value"),
         edge_scale_factor=klass("edge-scale-factor", "value"),
+        label_scale_factor=klass("label-scale-factor", "value"),
     )
 
 
@@ -310,7 +312,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
             filter_target_genes=pcf.get("target_select"),
             filter_all_molecules=pcf.get("any_role_select"),
             prs_bounds=slider_values.get("prs"),
-            sw_threshold=slider_values.get("sigprob"),
+            sp_threshold=slider_values.get("sigprob"),
             tprs_bounds=slider_values.get("tprs"),
             pval_threshold=slider_values.get("p-value"),
         )
@@ -324,16 +326,16 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
             group_name: str,
             group_id: str,
             global_max_paths: int,
+            sdi: dict,
         ):
 
             if view_radio == "network":
-
                 nodes = load_nodes(
                     clusters.loc[clusters["group"] == group_name],
                     node_scale_factor=nsi.get("node_scale_factor", 2),
-                    edge_size_factor=nsi.get("edge_scale_factor", 0.1),
+                    edge_scale_factor=nsi.get("edge_scale_factor", 0.1),
+                    label_scale_factor=nsi.get("label_scale_factor", 12),
                 )
-
                 edges = load_edges(
                     nodes,
                     filtered_group_paths,
@@ -341,6 +343,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
                     edge_scale_factor=nsi.get(
                         "edge_scale_factor",
                     ),
+                    label_scale_factor=nsi.get("label_scale_factor", 12),
                 )
 
                 cytoscape = cytoscape_container(
@@ -359,7 +362,6 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
                     sankey_color_flow=pcf.get("sankey_color_flow"),
                     all_clusters=clusters,
                 )
-
                 warn = ids and not any(x.endswith("target") for x in ids)
 
                 sankey = sankey_container(
@@ -377,10 +379,9 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
                 )
 
                 graph_container = sankey
-
             return [
                 graph_container,
-                hist_container(group_id, filtered_group_paths),
+                hist_container(group_id, filtered_group_paths, sdi=sdi),
             ]
 
         a_max_paths = np.max(a_pathways.groupby(["sender", "receiver"]).size())
@@ -400,6 +401,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
                 global_max_paths=global_max_paths,
                 group_name=sdi.get("group_a_name"),
                 group_id="a",
+                sdi=sdi,
             ),
             _get_group_figures(
                 filtered_group_paths=b_pathways,
@@ -407,12 +409,13 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
                 global_max_paths=global_max_paths,
                 group_name=sdi.get("group_b_name"),
                 group_id="b",
+                sdi=sdi,
             ),
             len(a_pathways),
             len(b_pathways),
         )
 
-    def _umap_callback(relayoutData):
+    def _relayout_umap(relayoutData):
         """
         {
             'xaxis.range[0]': -0.6369249007630504,
@@ -431,20 +434,33 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
         inputs=Input("scatter-plot-a", "relayoutData"),
         prevent_initial_call=True,
     )
-    def umap_callback_a(
+    def relayout_umap_a(
         relayoutData,
     ):
-        return _umap_callback(relayoutData)
+        return _relayout_umap(relayoutData)
 
     @app.callback(
         Output("umap-select-b", "value"),
         inputs=Input("scatter-plot-b", "relayoutData"),
         prevent_initial_call=True,
     )
-    def umap_callback_b(
+    def relayout_umap_b(
         relayoutData,
     ):
-        return _umap_callback(relayoutData)
+        return _relayout_umap(relayoutData)
+
+    @app.callback(
+        Output("umap-a-container", "style"),
+        Output("umap-b-container", "style"),
+        inputs=Input("show-umap", "value"),
+        prevent_initial_call=True,
+    )
+    def show_umap(
+        show_umap,
+    ):
+        style = {} if show_umap else {"display": "none"}
+
+        return style, style
 
     @app.callback(
         Output("cytoscape-a", "stylesheet"),
@@ -587,7 +603,7 @@ def apply_callbacks(app: Dash, all_pathways, clusters):
                 filter_target_genes=pcf.get("target_select"),
                 filter_all_molecules=pcf.get("any_role_select"),
                 prs_bounds=slider_values.get("prs"),
-                sw_threshold=slider_values.get("sigprob"),
+                sp_threshold=slider_values.get("sigprob"),
                 tprs_bounds=slider_values.get("tprs"),
                 pval_threshold=slider_values.get("p-value"),
             )

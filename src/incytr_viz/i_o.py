@@ -1,10 +1,14 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import pdb
 import re
+import logging
 from tabulate import tabulate
+import pdb
+from incytr_viz.util import create_logger
 
+
+logger = create_logger(__name__)
 
 pathway_dtypes = {
     "ligand": str,
@@ -73,14 +77,17 @@ pathway_dtypes = {
 
 clusters_dtypes = {
     "type": str,
+    "condition": str,
     "population": np.float64,  # fraction of total
 }
 
 
 class PathwayInput:
-    def __init__(self, raw):
+    def __init__(self, raw, group_a, group_b):
         self.raw = raw
-        self.paths, self.group_a, self.group_b = validate_pathways(self.raw)
+        self.group_a = group_a
+        self.group_b = group_b
+        self.paths = validate_pathways(self.raw, self.group_a, self.group_b)
         self.has_tprs = "tprs" in self.paths.columns
         self.has_prs = "prs" in self.paths.columns
         self.has_p_value = all(
@@ -90,60 +97,21 @@ class PathwayInput:
         self.has_umap = all(x in self.paths.columns for x in ["umap1", "umap2"])
 
 
-def validate_pathways(raw):
+def validate_pathways(raw, group_a, group_b):
 
     raw.columns = raw.columns.str.strip().str.lower()
-
-    required_fixed = [
+    required = [
         "path",
         "sender",
         "receiver",
         "afc",
+        "sigprob_" + group_a,
+        "sigprob_" + group_b,
     ]
 
-    print("scanning input for required columns: ")
-    print(" ".join(required_fixed))
-
-    missing = [c for c in required_fixed if c not in raw.columns]
-
-    if missing:
-        raise ValueError(
-            f"Could not detect one or more required columns (check input): {missing}"
-        )
-
-    print("scanning input for condition-specific columns: ")
-
-    sigprob_cols = [c for c in raw.columns if "sigprob" in c]
-
-    if not len(sigprob_cols) == 2:
-        raise ValueError(
-            "Expected exactly 2 sigprob columns in input data (check input)"
-        )
-
-    print("sigprob columns found: ", " ".join(sigprob_cols))
-
-    print("parsing sigprob columns for condition names")
-    matches = [re.match(r"sigprob_(.+)", x) for x in sigprob_cols]
-
-    if not all(matches):
-        raise ValueError(
-            "sigprob columns not in the expected format (sigprob_<groupname>)"
-        )
-
-    group_a, group_b = [m.group(1) for m in matches]
-
-    print("condition 1: ", group_a)
-    print("condition 2: ", group_b)
-
-    TO_KEEP = [
-        "path",
-        "ligand",
-        "receptor",
-        "em",
-        "target",
-        "sender",
-        "receiver",
-        "afc",
+    optional = [
+        "p_value_" + group_a,
+        "p_value_" + group_b,
         "tprs",
         "prs",
         "kinase_r_of_em",
@@ -151,22 +119,53 @@ def validate_pathways(raw):
         "kinase_em_of_t",
         "umap1",
         "umap2",
-        *sigprob_cols,
-        *["p_value_" + group_a, "p_value_" + group_b],
     ]
 
-    paths = raw[[c for c in TO_KEEP if c in raw.columns]]
+    logger.info("scanning pathways file for required and optional columns")
+
+    required_df = pd.DataFrame.from_dict(
+        {"colname": required, "required": True, "found": False}
+    )
+    optional_df = pd.DataFrame.from_dict(
+        {"colname": optional, "required": False, "found": False}
+    )
+    columns_df = pd.concat([required_df, optional_df], axis=0)
+
+    for row in columns_df.iterrows():
+        col = row[1]["colname"]
+        columns_df.loc[columns_df["colname"] == col, "found"] = col in raw.columns
+
+    logger.info(
+        "Pathways file column summary\n"
+        + tabulate(columns_df, headers="keys", tablefmt="fancy_grid", showindex=False)
+    )
+
+    if (columns_df["required"] & ~columns_df["found"]).any():
+        raise ValueError(
+            f"Required columns not found in pathways file: {columns_df[columns_df['required'] & ~columns_df['found']]['colname'].values}"
+        )
+
+    if (~columns_df["found"] & ~columns_df["required"]).any():
+        logger.warning(
+            f"Optional columns missing in pathways file: {columns_df[~columns_df['found'] & ~columns_df['required']]['colname'].values}"
+        )
+
+    paths = raw[[c for c in columns_df["colname"] if c in raw.columns]]
 
     num_invalid = 0
 
     incomplete_paths = paths["path"].str.strip().str.split("*").str.len() != 4
 
-    print(
-        f"{incomplete_paths.sum()} rows with invalid pathway format found. Expecting form L*R*EM*T"
-    )
+    if incomplete_paths.sum() > 0:
+        logger.warning(
+            f"{incomplete_paths.sum()} rows with invalid pathway format found. Expecting form L*R*EM*T"
+        )
+        logger.warning("First 10 invalid paths:")
+        logger.warning(paths[incomplete_paths]["path"].head().values)
+
     num_invalid += len(incomplete_paths)
 
-    paths = raw.loc[~incomplete_paths].copy()
+    paths = paths.loc[~incomplete_paths]
 
     paths["ligand"] = paths["path"].str.split("*").str[0].str.strip()
     paths["receptor"] = paths["path"].str.split("*").str[1].str.strip()
@@ -181,67 +180,63 @@ def validate_pathways(raw):
     )
 
     duplicates = paths.duplicated()
-    print(f"{duplicates.sum()} duplicate rows found")
+    logger.warning(f"{duplicates.sum()} duplicate rows found")
 
-    is_na = paths[
-        paths[
-            [
-                "path",
-                "ligand",
-                "receptor",
-                "em",
-                "target",
-                "sender",
-                "receiver",
-                "afc",
-                *sigprob_cols,
-            ]
-        ].isna()
-    ].any(axis=1)
+    required_cols = columns_df[columns_df["required"]]["colname"].values
 
-    print(f"{is_na.sum()} rows with invalid values found in required columns")
+    is_na = paths[required_cols].isna().any(axis=1)
+
+    logger.info(f"{is_na.sum()} rows with invalid values found in required columns")
 
     invalid = duplicates | is_na
 
-    print(f"Removing {invalid.sum()} duplicate or invalid rows")
+    logger.info(f"Removing {invalid.sum()} duplicate or invalid rows")
     paths = paths[~invalid].reset_index(drop=True)
 
-    return paths, group_a, group_b
+    return paths
 
 
-def load_cell_clusters(*clusters_filepaths) -> pd.DataFrame:
+def load_clusters(clusters_path) -> pd.DataFrame:
 
-    out = pd.DataFrame()
-
-    for p in clusters_filepaths:
-
-        group_name = p.split("/")[-1].split("_")[0].lower()
-
-        df = pd.read_csv(p, dtype=clusters_dtypes)
-        df.columns = df.columns.str.lower().str.strip()
-
-        if not all(c in df.columns for c in clusters_dtypes.keys()):
-            raise ValueError(
-                f"Invalid cell populations file: ensure the following columns are present: {clusters_dtypes.keys()}"
-            )
-
-        df = df[list(clusters_dtypes.keys())].reset_index(drop=True)
-
-        df["type"] = df["type"].str.strip().str.lower()
-        df["group"] = group_name
-        df = df.set_index("type")
-
-        df["population"] = df["population"].fillna(0)
-        df["pop_min_ratio"] = df["population"] / (
-            df[df["population"] > 0]["population"].min()
+    if ".csv" in clusters_path:
+        sep = ","
+    elif ".tsv" in clusters_path:
+        sep = "\t"
+    else:
+        raise ValueError(
+            f"Pathways file suffix must be in [.csv,.tsv] -- check filename: {clusters_path}"
         )
 
-        out = pd.concat([out, df], axis=0)
+    logger.info(
+        "Loading cluster populations from {} as {}".format(
+            clusters_path, {"\t": "TSV", ",": "CSV"}[sep]
+        )
+    )
 
+    df = pd.read_csv(clusters_path, dtype=clusters_dtypes, sep=sep, compression="infer")
+
+    df.columns = df.columns.str.lower().str.strip()
+    if not all(c in df.columns for c in clusters_dtypes.keys()):
+        raise ValueError(
+            f"Invalid cell populations file: ensure the following columns are present: {clusters_dtypes.keys()}"
+        )
+
+    df = df[list(clusters_dtypes.keys())].reset_index(drop=True)
+
+    df["type"] = df["type"].str.strip().str.lower()
+    df["group"] = df["condition"].str.strip().str.lower()
+    df = df.set_index("type")
+
+    df["population"] = df["population"].fillna(0)
+    df["pop_min_ratio"] = df["population"] / (
+        df[df["population"] > 0]["population"].min()
+    )
+
+    df.drop(columns=["condition"], inplace=True)
     # assign colors to each cell type
     cmap = plt.get_cmap("tab20")
 
-    cell_types = out.index.unique()
+    cell_types = df.index.unique()
 
     plt_colors = cmap(np.linspace(0, 1, len(cell_types)))
 
@@ -249,20 +244,32 @@ def load_cell_clusters(*clusters_filepaths) -> pd.DataFrame:
     rgb_colors = [[int(x * 255) for x in c[0:3]] for c in plt_colors]
 
     colors = {t: rgb_colors[i] for i, t in enumerate(cell_types)}
-    out["color"] = out.index.map(colors)
-    out["color"] = out["color"].apply(lambda x: f"rgb({x[0]},{x[1]},{x[2]})")
+    df["color"] = df.index.map(colors)
+    df["color"] = df["color"].apply(lambda x: f"rgb({x[0]},{x[1]},{x[2]})")
 
-    return out
+    if len(df["group"].unique()) != 2:
+        raise ValueError(
+            f"Expected exactly 2 groups in cluster populations file, found {len(df['group'].unique())}"
+        )
+    return df, df["group"].unique()
 
 
-def process_input_data(pathways_path):
+def load_pathways(pathways_path, groups):
 
     if ".csv" in pathways_path:
         sep = ","
     elif ".tsv" in pathways_path:
         sep = "\t"
     else:
-        raise ValueError("Pathways file must be a CSV or TSV -- check filename")
+        raise ValueError(
+            f"Pathways file suffix must be in [.csv,.tsv] -- check filename {pathways_path}"
+        )
+
+    logger.info(
+        "Loading pathways from {} as {}".format(
+            pathways_path, {"\t": "TSV", ",": "CSV"}[sep]
+        )
+    )
 
     raw = pd.read_csv(
         pathways_path,
@@ -272,4 +279,4 @@ def process_input_data(pathways_path):
         low_memory=False,
     )
 
-    return PathwayInput(raw)
+    return PathwayInput(raw, groups[0].lower(), groups[1].lower())

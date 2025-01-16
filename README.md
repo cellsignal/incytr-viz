@@ -13,7 +13,8 @@ Dependencies:
 
 ## Run in browser
 
-1. Install dependencies if necessary (pip install -r requirements.txt)
+1. Install application -- from project root directory, run pip install .
+
 2. Ensure your CSV has the following columns (case insensitive)
 
    \*\* asterisks indicate required columns
@@ -30,19 +31,16 @@ Dependencies:
 - umap1 (required for umap display)
 - umap2(required for umap display)
 
-3. Open run.sh and update --group_a_populations (exp group) --group_b_populations (wt group) and --pathways to appropriate file paths (see cluster file naming convention must match group names in sigprob columns)
+3. Open run.sh and update --clusters and --pathways to appropriate paths
 
 Example run.sh:
 
 ```
-python app.py --group_a_populations data/covid/BL_clusters.csv --group_b_populations data/covid/HC_clusters.csv --pathways data/covid/hc_bl_incytr_heginput_p_rnascore_ligand-target.tsv
-
-BL_clusters.csv --> sigprob_BL
-HC_clusters.csv --> sigprob_HC
+incytr-viz --clusters <clusters path> --pathways <pathways path>
 
 ```
 
-4. Run 'bash run.sh' and navigate to http://127.0.0.1:8050/ in your browser
+4. Run 'bash run.sh' and navigate to http://127.0.0.1:8000/ in your browser
 
 ## Run in jupyter notebook (beta)
 

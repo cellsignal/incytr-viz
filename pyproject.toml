@@ -24,6 +24,8 @@ dependencies = [
   "pandas",
   "plotly",
   "matplotlib",
+  "gunicorn",
+  "tabulate"
 ]
 scripts = {"incytr-viz" = "incytr_viz.__main__:main" }
 
@@ -37,5 +39,5 @@ where = ["src"]
 
 
 [tool.setuptools.package-data]
-mypkg = ["incytr_viz/assets/incytr.css"]
+incytr_viz = ["assets/incytr.css"]
 

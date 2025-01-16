@@ -19,8 +19,8 @@
 
 .allSlidersContainer {
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  flex-direction: row;
+  justify-content: space-evenly;
   min-width: 500px;
   padding: 10px
 }
@@ -170,7 +170,7 @@
 }
 
 .sankey {
-  min-height: 200px;
+  min-height: 100px;
   width: 100%;
   flex-grow: 1;
 }

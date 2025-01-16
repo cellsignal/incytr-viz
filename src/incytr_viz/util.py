@@ -3,7 +3,22 @@ import numpy as np
 import json
 import pdb
 import re
+import logging
 from dataclasses import dataclass, field
+
+
+def create_logger(name):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+
+    ch.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
+
+    logger.addHandler(ch)
+
+    return logger
 
 
 def parse_umap_filter_data(umap_json_str):
@@ -18,24 +33,17 @@ def parse_slider_values_from_tree(children):
 
     sliders = []
     for c in children:
-        try:
-            s = c["props"]["children"][0]
-
-            if s["type"] in ("Slider", "RangeSlider"):
-                sliders.append(s)
-
-        except KeyError:
-            continue
+        sliders.extend(c["props"]["children"][0]["props"]["children"])
+        sliders.extend(c["props"]["children"][1]["props"]["children"])
 
     def _get_slider_value(sliders, index):
-        return next(s for s in sliders if s["props"]["id"]["index"] == index)["props"][
-            "value"
-        ]
+        return next(
+            s for s in sliders if s["props"].get("id", {}).get("index", "") == index
+        )["props"]["value"]
 
     slider_ids = ["sigprob", "tprs", "prs", "p-value"]
 
     out = {id: None for id in slider_ids}
-
     for id in slider_ids:
         try:
             out[id] = _get_slider_value(sliders, id)
@@ -53,8 +61,8 @@ class PathwaysFilter:
     all_paths: pd.DataFrame
     group_a_name: str
     group_b_name: str
-    sw_threshold: float = 0
-    pval_threshold: float = 1
+    sp_threshold: float = 0
+    pval_threshold: float = None
     prs_bounds: list[float] = field(default_factory=list)
     tprs_bounds: list[float] = field(default_factory=list)
     filter_kinase: str = ""
@@ -100,7 +108,6 @@ class PathwaysFilter:
 
     @property
     def a_data(self):
-
         df = self.all_paths.loc[:, ~self.all_paths.columns.str.endswith(self.b_suffix)]
 
         pattern = re.compile(f"_{self.group_a_name}$")
@@ -113,7 +120,6 @@ class PathwaysFilter:
 
     @property
     def b_data(self):
-
         df = self.all_paths.loc[
             :, ~self.all_paths.columns.str.endswith(self.a_suffix)
         ].copy()
@@ -136,7 +142,6 @@ class PathwaysFilter:
             filter_umap = self.filter_umap_b
 
         if should_filter_umap:
-
             if filter_umap.get("xaxis.range[0]"):
                 df = df.loc[
                     (
@@ -153,22 +158,18 @@ class PathwaysFilter:
                     ),
                     :,
                 ]
-
-        df = df[df["sigprob"] >= self.sw_threshold]
+        df = df[df["sigprob"] >= self.sp_threshold]
         if self.pval_threshold:
             df = df[df["p_value"] <= self.pval_threshold]
-
         if self.prs_bounds:
             df = df[
                 (df["prs"] >= self.prs_bounds[0]) & (df["prs"] <= self.prs_bounds[1])
             ]
-
         if self.tprs_bounds:
             df = df[
                 (df["tprs"] >= self.tprs_bounds[0])
                 & (df["tprs"] <= self.tprs_bounds[1])
             ]
-
         df = df[
             df["ligand"].isin(self.filter_ligands)
             & df["receptor"].isin(self.filter_receptors)
@@ -177,7 +178,6 @@ class PathwaysFilter:
             & df["sender"].isin(self.filter_senders)
             & df["receiver"].isin(self.filter_receivers)
         ]
-
         if self.filter_all_molecules:
             df = df[
                 df["ligand"].isin(self.filter_all_molecules)
@@ -185,14 +185,13 @@ class PathwaysFilter:
                 | df["em"].isin(self.filter_all_molecules)
                 | df["target"].isin(self.filter_all_molecules)
             ]
-
         if self.filter_kinase:
             val = self.filter_kinase
             if not all(
                 x in df.columns
                 for x in ["kinase_r_of_em", "kinase_r_of_t", "kinase_em_of_t"]
             ):
-                df = pd.DataFrame()
+                df = df.iloc[0:0]
             elif val == "r_em":
                 df = df[~df["kinase_r_of_em"].isna()]
             elif val == "r_t":

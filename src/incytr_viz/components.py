@@ -11,9 +11,10 @@ import plotly.express as px
 from incytr_viz.util import *
 
 
-def hist_container(group_id, filtered_group_paths):
+def hist_container(group_id, filtered_group_paths, sdi):
 
-    # Create subplots
+    plot_order = [(1, 1), (1, 2), (2, 1), (2, 2)]
+    curr_idx = 0
 
     def add_hist(fig, col, row, name, **kwargs):
         pass
@@ -24,39 +25,47 @@ def hist_container(group_id, filtered_group_paths):
 
     fig = make_subplots(2, 2)
 
-    # Add histograms to subplots
-    fig.add_trace(
-        go.Histogram(
-            x=filtered_group_paths["tprs"],
-            name="TPRS",
-            **common_hist_params,
-        ),
-        row=1,
-        col=1,
-    )
-    fig.add_trace(
-        go.Histogram(
-            x=filtered_group_paths["prs"],
-            name="PRS",
-            **common_hist_params,
-        ),
-        row=1,
-        col=2,
-    )
     fig.add_trace(
         go.Histogram(
             x=filtered_group_paths["sigprob"], name="SigProb", **common_hist_params
         ),
-        row=2,
-        col=1,
+        row=plot_order[curr_idx][0],
+        col=plot_order[curr_idx][1],
     )
-    # fig.add_trace(
-    #     go.Histogram(
-    #         x=filtered_group_paths["p_value"], name="P-Value", **common_hist_params
-    #     ),
-    #     row=2,
-    #     col=2,
-    # )
+    curr_idx += 1
+
+    if sdi["has_tprs"]:
+        fig.add_trace(
+            go.Histogram(
+                x=filtered_group_paths["tprs"],
+                name="TPRS",
+                **common_hist_params,
+            ),
+            row=plot_order[curr_idx][0],
+            col=plot_order[curr_idx][1],
+        )
+        curr_idx += 1
+    if sdi["has_prs"]:
+        fig.add_trace(
+            go.Histogram(
+                x=filtered_group_paths["prs"],
+                name="PRS",
+                **common_hist_params,
+            ),
+            row=plot_order[curr_idx][0],
+            col=plot_order[curr_idx][1],
+        )
+        curr_idx += 1
+
+    if sdi["has_p_value"]:
+        fig.add_trace(
+            go.Histogram(
+                x=filtered_group_paths["p_value"], name="P-Value", **common_hist_params
+            ),
+            row=plot_order[curr_idx][0],
+            col=plot_order[curr_idx][1],
+        )
+        curr_idx += 1
 
     # Update layout for subplots
     fig.update_xaxes(title_text="Value")
@@ -81,26 +90,25 @@ def hist_container(group_id, filtered_group_paths):
     )
 
 
-def umap_container(group_id, show_umap, all_pathways):
-    if show_umap:
-        fig = px.scatter(
-            all_pathways,
-            x="umap1",
-            y="umap2",
-            color="afc",
-            custom_data=["path"],
-            color_continuous_scale=px.colors.diverging.Spectral[::-1],
-        )
-        scatter = dcc.Graph(
-            id=f"scatter-plot-{group_id}",
-            figure=fig,
-            style={"width": "600px", "height": "600px"},
-        )
+def umap_graph(group_id, has_umap, show_umap, all_pathways):
 
-        return html.Div([scatter], className="umapContainer")
+    if not has_umap:
+        return None
 
-    else:
-        return html.Div([], style={"display": "none"})
+    fig = px.scatter(
+        all_pathways,
+        x="umap1",
+        y="umap2",
+        color="afc",
+        custom_data=["path"],
+        color_continuous_scale=px.colors.diverging.Spectral[::-1],
+    )
+    scatter = dcc.Graph(
+        id=f"umap-graph-{group_id}",
+        figure=fig,
+    )
+
+    return scatter
 
 
 def cytoscape_container(
@@ -169,13 +177,15 @@ def sankey_container(
 ):
 
     def get_sankey_height(num_targets, num_links):
-        if (num_links == 0) or (num_targets == 0):
+        if num_links == 0:
+            out = 250
+        elif num_targets == 0:
             out = 400
         elif num_targets < 50:
-            out = num_targets * 20
+            out = num_targets * 25
         else:
             out = num_targets * 15
-        return f"{max(out, 400)}px"
+        return f"{max(out, 250)}px"
 
     num_targets = len([x for x in ids if "_target" in x])
     num_links = len(ids)
@@ -494,7 +504,15 @@ def slider(
     )
 
 
-def range_slider(id: str, minval: int, maxval: int, step: int, value: list, label: str):
+def range_slider(
+    id: str,
+    minval: int,
+    maxval: int,
+    step: int,
+    value: list,
+    label: str,
+    disabled: bool,
+):
 
     tooltip_format = {
         "placement": "left",
@@ -517,6 +535,7 @@ def range_slider(id: str, minval: int, maxval: int, step: int, value: list, labe
                 tooltip=tooltip_format,
                 id=id,
                 className="slider",
+                disabled=disabled,
             ),
             html.Span(label),
         ],
@@ -532,49 +551,53 @@ def slider_container(
 
     sliders = [
         slider(
-            {"type": "numerical-filter", "index": "sigprob"},
-            0,
-            1,
-            0.01,
-            0.7,
-            "Sigprob",
+            id={"type": "numerical-filter", "index": "sigprob"},
+            minval=0,
+            maxval=1,
+            step=0.01,
+            value=0.7,
+            label="Sigprob",
+            disabled=False,
         )
     ]
-    if has_p_value:
-        sliders.append(
-            slider(
-                {"type": "numerical-filter", "index": "p-value"},
-                minval=0,
-                maxval=1,
-                step=0.01,
-                value=1,
-                label="P-Value",
-            )
+    sliders.append(
+        slider(
+            {"type": "numerical-filter", "index": "p-value"},
+            minval=0,
+            maxval=1,
+            step=0.01,
+            value=1,
+            label="P-Value",
+            disabled=not has_p_value,
         )
-    if has_tprs:
-        sliders.append(
-            range_slider(
-                {"type": "numerical-filter", "index": "tprs"},
-                minval=-2,
-                maxval=2,
-                step=0.01,
-                value=[-2, 2],
-                label="TPRS",
-            )
+    )
+    sliders.append(
+        range_slider(
+            {"type": "numerical-filter", "index": "tprs"},
+            minval=-2,
+            maxval=2,
+            step=0.01,
+            value=[-2, 2],
+            label="TPRS",
+            disabled=not has_tprs,
         )
-    if has_prs:
-        sliders.append(
-            range_slider(
-                {"type": "numerical-filter", "index": "prs"},
-                minval=-2,
-                maxval=2,
-                step=0.01,
-                value=[-2, 2],
-                label="PRS",
-            )
+    )
+    sliders.append(
+        range_slider(
+            {"type": "numerical-filter", "index": "prs"},
+            minval=-2,
+            maxval=2,
+            step=0.01,
+            value=[-2, 2],
+            label="PRS",
+            disabled=not has_prs,
         )
+    )
     return html.Div(
-        sliders,
+        [
+            html.Div(sliders[0:2], className="sliderColumn"),
+            html.Div(sliders[2:4], className="sliderColumn"),
+        ],
         className="sidebarElement allSlidersContainer",
         id="allSlidersContainer",
     )
