@@ -22,6 +22,7 @@ Dependencies:
 - \*Path (ligand, em, receptor, target columns are generated from the Path column)
 - \*Sender
 - \*Receiver
+- \*aFC
 - \*sigprob_x, where x can be any suffix representing experimental group
 - \*sigprob_y, where y can be any suffix representing experimental group
 - p_value_x, where x can be any suffix representing experimental group
@@ -31,21 +32,15 @@ Dependencies:
 - umap1 (required for umap display)
 - umap2(required for umap display)
 
-3. Open run.sh and update --clusters and --pathways to appropriate paths
-
-Example run.sh:
+3. Run via the following command:
 
 ```
 incytr-viz --clusters <clusters path> --pathways <pathways path>
 
 ```
 
-4. Run 'bash run.sh' and navigate to http://127.0.0.1:8000/ in your browser
+4. Navigate to http://127.0.0.1:8000/ in your browser
 
-## Run in jupyter notebook (beta)
-
-1. Update filepaths in notebook.ipynb
-2. Run notebook
 
 ## Notes
 

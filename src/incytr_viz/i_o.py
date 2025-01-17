@@ -10,81 +10,9 @@ from incytr_viz.util import create_logger
 
 logger = create_logger(__name__)
 
-pathway_dtypes = {
-    "ligand": str,
-    "receptor": str,
-    "em": str,
-    "target": str,
-    "sender": str,
-    "receiver": str,
-    "ligand_sclog2fc": np.float64,
-    "receptor_sclog2fc": np.float64,
-    "em_sclog2fc": np.float64,
-    "target_sclog2fc": np.float64,
-    "path": str,
-    "log2fc": np.float64,
-    "afc": np.float64,
-    "ligand_pr_log2fc": np.float64,
-    "ligand_pr_afc": np.float64,
-    "receptor_pr_log2fc": np.float64,
-    "receptor_pr_afc": np.float64,
-    "em_pr_log2fc": np.float64,
-    "em_pr_afc": np.float64,
-    "target_pr_log2fc": np.float64,
-    "target_pr_afc": np.float64,
-    "ligand_ps_log2fc": np.float64,
-    "ligand_ps_afc": np.float64,
-    "receptor_ps_log2fc": np.float64,
-    "receptor_ps_afc": np.float64,
-    "em_ps_log2fc": np.float64,
-    "em_ps_afc": np.float64,
-    "target_ps_log2fc": np.float64,
-    "target_ps_afc": np.float64,
-    "ligand_py_log2fc": np.float64,
-    "ligand_py_afc": np.float64,
-    "receptor_py_log2fc": np.float64,
-    "receptor_py_afc": np.float64,
-    "em_py_log2fc": np.float64,
-    "em_py_afc": np.float64,
-    "target_py_log2fc": np.float64,
-    "target_py_afc": np.float64,
-    "sc_up": np.int8,
-    "sc_down": np.int8,
-    "pr_up": np.int8,
-    "pr_down": np.int8,
-    "ps_up": np.int8,
-    "ps_down": np.int8,
-    "py_up": np.int8,
-    "py_down": np.int8,
-    "tprs": np.float64,
-    "pr_score": np.float64,
-    "ps_score": np.float64,
-    "py_score": np.float64,
-    "prs": np.float64,
-    "final_score_wkinase": np.float64,
-    "kinase_r_of_em": str,
-    "kinase_r_of_t": str,
-    "kinase_em_of_t": str,
-    "kinase_r_of_em_eicondition1": str,
-    "kinase_r_of_em_eicondition2": str,
-    "kinase_r_of_t_eicondition1": str,
-    "kinase_r_of_t_eicondition2": str,
-    "kinase_em_of_t_eicondition1": str,
-    "kinase_em_of_t_eicondition2": str,
-    "kinase_score_5x": np.float64,
-    "kinase_score_wt": np.float64,
-}
-
-clusters_dtypes = {
-    "type": str,
-    "condition": str,
-    "population": np.float64,  # fraction of total
-}
-
 
 class PathwayInput:
-    def __init__(self, raw, group_a, group_b):
-        self.raw = raw
+    def __init__(self, group_a, group_b):
         self.group_a = group_a
         self.group_b = group_b
         self.paths = validate_pathways(self.raw, self.group_a, self.group_b)
@@ -196,87 +124,87 @@ def validate_pathways(raw, group_a, group_b):
     return paths
 
 
-def load_clusters(clusters_path) -> pd.DataFrame:
+# def load_clusters(clusters_path) -> pd.DataFrame:
 
-    if ".csv" in clusters_path:
-        sep = ","
-    elif ".tsv" in clusters_path:
-        sep = "\t"
-    else:
-        raise ValueError(
-            f"Pathways file suffix must be in [.csv,.tsv] -- check filename: {clusters_path}"
-        )
+#     if ".csv" in clusters_path:
+#         sep = ","
+#     elif ".tsv" in clusters_path:
+#         sep = "\t"
+#     else:
+#         raise ValueError(
+#             f"Pathways file suffix must be in [.csv,.tsv] -- check filename: {clusters_path}"
+#         )
 
-    logger.info(
-        "Loading cluster populations from {} as {}".format(
-            clusters_path, {"\t": "TSV", ",": "CSV"}[sep]
-        )
-    )
+#     logger.info(
+#         "Loading cluster populations from {} as {}".format(
+#             clusters_path, {"\t": "TSV", ",": "CSV"}[sep]
+#         )
+#     )
 
-    df = pd.read_csv(clusters_path, dtype=clusters_dtypes, sep=sep, compression="infer")
+#     df = pd.read_csv(clusters_path, dtype=clusters_dtypes, sep=sep, compression="infer")
 
-    df.columns = df.columns.str.lower().str.strip()
-    if not all(c in df.columns for c in clusters_dtypes.keys()):
-        raise ValueError(
-            f"Invalid cell populations file: ensure the following columns are present: {clusters_dtypes.keys()}"
-        )
+#     df.columns = df.columns.str.lower().str.strip()
+#     if not all(c in df.columns for c in clusters_dtypes.keys()):
+#         raise ValueError(
+#             f"Invalid cell populations file: ensure the following columns are present: {clusters_dtypes.keys()}"
+#         )
 
-    df = df[list(clusters_dtypes.keys())].reset_index(drop=True)
+#     df = df[list(clusters_dtypes.keys())].reset_index(drop=True)
 
-    df["type"] = df["type"].str.strip().str.lower()
-    df["group"] = df["condition"].str.strip().str.lower()
-    df = df.set_index("type")
+#     df["type"] = df["type"].str.strip().str.lower()
+#     df["group"] = df["condition"].str.strip().str.lower()
+#     df = df.set_index("type")
 
-    df["population"] = df["population"].fillna(0)
-    df["pop_min_ratio"] = df["population"] / (
-        df[df["population"] > 0]["population"].min()
-    )
+#     df["population"] = df["population"].fillna(0)
+#     df["pop_min_ratio"] = df["population"] / (
+#         df[df["population"] > 0]["population"].min()
+#     )
 
-    df.drop(columns=["condition"], inplace=True)
-    # assign colors to each cell type
-    cmap = plt.get_cmap("tab20")
+#     df.drop(columns=["condition"], inplace=True)
+#     # assign colors to each cell type
+#     cmap = plt.get_cmap("tab20")
 
-    cell_types = df.index.unique()
+#     cell_types = df.index.unique()
 
-    plt_colors = cmap(np.linspace(0, 1, len(cell_types)))
+#     plt_colors = cmap(np.linspace(0, 1, len(cell_types)))
 
-    # 256 would not be websafe value
-    rgb_colors = [[int(x * 255) for x in c[0:3]] for c in plt_colors]
+#     # 256 would not be websafe value
+#     rgb_colors = [[int(x * 255) for x in c[0:3]] for c in plt_colors]
 
-    colors = {t: rgb_colors[i] for i, t in enumerate(cell_types)}
-    df["color"] = df.index.map(colors)
-    df["color"] = df["color"].apply(lambda x: f"rgb({x[0]},{x[1]},{x[2]})")
+#     colors = {t: rgb_colors[i] for i, t in enumerate(cell_types)}
+#     df["color"] = df.index.map(colors)
+#     df["color"] = df["color"].apply(lambda x: f"rgb({x[0]},{x[1]},{x[2]})")
 
-    if len(df["group"].unique()) != 2:
-        raise ValueError(
-            f"Expected exactly 2 groups in cluster populations file, found {len(df['group'].unique())}"
-        )
-    return df, df["group"].unique()
+#     if len(df["group"].unique()) != 2:
+#         raise ValueError(
+#             f"Expected exactly 2 groups in cluster populations file, found {len(df['group'].unique())}"
+#         )
+#     return df, df["group"].unique()
 
 
-def load_pathways(pathways_path, groups):
+# def load_pathways(pathways_path, groups):
 
-    if ".csv" in pathways_path:
-        sep = ","
-    elif ".tsv" in pathways_path:
-        sep = "\t"
-    else:
-        raise ValueError(
-            f"Pathways file suffix must be in [.csv,.tsv] -- check filename {pathways_path}"
-        )
+#     if ".csv" in pathways_path:
+#         sep = ","
+#     elif ".tsv" in pathways_path:
+#         sep = "\t"
+#     else:
+#         raise ValueError(
+#             f"Pathways file suffix must be in [.csv,.tsv] -- check filename {pathways_path}"
+#         )
 
-    logger.info(
-        "Loading pathways from {} as {}".format(
-            pathways_path, {"\t": "TSV", ",": "CSV"}[sep]
-        )
-    )
+#     logger.info(
+#         "Loading pathways from {} as {}".format(
+#             pathways_path, {"\t": "TSV", ",": "CSV"}[sep]
+#         )
+#     )
 
-    raw = pd.read_csv(
-        pathways_path,
-        dtype=pathway_dtypes,
-        sep=sep,
-        compression="infer",
-        low_memory=False,
-    )
+#     raw = pd.read_csv(
+#         pathways_path,
+#         dtype=pathway_dtypes,
+#         sep=sep,
+#         compression="infer",
+#         low_memory=False,
+#     )
 
-    return PathwayInput(raw, groups[0].lower(), groups[1].lower())
+#     return PathwayInput(raw, groups[0].lower(), groups[1].lower())

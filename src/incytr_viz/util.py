@@ -133,7 +133,6 @@ class PathwaysFilter:
         )
 
     def filter(self, group_id, should_filter_umap=False):
-
         if group_id == "a":
             df = self.a_data
             filter_umap = self.filter_umap_a
@@ -158,6 +157,8 @@ class PathwaysFilter:
                     ),
                     :,
                 ]
+
+        # pdb.set_trace()
         df = df[df["sigprob"] >= self.sp_threshold]
         if self.pval_threshold:
             df = df[df["p_value"] <= self.pval_threshold]

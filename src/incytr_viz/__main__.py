@@ -1,5 +1,17 @@
 import argparse
 import subprocess
+import os
+
+
+def jupyter(pathways, clusters):
+
+    os.environ["INCYTR_PATHWAYS"] = pathways
+    os.environ["INCYTR_CLUSTERS"] = clusters
+
+    # load after environment variables are set
+    from incytr_viz.app import app
+
+    app.run(debug=True)
 
 
 def main():
@@ -19,9 +31,15 @@ def main():
     PATHWAYS = args.pathways
     CLUSTERS = args.clusters
 
-    app_string = f"incytr_viz.app:get_server(raw_pathways='{PATHWAYS}', raw_clusters='{CLUSTERS}')"
+    os.environ["INCYTR_PATHWAYS"] = PATHWAYS
+    os.environ["INCYTR_CLUSTERS"] = CLUSTERS
 
-    subprocess.run(["gunicorn", app_string])
+    # # load after environment variables are set
+    # from incytr_viz.app import app
+
+    # app.run(debug=True)
+
+    subprocess.run(["gunicorn", "incytr_viz.app:server"])
 
 
 if __name__ == "__main__":

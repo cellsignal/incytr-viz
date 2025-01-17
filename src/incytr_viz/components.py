@@ -11,13 +11,10 @@ import plotly.express as px
 from incytr_viz.util import *
 
 
-def hist_container(group_id, filtered_group_paths, sdi):
+def create_hist_figure(paths, has_tprs, has_prs, has_p_value):
 
     plot_order = [(1, 1), (1, 2), (2, 1), (2, 2)]
     curr_idx = 0
-
-    def add_hist(fig, col, row, name, **kwargs):
-        pass
 
     common_hist_params = dict(
         nbinsx=100,
@@ -26,18 +23,16 @@ def hist_container(group_id, filtered_group_paths, sdi):
     fig = make_subplots(2, 2)
 
     fig.add_trace(
-        go.Histogram(
-            x=filtered_group_paths["sigprob"], name="SigProb", **common_hist_params
-        ),
+        go.Histogram(x=paths["sigprob"], name="SigProb", **common_hist_params),
         row=plot_order[curr_idx][0],
         col=plot_order[curr_idx][1],
     )
     curr_idx += 1
 
-    if sdi["has_tprs"]:
+    if has_tprs:
         fig.add_trace(
             go.Histogram(
-                x=filtered_group_paths["tprs"],
+                x=paths["tprs"],
                 name="TPRS",
                 **common_hist_params,
             ),
@@ -45,10 +40,10 @@ def hist_container(group_id, filtered_group_paths, sdi):
             col=plot_order[curr_idx][1],
         )
         curr_idx += 1
-    if sdi["has_prs"]:
+    if has_prs:
         fig.add_trace(
             go.Histogram(
-                x=filtered_group_paths["prs"],
+                x=paths["prs"],
                 name="PRS",
                 **common_hist_params,
             ),
@@ -57,11 +52,9 @@ def hist_container(group_id, filtered_group_paths, sdi):
         )
         curr_idx += 1
 
-    if sdi["has_p_value"]:
+    if has_p_value:
         fig.add_trace(
-            go.Histogram(
-                x=filtered_group_paths["p_value"], name="P-Value", **common_hist_params
-            ),
+            go.Histogram(x=paths["p_value"], name="P-Value", **common_hist_params),
             row=plot_order[curr_idx][0],
             col=plot_order[curr_idx][1],
         )
@@ -83,11 +76,8 @@ def hist_container(group_id, filtered_group_paths, sdi):
         # ),  # Adjust y-axis domain for the second two subplots
         showlegend=True,
     )
-    return html.Div(
-        dcc.Graph(figure=fig),
-        id=f"hist-{group_id}-container",
-        className="histContainer",
-    )
+
+    return fig
 
 
 def umap_graph(group_id, has_umap, show_umap, all_pathways):
@@ -348,18 +338,9 @@ def sankey_legend_container() -> html.Div:
     )
 
 
-def filter_container(pathways):
+def filter_container(sender, receiver, em, target, ligand, receptor):
 
-    all_molecules = pd.concat(
-        [
-            pathways["ligand"],
-            pathways["receptor"],
-            pathways["em"],
-            pathways["target"],
-        ],
-        axis=0,
-    ).unique()
-
+    all_molecules = list(set(em + target + ligand + receptor))
     return html.Div(
         children=[
             html.Div(
@@ -369,7 +350,7 @@ def filter_container(pathways):
                         placeholder="Filter Senders",
                         multi=True,
                         clearable=True,
-                        options=pathways["sender"].unique(),
+                        options=sender,
                         className="filter",
                     ),
                     dcc.Dropdown(
@@ -377,7 +358,7 @@ def filter_container(pathways):
                         placeholder="Filter Receivers",
                         multi=True,
                         clearable=True,
-                        options=pathways["receiver"].unique(),
+                        options=receiver,
                         className="filter",
                     ),
                 ],
@@ -390,7 +371,7 @@ def filter_container(pathways):
                         placeholder="Filter Ligands",
                         multi=True,
                         clearable=True,
-                        options=pathways["ligand"].unique(),
+                        options=ligand,
                         className="filter",
                     ),
                     dcc.Dropdown(
@@ -398,7 +379,7 @@ def filter_container(pathways):
                         placeholder="Filter Receptors",
                         multi=True,
                         clearable=True,
-                        options=pathways["receptor"].unique(),
+                        options=receptor,
                         className="filter",
                     ),
                 ],
@@ -411,7 +392,7 @@ def filter_container(pathways):
                         placeholder="Filter Effectors",
                         multi=True,
                         clearable=True,
-                        options=pathways["em"].unique(),
+                        options=em,
                         className="filter",
                     ),
                     dcc.Dropdown(
@@ -419,7 +400,7 @@ def filter_container(pathways):
                         placeholder="Filter Target Genes",
                         multi=True,
                         clearable=True,
-                        options=pathways["target"].unique(),
+                        options=target,
                         className="filter",
                     ),
                 ],
@@ -461,7 +442,6 @@ def filter_container(pathways):
                 className="filterColumn",
             ),
         ],
-        id="filter-container",
         className="filterContainer sidebarElement",
     )
 
