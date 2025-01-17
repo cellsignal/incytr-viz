@@ -80,7 +80,7 @@ def create_hist_figure(paths, has_tprs, has_prs, has_p_value):
     return fig
 
 
-def umap_graph(group_id, has_umap, show_umap, all_pathways):
+def umap_graph(group_id, has_umap, all_pathways):
 
     if not has_umap:
         return None

@@ -1,7 +1,12 @@
 import dash_bootstrap_components as dbc
 from dash import Dash, dcc, html, ALL, ctx, callback
 from incytr_viz.modal_content import content
-from incytr_viz.components import create_hist_figure, filter_container, slider_container
+from incytr_viz.components import (
+    create_hist_figure,
+    filter_container,
+    slider_container,
+    umap_graph,
+)
 from flask_caching import Cache
 import pandas as pd
 from incytr_viz.util import create_logger
@@ -9,6 +14,7 @@ from incytr_viz.dtypes import clusters_dtypes, pathways_dtypes
 from tabulate import tabulate
 import os
 import pdb
+import json
 
 import numpy as np
 from typing import Optional
@@ -459,7 +465,7 @@ app.layout = html.Div(
                             className="groupTitle",
                         ),
                         html.Div(
-                            [],
+                            umap_graph("a", pi.has_umap, pi.paths),
                             className="umapContainer",
                             id="umap-a-container",
                             style={"display": "none"},
@@ -501,7 +507,7 @@ app.layout = html.Div(
                             className="groupTitle",
                         ),
                         html.Div(
-                            [],
+                            umap_graph("b", pi.has_umap, pi.paths),
                             className="umapContainer",
                             id="umap-b-container",
                             style={"display": "none"},
@@ -933,74 +939,41 @@ def update_figure_and_histogram(
     )
 
 
-# @app.callback(
-#     Output("filter-container", "children"),
-#     Input("dummy-store", "data"),
-# )
-# def update_filter_container(store_data):
-
-#     _, groups = get_clusters(os.environ["INCYTR_CLUSTERS"])
-#     pi = get_pathways(os.environ["INCYTR_PATHWAYS"], groups[0], groups[1])
-
-#     return filter_container(
-#         sender=pi.unique_senders,
-#         receiver=pi.unique_receivers,
-#         ligand=pi.unique_ligands,
-#         receptor=pi.unique_receptors,
-#         em=pi.unique_em,
-#         target=pi.unique_targets,
-#     )
+def _relayout_umap(relayoutData):
+    """
+    {
+        'xaxis.range[0]': -0.6369249007630504,
+        'xaxis.range[1]': 6.965720316453904,
+        'yaxis.range[0]': 3.7282259393124537,
+        'yaxis.range[1]': 9.59742380103187
+    }
+    """
+    if relayoutData and "xaxis.range[0]" in relayoutData:
+        return json.dumps(relayoutData)
+    else:
+        return None
 
 
-# @app.callback(
-#     Output("slider-container", "children"),
-#     Input("filter-container", "id"),
-# )
-# def update_slider_container(id):
-
-#     _, groups = get_clusters(os.environ["INCYTR_CLUSTERS"])
-#     pi = get_pathways(os.environ["INCYTR_PATHWAYS"], groups[0], groups[1])
-
-#     return slider_container(
-#         has_tprs=pi.has_tprs, has_prs=pi.has_prs, has_p_value=pi.has_p_value
-#     )
+@app.callback(
+    Output("umap-select-a", "value"),
+    inputs=Input("scatter-plot-a", "relayoutData"),
+    prevent_initial_call=True,
+)
+def relayout_umap_a(
+    relayoutData,
+):
+    return _relayout_umap(relayoutData)
 
 
-# def _relayout_umap(relayoutData):
-#     """
-#     {
-#         'xaxis.range[0]': -0.6369249007630504,
-#         'xaxis.range[1]': 6.965720316453904,
-#         'yaxis.range[0]': 3.7282259393124537,
-#         'yaxis.range[1]': 9.59742380103187
-#     }
-#     """
-#     if relayoutData and "xaxis.range[0]" in relayoutData:
-#         return json.dumps(relayoutData)
-#     else:
-#         return None
-
-
-# @app.callback(
-#     Output("umap-select-a", "value"),
-#     inputs=Input("scatter-plot-a", "relayoutData"),
-#     prevent_initial_call=True,
-# )
-# def relayout_umap_a(
-#     relayoutData,
-# ):
-#     return _relayout_umap(relayoutData)
-
-
-# @app.callback(
-#     Output("umap-select-b", "value"),
-#     inputs=Input("scatter-plot-b", "relayoutData"),
-#     prevent_initial_call=True,
-# )
-# def relayout_umap_b(
-#     relayoutData,
-# ):
-#     return _relayout_umap(relayoutData)
+@app.callback(
+    Output("umap-select-b", "value"),
+    inputs=Input("scatter-plot-b", "relayoutData"),
+    prevent_initial_call=True,
+)
+def relayout_umap_b(
+    relayoutData,
+):
+    return _relayout_umap(relayoutData)
 
 
 @app.callback(
