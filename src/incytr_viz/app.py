@@ -123,12 +123,14 @@ def get_clusters(fpath):
 def parse_pathway_headers(headers, group_a, group_b):
 
     formatted = format_headers(headers)
+
+    # Remove duplicate columns
     mapper = list(zip(headers, formatted))
 
     required = [
         "path",
-        "sender",
-        "receiver",
+        "sender.group",
+        "receiver.group",
         "afc",
         "sigprob_" + group_a,
         "sigprob_" + group_b,
