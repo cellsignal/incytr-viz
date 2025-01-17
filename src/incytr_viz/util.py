@@ -7,6 +7,24 @@ import logging
 from dataclasses import dataclass, field
 
 
+def filter_defaults():
+
+    return {
+        "sender_select": [],
+        "receiver_select": [],
+        "ligand_select": [],
+        "receptor_select": [],
+        "em_select": [],
+        "target_select": [],
+        "any_role_select": [],
+        "kinase_select": None,
+        "sigprob": 0.9,
+        "p_value": 0.05,
+        "prs": [-2, 2],
+        "tprs": [-2, 2],
+    }
+
+
 def create_logger(name):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)

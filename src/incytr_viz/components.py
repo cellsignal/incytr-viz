@@ -535,7 +535,7 @@ def slider_container(
             minval=0,
             maxval=1,
             step=0.01,
-            value=0.7,
+            value=0.9,
             label="Sigprob",
             disabled=False,
         )
@@ -546,7 +546,7 @@ def slider_container(
             minval=0,
             maxval=1,
             step=0.01,
-            value=1,
+            value=0.05,
             label="P-Value",
             disabled=not has_p_value,
         )

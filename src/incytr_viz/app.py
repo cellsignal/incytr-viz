@@ -9,7 +9,7 @@ from incytr_viz.components import (
 )
 from flask_caching import Cache
 import pandas as pd
-from incytr_viz.util import create_logger
+from incytr_viz.util import create_logger, filter_defaults
 from incytr_viz.dtypes import clusters_dtypes, pathways_dtypes
 from tabulate import tabulate
 import os
@@ -61,8 +61,8 @@ def format_headers(headers):
     )
 
 
-# @cache.cached(timeout=None, key_prefix="clusters")
-@cache.memoize(timeout=None)
+@cache.cached(timeout=None, key_prefix="clusters")
+# @cache.memoize(timeout=None)
 def get_clusters(fpath):
     if ".csv" in fpath:
         sep = ","
@@ -205,8 +205,7 @@ class PathwayInput:
         self.unique_targets = self.paths["target"].unique()
 
 
-# @cache.cached(timeout=None, key_prefix="pathways")
-@cache.memoize(timeout=None)
+@cache.cached(timeout=None, key_prefix="pathways")
 def get_pathways(fpath, group_a, group_b):
     if ".csv" in fpath:
         sep = ","
@@ -218,12 +217,15 @@ def get_pathways(fpath, group_a, group_b):
         )
 
     logger.info(
-        "Loading pathways from {} as {}".format(fpath, {"\t": "TSV", ",": "CSV"}[sep])
+        "Detected pathways at path {} as {}".format(
+            fpath, {"\t": "TSV", ",": "CSV"}[sep]
+        )
     )
 
     headers = pd.read_csv(fpath, nrows=0, sep=sep).columns
     to_keep = parse_pathway_headers(headers, group_a, group_b)
 
+    logger.info("Loading pathways............")
     paths = pd.read_csv(fpath, dtype=pathways_dtypes, usecols=to_keep, sep=sep)
     paths.columns = format_headers(paths.columns)
 
@@ -320,6 +322,11 @@ app.layout = html.Div(
                             inputClassName="btn-check",
                             labelClassName="btn btn-outline-primary",
                             labelCheckedClassName="active",
+                        ),
+                        dbc.Button(
+                            "Reset Filters",
+                            id="reset",
+                            className="btn btn-primary",
                         ),
                         dbc.DropdownMenu(
                             label="Options",
@@ -539,6 +546,8 @@ app.layout = html.Div(
 
 
 server = app.server
+logger.info("Running Incytr Viz using gunicorn web server")
+logger.info("Serving at http://localhost:8000")
 # def get_server(pathways_fpath, clusters_fpath):
 #     os.environ["INCYTR_PATHWAYS"] = pathways_fpath
 #     os.environ["INCYTR_CLUSTERS"] = clusters_fpath
@@ -816,6 +825,10 @@ def update_figure_and_histogram(
 
     slider_values = parse_slider_values_from_tree(sliders_container_children)
 
+    print(pcf)
+    print(nsi)
+    print(slider_values)
+
     pf = PathwaysFilter(
         all_paths=pi.paths,
         group_a_name=pi.group_a,
@@ -1059,6 +1072,7 @@ def cluster_edge_callback(
     State("em-select", "value"),
     State("target-select", "value"),
     prevent_initial_call=True,
+    allow_duplicate=True,
 )
 def update_filters_click_node(
     click_data_a,
@@ -1096,6 +1110,29 @@ def update_filters_click_node(
         em_select,
         target_select,
     )
+
+
+@app.callback(
+    output=dict(
+        ligand_select=Output("ligand-select", "value", allow_duplicate=True),
+        receptor_select=Output("receptor-select", "value", allow_duplicate=True),
+        em_select=Output("em-select", "value", allow_duplicate=True),
+        target_select=Output("target-select", "value", allow_duplicate=True),
+        sender_select=Output("sender-select", "value", allow_duplicate=True),
+        receiver_select=Output("receiver-select", "value", allow_duplicate=True),
+        kinase_select=Output("kinase-select", "value"),
+        any_role_select=Output("any-role-select", "value"),
+        sigprob=Output({"type": "numerical-filter", "index": "sigprob"}, "value"),
+        p_value=Output({"type": "numerical-filter", "index": "p-value"}, "value"),
+        tprs=Output({"type": "numerical-filter", "index": "tprs"}, "value"),
+        prs=Output({"type": "numerical-filter", "index": "prs"}, "value"),
+    ),
+    inputs=[Input("reset", "n_clicks")],
+    prevent_initial_call=True,
+)
+def update_filters_click_node(nclicks):
+
+    return filter_defaults()
 
 
 @app.callback(

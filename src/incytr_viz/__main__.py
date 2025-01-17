@@ -1,6 +1,9 @@
 import argparse
 import subprocess
 import os
+from incytr_viz.util import create_logger
+
+logger = create_logger(__name__)
 
 
 def jupyter(pathways, clusters):
@@ -34,12 +37,12 @@ def main():
     os.environ["INCYTR_PATHWAYS"] = PATHWAYS
     os.environ["INCYTR_CLUSTERS"] = CLUSTERS
 
-    # # load after environment variables are set
-    # from incytr_viz.app import app
+    # load after environment variables are set
+    from incytr_viz.app import app
 
-    # app.run(debug=True)
+    app.run(debug=True)
 
-    subprocess.run(["gunicorn", "incytr_viz.app:server"])
+    # subprocess.run(["gunicorn", "incytr_viz.app:server"])
 
 
 if __name__ == "__main__":
