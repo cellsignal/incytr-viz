@@ -129,8 +129,8 @@ def parse_pathway_headers(headers, group_a, group_b):
 
     required = [
         "path",
-        "sender.group",
-        "receiver.group",
+        "sender",
+        "receiver",
         "afc",
         "sigprob_" + group_a,
         "sigprob_" + group_b,
