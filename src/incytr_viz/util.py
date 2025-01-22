@@ -1,10 +1,142 @@
-import pandas as pd
-import numpy as np
 import json
+import logging
 import pdb
 import re
-import logging
 from dataclasses import dataclass, field
+
+import numpy as np
+import pandas as pd
+from tabulate import tabulate
+
+
+def create_logger(name):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+
+    ch.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
+
+    logger.addHandler(ch)
+
+    return logger
+
+
+logger = create_logger(__name__)
+
+
+class PathwayInput:
+    def __init__(self, group_a, group_b):
+        self.group_a = group_a
+        self.group_b = group_b
+        self.paths = validate_pathways(self.raw, self.group_a, self.group_b)
+        self.has_tprs = "tprs" in self.paths.columns
+        self.has_prs = "prs" in self.paths.columns
+        self.has_p_value = all(
+            x in self.paths.columns
+            for x in ["p_value_" + self.group_a, "p_value_" + self.group_b]
+        )
+        self.has_umap = all(x in self.paths.columns for x in ["umap1", "umap2"])
+
+
+def validate_pathways(raw, group_a, group_b):
+
+    raw.columns = raw.columns.str.strip().str.lower()
+    required = [
+        "path",
+        "sender",
+        "receiver",
+        "afc",
+        "sigprob_" + group_a,
+        "sigprob_" + group_b,
+    ]
+
+    optional = [
+        "p_value_" + group_a,
+        "p_value_" + group_b,
+        "tprs",
+        "prs",
+        "kinase_r_of_em",
+        "kinase_r_of_t",
+        "kinase_em_of_t",
+        "umap1",
+        "umap2",
+    ]
+
+    logger.info("scanning pathways file for required and optional columns")
+
+    required_df = pd.DataFrame.from_dict(
+        {"colname": required, "required": True, "found": False}
+    )
+    optional_df = pd.DataFrame.from_dict(
+        {"colname": optional, "required": False, "found": False}
+    )
+    columns_df = pd.concat([required_df, optional_df], axis=0)
+
+    for row in columns_df.iterrows():
+        col = row[1]["colname"]
+        columns_df.loc[columns_df["colname"] == col, "found"] = col in raw.columns
+
+    logger.info(
+        "Pathways file column summary\n"
+        + tabulate(columns_df, headers="keys", tablefmt="fancy_grid", showindex=False)
+    )
+
+    if (columns_df["required"] & ~columns_df["found"]).any():
+        raise ValueError(
+            f"Required columns not found in pathways file: {columns_df[columns_df['required'] & ~columns_df['found']]['colname'].values}"
+        )
+
+    if (~columns_df["found"] & ~columns_df["required"]).any():
+        logger.warning(
+            f"Optional columns missing in pathways file: {columns_df[~columns_df['found'] & ~columns_df['required']]['colname'].values}"
+        )
+
+    paths = raw[[c for c in columns_df["colname"] if c in raw.columns]]
+
+    num_invalid = 0
+
+    incomplete_paths = paths["path"].str.strip().str.split("*").str.len() != 4
+
+    if incomplete_paths.sum() > 0:
+        logger.warning(
+            f"{incomplete_paths.sum()} rows with invalid pathway format found. Expecting form L*R*EM*T"
+        )
+        logger.warning("First 10 invalid paths:")
+        logger.warning(paths[incomplete_paths]["path"].head().values)
+
+    num_invalid += len(incomplete_paths)
+
+    paths = paths.loc[~incomplete_paths]
+
+    paths["ligand"] = paths["path"].str.split("*").str[0].str.strip()
+    paths["receptor"] = paths["path"].str.split("*").str[1].str.strip()
+    paths["em"] = paths["path"].str.split("*").str[2].str.strip()
+    paths["target"] = paths["path"].str.split("*").str[3].str.strip()
+    paths["sender"] = paths["sender"].str.strip().str.lower()
+    paths["receiver"] = paths["receiver"].str.strip().str.lower()
+    paths["path"] = (
+        paths["path"]
+        .str.cat(paths["sender"], sep="*")
+        .str.cat(paths["receiver"], sep="*")
+    )
+
+    duplicates = paths.duplicated()
+    logger.warning(f"{duplicates.sum()} duplicate rows found")
+
+    required_cols = columns_df[columns_df["required"]]["colname"].values
+
+    is_na = paths[required_cols].isna().any(axis=1)
+
+    logger.info(f"{is_na.sum()} rows with invalid values found in required columns")
+
+    invalid = duplicates | is_na
+
+    logger.info(f"Removing {invalid.sum()} duplicate or invalid rows")
+    paths = paths[~invalid].reset_index(drop=True)
+
+    return paths
 
 
 def filter_defaults():
@@ -23,20 +155,6 @@ def filter_defaults():
         "prs": [-2, 2],
         "tprs": [-2, 2],
     }
-
-
-def create_logger(name):
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-
-    ch.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
-
-    logger.addHandler(ch)
-
-    return logger
 
 
 def parse_umap_filter_data(umap_json_str):

@@ -1,12 +1,11 @@
-import pandas as pd
-import numpy as np
-from dash import html, dcc
 import dash_bootstrap_components as dbc
 import dash_cytoscape as cyto
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+import numpy as np
+import pandas as pd
 import plotly.express as px
-
+import plotly.graph_objects as go
+from dash import dcc, html
+from plotly.subplots import make_subplots
 
 from incytr_viz.util import *
 
@@ -235,8 +234,8 @@ def sankey_container(
                             thickness=20,
                             line=dict(color="black", width=0.5),
                             label=labels,
-                            customdata=ids,
-                            hovertemplate="Node %{customdata} has total value %{value}<extra></extra>",
+                            customdata=labels,
+                            hovertemplate="%{customdata}: %{value:.0f} pathways<extra></extra>",
                             color=get_node_colors(ids),
                         ),
                         link=dict(
@@ -245,7 +244,7 @@ def sankey_container(
                             value=value,
                             color=color,
                             customdata=color,
-                            hovertemplate="Link has value %{value} $%{customdata}<extra></extra>",
+                            hovertemplate="%{source.customdata} --> %{target.customdata}: %{value:.0f} pathways<extra></extra>",
                         ),
                     ),
                 ),

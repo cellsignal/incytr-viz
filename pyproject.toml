@@ -39,5 +39,5 @@ where = ["src"]
 
 
 [tool.setuptools.package-data]
-incytr_viz = ["assets/incytr.css"]
+incytr_viz = ["assets/incytr.css", "assets/help.md"]
 

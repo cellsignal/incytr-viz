@@ -1,42 +1,29 @@
+import json
+import os
+from importlib import resources as impresources
+from typing import Optional
+
 import dash_bootstrap_components as dbc
-from dash import Dash, dcc, html, ALL, ctx, callback
-from incytr_viz.modal_content import content
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from dash import ALL, Dash, dcc, html
+from dash.dependencies import Input, Output, State
+from flask_caching import Cache
+from tabulate import tabulate
+
 from incytr_viz.components import (
     create_hist_figure,
+    cytoscape_container,
     filter_container,
+    sankey_container,
     slider_container,
     umap_graph,
 )
-from flask_caching import Cache
-import pandas as pd
-from incytr_viz.util import create_logger, filter_defaults
 from incytr_viz.dtypes import clusters_dtypes, pathways_dtypes
-from tabulate import tabulate
-import os
-import pdb
-import json
+from incytr_viz.util import *
 
-import numpy as np
-from typing import Optional
-import matplotlib.pyplot as plt
-
-from dash.dependencies import Input, Output, State
-
-from incytr_viz.components import (
-    cytoscape_container,
-    sankey_container,
-)
-
-
-from incytr_viz.util import (
-    edge_width_map,
-    update_filter_value,
-    parse_slider_values_from_tree,
-    parse_umap_filter_data,
-    log_base,
-    PathwaysFilter,
-)
-
+from . import assets
 
 logger = create_logger(__name__)
 
@@ -49,6 +36,10 @@ app = Dash(
 
 
 cache = Cache(app.server, config={"CACHE_TYPE": "SimpleCache"})
+
+inp_file = impresources.files(assets) / "help.md"
+with inp_file.open("rt") as f:
+    help = f.read()
 
 
 def format_headers(headers):
@@ -291,145 +282,129 @@ pi = get_pathways(os.environ["INCYTR_PATHWAYS"], groups[0], groups[1])
 
 app.layout = html.Div(
     [
-        html.Div(
+        dbc.NavbarSimple(
             children=[
-                dcc.Store(id="dummy-store", data=None),
-                html.Div(
+                dbc.NavItem(
                     [
                         dbc.RadioItems(
                             options=[
                                 {
-                                    "label": html.Div(
-                                        ["Network View"],
-                                    ),
+                                    "label": "Network View",
                                     "value": "network",
                                 },
                                 {
-                                    "label": html.Div(
-                                        ["River View"],
-                                    ),
+                                    "label": "River View",
                                     "value": "sankey",
                                 },
                             ],
                             value="network",
                             id="view-radio",
                             style={
-                                "display": "flex",
-                                "justifyContent": "center",
-                                "alignItems": "center",
-                                "border": "1px solid #d3d3d3",
+                                "padding": "0px 0px",
+                                "backgroundColor": "#f8f9fa",
                             },
-                            inputClassName="btn-check",
+                            className="btn-group",
+                            inputClassName="btn btn-check",
                             labelClassName="btn btn-outline-primary",
                             labelCheckedClassName="active",
                         ),
+                    ],
+                ),
+                dbc.NavItem(
+                    children=[
                         dbc.Button(
                             "Reset Filters",
                             id="reset",
                             className="btn btn-primary",
                         ),
-                        dbc.DropdownMenu(
-                            label="Options",
-                            children=[
-                                html.Div(
-                                    [
-                                        dbc.Checkbox(
-                                            id="show-network-weights",
-                                            label="Show Network Weights",
-                                        ),
-                                        dbc.Checkbox(
-                                            id="show-umap",
-                                            label="Show UMAP",
-                                            value=False,
-                                            disabled=False,
-                                        ),
-                                        dcc.Slider(
-                                            id="node-scale-factor",
-                                            min=1.1,
-                                            max=10,
-                                            step=0.01,
-                                            value=2,
-                                            marks=None,
-                                            # label="Node Scale Factor",
-                                        ),
-                                        dcc.Slider(
-                                            id="edge-scale-factor",
-                                            min=0.1,
-                                            max=3,
-                                            step=0.1,
-                                            value=1,
-                                            marks=None,
-                                            # label="Edge Scale Factor",
-                                        ),
-                                        dcc.Slider(
-                                            id="label-scale-factor",
-                                            min=8,
-                                            max=24,
-                                            step=1,
-                                            value=12,
-                                            marks=None,
-                                            # label="Edge Scale Factor",
-                                        ),
-                                    ]
-                                ),
-                                html.Div(
-                                    [
-                                        dcc.Dropdown(
-                                            id="sankey-color-flow-dropdown",
-                                            placeholder="Color Sankey Flow By",
-                                            multi=False,
-                                            clearable=True,
-                                            options=[
-                                                "sender",
-                                                "receiver",
-                                                "kinase",
-                                            ],
-                                            className="filter",
-                                        ),
-                                    ]
-                                ),
-                            ],
-                        ),
                     ]
                 ),
-                html.Div(
+                dbc.DropdownMenu(
+                    label="Options",
+                    children=html.Div(
+                        [
+                            dbc.Checkbox(
+                                id="show-network-weights",
+                                label="Show Network Weights",
+                            ),
+                            dbc.Checkbox(
+                                id="show-umap",
+                                label="Show UMAP",
+                                value=False,
+                                disabled=False,
+                            ),
+                            dcc.Slider(
+                                id="node-scale-factor",
+                                min=1.1,
+                                max=10,
+                                step=0.01,
+                                value=2,
+                                marks=None,
+                                # label="Node Scale Factor",
+                            ),
+                            dcc.Slider(
+                                id="edge-scale-factor",
+                                min=0.1,
+                                max=3,
+                                step=0.1,
+                                value=1,
+                                marks=None,
+                                # label="Edge Scale Factor",
+                            ),
+                            dcc.Slider(
+                                id="label-scale-factor",
+                                min=8,
+                                max=24,
+                                step=1,
+                                value=12,
+                                marks=None,
+                                # label="Edge Scale Factor",
+                            ),
+                            dcc.Dropdown(
+                                id="sankey-color-flow-dropdown",
+                                placeholder="Color Sankey Flow By",
+                                multi=False,
+                                clearable=True,
+                                options=[
+                                    "sender",
+                                    "receiver",
+                                    "kinase",
+                                ],
+                            ),
+                        ],
+                        style={"padding": "5px 5px", "width": "250px"},
+                    ),
+                ),
+                dbc.Button("Help", id="open", n_clicks=0),
+                dbc.Modal(
                     [
-                        dbc.Button("Help", id="open", n_clicks=0),
-                        dbc.Modal(
-                            [
-                                dbc.ModalHeader(
-                                    dbc.ModalTitle("Incytr Data Visualization")
-                                ),
-                                dbc.ModalBody(content),
-                                dbc.ModalFooter(
-                                    dbc.Button(
-                                        "Close",
-                                        id="close",
-                                        className="ms-auto",
-                                        n_clicks=0,
-                                    )
-                                ),
-                            ],
-                            id="modal",
-                            size="xl",
-                            is_open=False,
-                        ),
-                        html.Div(
-                            [
-                                html.Button(
-                                    "Download Current Paths",
-                                    id="btn_csv",
-                                    className="btn btn-primary",
-                                ),
-                                dcc.Download(id="download-dataframe-a-csv"),
-                                dcc.Download(id="download-dataframe-b-csv"),
-                            ]
+                        dbc.ModalHeader(dbc.ModalTitle("Incytr Data Visualization")),
+                        dbc.ModalBody(dcc.Markdown(children=help)),
+                        dbc.ModalFooter(
+                            dbc.Button(
+                                "Close",
+                                id="close",
+                                className="ms-auto",
+                                n_clicks=0,
+                            )
                         ),
                     ],
-                    className="sidebarElement",
+                    id="modal",
+                    size="xl",
+                    is_open=False,
                 ),
+                html.Button(
+                    "Download Current Paths",
+                    id="btn_csv",
+                    className="btn btn-primary",
+                ),
+                dcc.Download(id="download-dataframe-a-csv"),
+                dcc.Download(id="download-dataframe-b-csv"),
             ],
-            className="sidebar",
+            brand="Incytr Pathway Visualization",
+            brand_href="#",
+            color="primary",
+            dark=True,
         ),
         html.Div(
             slider_container(
@@ -464,11 +439,7 @@ app.layout = html.Div(
                                         html.Span("Pathways Displayed: "),
                                         html.Span(0, id="pathways-count-a"),
                                     ],
-                                    style={
-                                        "width": "20%",
-                                        "display": "flex",
-                                        "justify-content": "space-between",
-                                    },
+                                    className="pathwaysCount",
                                 ),
                             ],
                             className="groupTitle",
@@ -506,11 +477,7 @@ app.layout = html.Div(
                                         html.Span("Pathways Displayed: "),
                                         html.Span(0, id="pathways-count-b"),
                                     ],
-                                    style={
-                                        "width": "20%",
-                                        "display": "flex",
-                                        "justify-content": "space-between",
-                                    },
+                                    className="pathwaysCount",
                                 ),
                             ],
                             className="groupTitle",
@@ -1187,22 +1154,12 @@ def download(
         )
 
 
-# @app.callback(
-#     Output("modal", "is_open"),
-#     [Input("open", "n_clicks"), Input("close", "n_clicks")],
-#     [State("modal", "is_open")],
-# )
-# def toggle_modal(n1, n2, is_open):
-#     if n1 or n2:
-#         return not is_open
-#     return is_open
-
-
-# @app.callback(
-#     Output("umap", "is_open"),
-#     Input("show-umap", "value"),
-# )
-# def toggle_umap(n1, n2, is_open):
-#     if n1 or n2:
-#         return not is_open
-#     return is_open
+@app.callback(
+    Output("modal", "is_open"),
+    [Input("open", "n_clicks"), Input("close", "n_clicks")],
+    [State("modal", "is_open")],
+)
+def toggle_modal(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
