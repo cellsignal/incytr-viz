@@ -16,20 +16,48 @@
   background: #555; 
 }
 
-/* restyle radio items */
-.radio-group .form-check {
-  padding-left: 0;
+.navbar {
+  background-color: #00355a !important;
 }
 
-.radio-group .btn-group > .form-check:not(:last-child) > .btn {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
+.navbar button {
+  background-color: #00355a !important;
+  border: 2px solid black;
 }
 
-.radio-group .btn-group > .form-check:not(:first-child) > .btn {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-  margin-left: -1px;
+.nav-item {
+  padding-left: 10px;
+  padding-right: 10px;
+  display: flex;
+  align-items: center;
+}
+
+nav > .container {
+  display: flex;
+  width: 95vw;
+  max-width: none;
+  justify-content: space-between;
+  align-items: center;
+
+}
+
+#view-radio > .form-check {
+  padding: 0px 0px;
+}
+
+#view-radio > .form-check > label.active {
+  background-color: green;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 2px solid black;
+}
+
+#view-radio > .form-check > label:not(.active) {
+  background-color: white;
+  padding: 1rem;
+  border: 2px solid black;
+  border-radius: 10px;
+  color: black;
 }
 
 .allSlidersContainer {
@@ -267,6 +295,24 @@
   justify-content: space-between;
   padding: 20px 10px;
 }
+
+.viewRadio {
+  padding-right: 1rem;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  background-color: #f8f9fa;
+}
+
+.viewRadioInput {
+  font: 200;
+}
+
+.navItem {
+  display: flex;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
 
 /* node {
   label: data(id);

@@ -37,8 +37,9 @@ app = Dash(
 
 cache = Cache(app.server, config={"CACHE_TYPE": "SimpleCache"})
 
-inp_file = impresources.files(assets) / "help.md"
-with inp_file.open("rt") as f:
+helpfile = impresources.files(assets) / "help.md"
+
+with helpfile.open("rt") as f:
     help = f.read()
 
 
@@ -285,7 +286,7 @@ app.layout = html.Div(
         dbc.NavbarSimple(
             children=[
                 dbc.NavItem(
-                    [
+                    html.Div(
                         dbc.RadioItems(
                             options=[
                                 {
@@ -299,16 +300,13 @@ app.layout = html.Div(
                             ],
                             value="network",
                             id="view-radio",
-                            style={
-                                "padding": "0px 0px",
-                                "backgroundColor": "#f8f9fa",
-                            },
                             className="btn-group",
                             inputClassName="btn btn-check",
                             labelClassName="btn btn-outline-primary",
                             labelCheckedClassName="active",
+                            style={"font-size": "36px"},
                         ),
-                    ],
+                    )
                 ),
                 dbc.NavItem(
                     children=[
@@ -317,65 +315,67 @@ app.layout = html.Div(
                             id="reset",
                             className="btn btn-primary",
                         ),
-                    ]
+                    ],
                 ),
-                dbc.DropdownMenu(
-                    label="Options",
-                    children=html.Div(
-                        [
-                            dbc.Checkbox(
-                                id="show-network-weights",
-                                label="Show Network Weights",
-                            ),
-                            dbc.Checkbox(
-                                id="show-umap",
-                                label="Show UMAP",
-                                value=False,
-                                disabled=False,
-                            ),
-                            dcc.Slider(
-                                id="node-scale-factor",
-                                min=1.1,
-                                max=10,
-                                step=0.01,
-                                value=2,
-                                marks=None,
-                                # label="Node Scale Factor",
-                            ),
-                            dcc.Slider(
-                                id="edge-scale-factor",
-                                min=0.1,
-                                max=3,
-                                step=0.1,
-                                value=1,
-                                marks=None,
-                                # label="Edge Scale Factor",
-                            ),
-                            dcc.Slider(
-                                id="label-scale-factor",
-                                min=8,
-                                max=24,
-                                step=1,
-                                value=12,
-                                marks=None,
-                                # label="Edge Scale Factor",
-                            ),
-                            dcc.Dropdown(
-                                id="sankey-color-flow-dropdown",
-                                placeholder="Color Sankey Flow By",
-                                multi=False,
-                                clearable=True,
-                                options=[
-                                    "sender",
-                                    "receiver",
-                                    "kinase",
-                                ],
-                            ),
-                        ],
-                        style={"padding": "5px 5px", "width": "250px"},
-                    ),
+                dbc.NavItem(
+                    dbc.DropdownMenu(
+                        label="Options",
+                        children=html.Div(
+                            [
+                                dbc.Checkbox(
+                                    id="show-network-weights",
+                                    label="Show Network Weights",
+                                ),
+                                dbc.Checkbox(
+                                    id="show-umap",
+                                    label="Show UMAP",
+                                    value=False,
+                                    disabled=False,
+                                ),
+                                dcc.Slider(
+                                    id="node-scale-factor",
+                                    min=1.1,
+                                    max=10,
+                                    step=0.01,
+                                    value=2,
+                                    marks=None,
+                                    # label="Node Scale Factor",
+                                ),
+                                dcc.Slider(
+                                    id="edge-scale-factor",
+                                    min=0.1,
+                                    max=3,
+                                    step=0.1,
+                                    value=1,
+                                    marks=None,
+                                    # label="Edge Scale Factor",
+                                ),
+                                dcc.Slider(
+                                    id="label-scale-factor",
+                                    min=8,
+                                    max=24,
+                                    step=1,
+                                    value=12,
+                                    marks=None,
+                                    # label="Edge Scale Factor",
+                                ),
+                                dcc.Dropdown(
+                                    id="sankey-color-flow-dropdown",
+                                    placeholder="Color Sankey Flow By",
+                                    multi=False,
+                                    clearable=True,
+                                    options=[
+                                        "sender",
+                                        "receiver",
+                                        "kinase",
+                                    ],
+                                ),
+                            ],
+                            style={"padding": "5px 5px", "width": "250px"},
+                        ),
+                    )
                 ),
-                dbc.Button("Help", id="open", n_clicks=0),
+                dbc.NavItem(dbc.Button("Help", id="open", n_clicks=0)),
                 dbc.Modal(
                     [
                         dbc.ModalHeader(dbc.ModalTitle("Incytr Data Visualization")),
@@ -393,10 +393,12 @@ app.layout = html.Div(
                     size="xl",
                     is_open=False,
                 ),
-                html.Button(
-                    "Download Current Paths",
-                    id="btn_csv",
-                    className="btn btn-primary",
+                dbc.NavItem(
+                    html.Button(
+                        "Download Current Paths",
+                        id="btn_csv",
+                        className="btn btn-primary",
+                    ),
                 ),
                 dcc.Download(id="download-dataframe-a-csv"),
                 dcc.Download(id="download-dataframe-b-csv"),
