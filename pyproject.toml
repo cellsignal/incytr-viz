@@ -25,7 +25,8 @@ dependencies = [
   "plotly",
   "matplotlib",
   "gunicorn",
-  "tabulate"
+  "tabulate",
+  "flask-caching"
 ]
 scripts = {"incytr-viz" = "incytr_viz.__main__:main" }
 
