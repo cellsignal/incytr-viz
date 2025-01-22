@@ -18,7 +18,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-  "dash",
+  "dash>=2.18.2",
   "dash_cytoscape==0.3.0",
   "dash-bootstrap-components==1.6.0",
   "pandas",

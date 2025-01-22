@@ -135,6 +135,18 @@ nav > .container {
   width: 48vw;
 }
 
+
+.optionSlider {
+  display: flex;
+  justify-content: space-between;
+
+}
+
+
+.scaleFactor {
+  width: 50%;
+}
+
 .umapContainer {
   display: flex;
   justify-content: center;

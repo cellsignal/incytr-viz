@@ -120,14 +120,14 @@ def cytoscape_container(
                     {
                         "selector": "node",
                         "style": {
-                            "label": "data(id)",
+                            "label": "data(label)",
                             "text-wrap": "ellipsis",
                             "text-valign": "top",
                             "text-halign": "right",
                             "font-size": "20px",
                             "height": "data(height)",
                             "width": "data(width)",
-                            "background-color": "data(background_color)",
+                            "backgroundColor": "data(background_color)",
                         },
                     },
                     {
@@ -198,22 +198,28 @@ def sankey_container(
                                 [
                                     dbc.Table(
                                         [
-                                            html.Tr(
+                                            html.Tbody(
                                                 [
-                                                    html.Td(r[0]),
-                                                    html.Td(
-                                                        [],
-                                                        style={
-                                                            "backgroundColor": r[1][
-                                                                "color"
-                                                            ],
-                                                            "width": "20px",
-                                                        },
-                                                    ),
-                                                ],
-                                                className="sankeyCellTypeLegendRow",
+                                                    html.Tr(
+                                                        [
+                                                            html.Td(r[0]),
+                                                            html.Td(
+                                                                [],
+                                                                style={
+                                                                    "backgroundColor": r[
+                                                                        1
+                                                                    ][
+                                                                        "color"
+                                                                    ],
+                                                                    "width": "20px",
+                                                                },
+                                                            ),
+                                                        ],
+                                                        className="sankeyCellTypeLegendRow",
+                                                    )
+                                                    for r in unique_clusters.iterrows()
+                                                ]
                                             )
-                                            for r in unique_clusters.iterrows()
                                         ]
                                     ),
                                 ],
@@ -286,7 +292,7 @@ def sankey_legend_container() -> html.Div:
                     html.Div(
                         [],
                         style={
-                            "background-color": "red",
+                            "backgroundColor": "red",
                         },
                         className="sankeyColorLegendBox",
                     ),
@@ -299,7 +305,7 @@ def sankey_legend_container() -> html.Div:
                     html.Div(
                         [],
                         style={
-                            "background-color": "blue",
+                            "backgroundColor": "blue",
                         },
                         className="sankeyColorLegendBox",
                     ),
@@ -312,7 +318,7 @@ def sankey_legend_container() -> html.Div:
                     html.Div(
                         [],
                         style={
-                            "background-color": "green",
+                            "backgroundColor": "green",
                         },
                         className="sankeyColorLegendBox",
                     ),
@@ -325,7 +331,7 @@ def sankey_legend_container() -> html.Div:
                     html.Div(
                         [],
                         style={
-                            "background-color": "purple",
+                            "backgroundColor": "purple",
                         },
                         className="sankeyColorLegendBox",
                     ),

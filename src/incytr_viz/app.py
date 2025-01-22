@@ -7,7 +7,7 @@ import dash_bootstrap_components as dbc
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from dash import ALL, Dash, dcc, html
+from dash import ALL, Dash, dcc, html, ctx
 from dash.dependencies import Input, Output, State
 from flask_caching import Cache
 from tabulate import tabulate
@@ -304,7 +304,6 @@ app.layout = html.Div(
                             inputClassName="btn btn-check",
                             labelClassName="btn btn-outline-primary",
                             labelCheckedClassName="active",
-                            style={"font-size": "36px"},
                         ),
                     )
                 ),
@@ -327,37 +326,59 @@ app.layout = html.Div(
                                     label="Show Network Weights",
                                 ),
                                 dbc.Checkbox(
+                                    id="show-population-fractions",
+                                    label="Show Population Sizes",
+                                ),
+                                dbc.Checkbox(
                                     id="show-umap",
                                     label="Show UMAP",
                                     value=False,
-                                    disabled=False,
+                                    disabled=not pi.has_umap,
                                 ),
-                                dcc.Slider(
-                                    id="node-scale-factor",
-                                    min=1.1,
-                                    max=10,
-                                    step=0.01,
-                                    value=2,
-                                    marks=None,
-                                    # label="Node Scale Factor",
+                                html.Div(
+                                    [
+                                        dcc.Slider(
+                                            id="node-scale-factor",
+                                            min=1.1,
+                                            max=10,
+                                            step=0.01,
+                                            value=2,
+                                            marks=None,
+                                            className="scaleFactor",
+                                        ),
+                                        html.Div("Scale Network Nodes"),
+                                    ],
+                                    className="optionSlider",
                                 ),
-                                dcc.Slider(
-                                    id="edge-scale-factor",
-                                    min=0.1,
-                                    max=3,
-                                    step=0.1,
-                                    value=1,
-                                    marks=None,
-                                    # label="Edge Scale Factor",
+                                html.Div(
+                                    [
+                                        dcc.Slider(
+                                            id="edge-scale-factor",
+                                            min=0.1,
+                                            max=3,
+                                            step=0.1,
+                                            value=1,
+                                            marks=None,
+                                            className="scaleFactor",
+                                        ),
+                                        html.Div("Scale Network Edges"),
+                                    ],
+                                    className="optionSlider",
                                 ),
-                                dcc.Slider(
-                                    id="label-scale-factor",
-                                    min=8,
-                                    max=24,
-                                    step=1,
-                                    value=12,
-                                    marks=None,
-                                    # label="Edge Scale Factor",
+                                html.Div(
+                                    [
+                                        dcc.Slider(
+                                            id="label-scale-factor",
+                                            min=8,
+                                            max=24,
+                                            step=1,
+                                            value=12,
+                                            marks=None,
+                                            className="scaleFactor",
+                                        ),
+                                        html.Div("Scale Label Size"),
+                                    ],
+                                    className="optionSlider",
                                 ),
                                 dcc.Dropdown(
                                     id="sankey-color-flow-dropdown",
@@ -371,7 +392,7 @@ app.layout = html.Div(
                                     ],
                                 ),
                             ],
-                            style={"padding": "5px 5px", "width": "250px"},
+                            style={"padding": "5px 5px", "width": "300px"},
                         ),
                     )
                 ),
@@ -426,87 +447,91 @@ app.layout = html.Div(
             className="sidebar",
             id="filter-container",
         ),
-        html.Div(
-            [
-                html.Div(
-                    [
-                        html.Div(
-                            [
-                                html.H3(
-                                    pi.group_a.title(),
-                                    style={"textTransform": "uppercase"},
-                                ),
-                                html.Div(
-                                    [
-                                        html.Span("Pathways Displayed: "),
-                                        html.Span(0, id="pathways-count-a"),
-                                    ],
-                                    className="pathwaysCount",
-                                ),
-                            ],
-                            className="groupTitle",
-                        ),
-                        html.Div(
-                            umap_graph("a", pi.has_umap, pi.paths),
-                            className="umapContainer",
-                            id="umap-a-container",
-                            style={"display": "none"},
-                        ),
-                        html.Div(
-                            [
-                                html.Div([dcc.Graph()], id="figure-a-container"),
-                                html.Div(
-                                    [dcc.Graph(id="hist-a-graph")],
-                                    id="hist-a-container",
-                                    className="histContainer",
-                                ),
-                            ],
-                            id="group-a-container",
-                            className="groupContainer",
-                        ),
-                    ],
-                ),
-                html.Div(
-                    [
-                        html.Div(
-                            [
-                                html.H3(
-                                    pi.group_b.title(),
-                                    style={"textTransform": "uppercase"},
-                                ),
-                                html.Div(
-                                    [
-                                        html.Span("Pathways Displayed: "),
-                                        html.Span(0, id="pathways-count-b"),
-                                    ],
-                                    className="pathwaysCount",
-                                ),
-                            ],
-                            className="groupTitle",
-                        ),
-                        html.Div(
-                            umap_graph("b", pi.has_umap, pi.paths),
-                            className="umapContainer",
-                            id="umap-b-container",
-                            style={"display": "none"},
-                        ),
-                        html.Div(
-                            [
-                                html.Div([dcc.Graph()], id="figure-b-container"),
-                                html.Div(
-                                    [dcc.Graph(id="hist-b-graph")],
-                                    id="hist-b-container",
-                                    className="histContainer",
-                                ),
-                            ],
-                            id="group-b-container",
-                            className="groupContainer",
-                        ),
-                    ]
-                ),
-            ],
-            className="mainContainer",
-            id="main-container",
+        dcc.Loading(
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.H3(
+                                        pi.group_a.title(),
+                                        style={"textTransform": "uppercase"},
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.Span("Pathways Displayed: "),
+                                            html.Span(0, id="pathways-count-a"),
+                                        ],
+                                        className="pathwaysCount",
+                                    ),
+                                ],
+                                className="groupTitle",
+                            ),
+                            html.Div(
+                                umap_graph("a", pi.has_umap, pi.paths),
+                                className="umapContainer",
+                                id="umap-a-container",
+                                style={"display": "none"},
+                            ),
+                            html.Div(
+                                [
+                                    html.Div([dcc.Graph()], id="figure-a-container"),
+                                    html.Div(
+                                        [dcc.Graph(id="hist-a-graph")],
+                                        id="hist-a-container",
+                                        className="histContainer",
+                                    ),
+                                ],
+                                id="group-a-container",
+                                className="groupContainer",
+                            ),
+                        ],
+                    ),
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.H3(
+                                        pi.group_b.title(),
+                                        style={"textTransform": "uppercase"},
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.Span("Pathways Displayed: "),
+                                            html.Span(0, id="pathways-count-b"),
+                                        ],
+                                        className="pathwaysCount",
+                                    ),
+                                ],
+                                className="groupTitle",
+                            ),
+                            html.Div(
+                                umap_graph("b", pi.has_umap, pi.paths),
+                                className="umapContainer",
+                                id="umap-b-container",
+                                style={"display": "none"},
+                            ),
+                            html.Div(
+                                [
+                                    html.Div([dcc.Graph()], id="figure-b-container"),
+                                    html.Div(
+                                        [dcc.Graph(id="hist-b-graph")],
+                                        id="hist-b-container",
+                                        className="histContainer",
+                                    ),
+                                ],
+                                id="group-b-container",
+                                className="groupContainer",
+                            ),
+                        ]
+                    ),
+                ],
+                className="mainContainer",
+                id="main-container",
+            ),
+            id="loading",
+            delay_show=500,
         ),
     ],
     id="app-container",
@@ -582,6 +607,7 @@ def load_nodes(clusters: pd.DataFrame, node_scale_factor) -> list[dict]:
         data["id"] = node_type
         data["label"] = node_type
         data["cluster_size"] = node_population
+        data["label_with_size"] = f"{node_type} ({node_population:.4f})"
         data["width"] = row["node_diameter"]
         data["height"] = row["node_diameter"]
         data["background_color"] = row["color"]
@@ -794,10 +820,6 @@ def update_figure_and_histogram(
 
     slider_values = parse_slider_values_from_tree(sliders_container_children)
 
-    print(pcf)
-    print(nsi)
-    print(slider_values)
-
     pf = PathwaysFilter(
         all_paths=pi.paths,
         group_a_name=pi.group_a,
@@ -978,17 +1000,32 @@ def show_umap(
 @app.callback(
     Output("cytoscape-a", "stylesheet"),
     Output("cytoscape-b", "stylesheet"),
-    inputs=Input("show-network-weights", "value"),
+    inputs=[
+        Input("show-network-weights", "value"),
+        Input("show-population-fractions", "value"),
+    ],
     state=State("cytoscape-a", "stylesheet"),
     prevent_initial_call=True,
 )
-def show_network_weights_callback(show_network_weights, stylesheet):
+def show_network_weights_callback(
+    show_network_weights, show_population_fractions, stylesheet
+):
 
-    label_value = "data(label)" if show_network_weights else ""
+    if ctx.triggered_id == "show-network-weights":
+        label_value = "data(label)" if show_network_weights else ""
 
-    for i, el in enumerate(stylesheet):
-        if el["selector"] == "edge":
-            stylesheet[i] = {**el, "style": {**el["style"], "label": label_value}}
+        for i, el in enumerate(stylesheet):
+            if el["selector"] == "edge":
+                stylesheet[i] = {**el, "style": {**el["style"], "label": label_value}}
+
+    elif ctx.triggered_id == "show-population-fractions":
+        label_value = (
+            "data(label_with_size)" if show_population_fractions else "data(label)"
+        )
+        for i, el in enumerate(stylesheet):
+            if el["selector"] == "node":
+                stylesheet[i] = {**el, "style": {**el["style"], "label": label_value}}
+
     return (stylesheet, stylesheet)
 
 
