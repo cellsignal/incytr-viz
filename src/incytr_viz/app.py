@@ -1093,7 +1093,7 @@ def update_filters_click_node(
         return list(set(current + [new]) if isinstance(current, list) else set([new]))
 
     click_data = click_data_a or click_data_b
-
+    # pdb.set_trace()
     if click_data:
         try:
             customdata = click_data["points"][0]["customdata"]

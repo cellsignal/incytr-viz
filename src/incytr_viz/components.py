@@ -240,8 +240,8 @@ def sankey_container(
                             thickness=20,
                             line=dict(color="black", width=0.5),
                             label=labels,
-                            customdata=labels,
-                            hovertemplate="%{customdata}: %{value:.0f} pathways<extra></extra>",
+                            customdata=ids,
+                            hovertemplate="%{label}: %{value:.0f} pathways<extra></extra>",
                             color=get_node_colors(ids),
                         ),
                         link=dict(
