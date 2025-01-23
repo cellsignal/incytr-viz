@@ -12,7 +12,6 @@ The left and right sides of the tool correspond to pathway data for the two inpu
 1. A directed graph showing an overview of the number of pathways occurring between cell populations
 2. A river (or Sankey) diagram showing a detailed breakdown of pathway components
 
-![Alt Text](https://media.giphy.com/media/vFKqnCdLPNOKc/giphy.gif)
 ### Input format
 
 ### Filtering
