@@ -1,15 +1,15 @@
 import json
 import os
-from importlib import resources as impresources
+
 from typing import Optional
 
 import dash_bootstrap_components as dbc
-import matplotlib.pyplot as plt
+
 import numpy as np
 import pandas as pd
-from dash import ALL, Dash, dcc, html, ctx
+from dash import ALL, Dash, dcc, html, ctx, callback
 from dash.dependencies import Input, Output, State
-from flask_caching import Cache
+
 from tabulate import tabulate
 
 from incytr_viz.components import (
@@ -20,532 +20,292 @@ from incytr_viz.components import (
     slider_container,
     umap_graph,
 )
-from incytr_viz.dtypes import clusters_dtypes, pathways_dtypes
-from incytr_viz.util import *
 
-from . import assets
+from incytr_viz.util import *
+from incytr_viz.util import cache
+
 
 logger = create_logger(__name__)
 
 
-app = Dash(
-    __name__,
-    suppress_callback_exceptions=True,
-    external_stylesheets=[dbc.themes.BOOTSTRAP],
-)
-
-
-cache = Cache(app.server, config={"CACHE_TYPE": "SimpleCache"})
-
-helpfile = impresources.files(assets) / "help.md"
-
-with helpfile.open("rt") as f:
-    help = f.read()
-
-
-def format_headers(headers):
-    return (
-        headers.str.strip()
-        .str.lower()
-        .str.replace(" ", "_")
-        .str.replace("sender.group", "sender")
-        .str.replace("receiver.group", "receiver")
+def create_app(pathways_file, clusters_file):
+    app = Dash(
+        __name__,
+        suppress_callback_exceptions=True,
+        external_stylesheets=[dbc.themes.BOOTSTRAP],
     )
 
+    cache.init_app(app.server, config={"CACHE_TYPE": "SimpleCache"})
 
-@cache.cached(timeout=None, key_prefix="clusters")
-# @cache.memoize(timeout=None)
-def get_clusters(fpath):
-    if ".csv" in fpath:
-        sep = ","
-    elif ".tsv" in fpath:
-        sep = "\t"
-    else:
-        raise ValueError(
-            f"Pathways file suffix must be in [.csv,.tsv] -- check filename: {fpath}"
-        )
+    clusters, groups = get_clusters(clusters_file)
+    pi = get_pathways(pathways_file, groups[0], groups[1])
 
-    logger.info(
-        "Loading cluster populations from {} as {}".format(
-            fpath, {"\t": "TSV", ",": "CSV"}[sep]
-        )
-    )
-
-    df = pd.read_csv(fpath, dtype=clusters_dtypes, sep=sep, compression="infer")
-
-    df.columns = df.columns.str.lower().str.strip()
-    if not all(c in df.columns for c in clusters_dtypes.keys()):
-        raise ValueError(
-            f"Invalid cell populations file: ensure the following columns are present: {clusters_dtypes.keys()}"
-        )
-
-    df = df[list(clusters_dtypes.keys())].reset_index(drop=True)
-
-    df["type"] = df["type"].str.strip().str.lower()
-    df["group"] = df["condition"].str.strip().str.lower()
-    df = df.set_index("type")
-
-    df["population"] = df["population"].fillna(0)
-    df["pop_min_ratio"] = df["population"] / (
-        df[df["population"] > 0]["population"].min()
-    )
-
-    df.drop(columns=["condition"], inplace=True)
-    # assign colors to each cell type
-    cmap = plt.get_cmap("tab20")
-
-    cell_types = df.index.unique()
-
-    plt_colors = cmap(np.linspace(0, 1, len(cell_types)))
-
-    # 256 would not be websafe value
-    rgb_colors = [[int(x * 255) for x in c[0:3]] for c in plt_colors]
-
-    colors = {t: rgb_colors[i] for i, t in enumerate(cell_types)}
-    df["color"] = df.index.map(colors)
-    df["color"] = df["color"].apply(lambda x: f"rgb({x[0]},{x[1]},{x[2]})")
-
-    if len(df["group"].unique()) != 2:
-        raise ValueError(
-            f"Expected exactly 2 groups in cluster populations file, found {len(df['group'].unique())}"
-        )
-    return df, df["group"].unique()
-
-
-def parse_pathway_headers(headers, group_a, group_b):
-
-    formatted = format_headers(headers)
-
-    # Remove duplicate columns
-    mapper = list(zip(headers, formatted))
-
-    required = [
-        "path",
-        "sender",
-        "receiver",
-        "afc",
-        "sigprob_" + group_a,
-        "sigprob_" + group_b,
-    ]
-
-    optional = [
-        "p_value_" + group_a,
-        "p_value_" + group_b,
-        "tprs",
-        "prs",
-        "kinase_r_of_em",
-        "kinase_r_of_t",
-        "kinase_em_of_t",
-        "umap1",
-        "umap2",
-    ]
-
-    logger.info("scanning pathways file for required and optional columns")
-
-    required_df = pd.DataFrame.from_dict(
-        {"colname": required, "required": True, "found": False}
-    )
-    optional_df = pd.DataFrame.from_dict(
-        {"colname": optional, "required": False, "found": False}
-    )
-    columns_df = pd.concat([required_df, optional_df], axis=0)
-
-    for row in columns_df.iterrows():
-        col = row[1]["colname"]
-        columns_df.loc[columns_df["colname"] == col, "found"] = col in formatted
-
-    logger.info(
-        "Pathways file column summary\n"
-        + tabulate(columns_df, headers="keys", tablefmt="fancy_grid", showindex=False)
-    )
-
-    if (columns_df["required"] & ~columns_df["found"]).any():
-        raise ValueError(
-            f"Required columns not found in pathways file: {columns_df[columns_df['required'] & ~columns_df['found']]['colname'].values}"
-        )
-
-    if (~columns_df["found"] & ~columns_df["required"]).any():
-        logger.warning(
-            f"Optional columns missing in pathways file: {columns_df[~columns_df['found'] & ~columns_df['required']]['colname'].values}"
-        )
-
-    return [
-        x[0]
-        for x in mapper
-        if x[1] in columns_df[columns_df["found"]]["colname"].values
-    ]
-
-
-class PathwayInput:
-
-    def __init__(self, group_a, group_b, paths):
-        self.group_a = group_a
-        self.group_b = group_b
-        self.paths = paths
-        self.has_tprs = "tprs" in self.paths.columns
-        self.has_prs = "prs" in self.paths.columns
-        self.has_p_value = all(
-            x in self.paths.columns
-            for x in ["p_value_" + self.group_a, "p_value_" + self.group_b]
-        )
-        self.has_umap = all(x in self.paths.columns for x in ["umap1", "umap2"])
-        self.unique_senders = self.paths["sender"].unique()
-        self.unique_receivers = self.paths["receiver"].unique()
-        self.unique_ligands = self.paths["ligand"].unique()
-        self.unique_receptors = self.paths["receptor"].unique()
-        self.unique_em = self.paths["em"].unique()
-        self.unique_targets = self.paths["target"].unique()
-
-
-@cache.cached(timeout=None, key_prefix="pathways")
-def get_pathways(fpath, group_a, group_b):
-    if ".csv" in fpath:
-        sep = ","
-    elif ".tsv" in fpath:
-        sep = "\t"
-    else:
-        raise ValueError(
-            f"Pathways file suffix must be in [.csv,.tsv] -- check filename {fpath}"
-        )
-
-    logger.info(
-        "Detected pathways at path {} as {}".format(
-            fpath, {"\t": "TSV", ",": "CSV"}[sep]
-        )
-    )
-
-    headers = pd.read_csv(fpath, nrows=0, sep=sep).columns
-    to_keep = parse_pathway_headers(headers, group_a, group_b)
-
-    logger.info("Loading pathways............")
-    paths = pd.read_csv(fpath, dtype=pathways_dtypes, usecols=to_keep, sep=sep)
-    paths.columns = format_headers(paths.columns)
-
-    paths = paths.astype(
-        {k: v for k, v in pathways_dtypes.items() if k in paths.columns}
-    )
-
-    num_invalid = 0
-
-    incomplete_paths = paths["path"].str.strip().str.split("*").str.len() != 4
-
-    if incomplete_paths.sum() > 0:
-        logger.warning(
-            f"{incomplete_paths.sum()} rows with invalid pathway format found. Expecting form L*R*EM*T"
-        )
-        logger.warning("First 10 invalid paths:")
-        logger.warning(paths[incomplete_paths]["path"].head().values)
-
-    num_invalid += len(incomplete_paths)
-
-    paths = paths.loc[~incomplete_paths]
-
-    paths["ligand"] = paths["path"].str.split("*").str[0].str.strip()
-    paths["receptor"] = paths["path"].str.split("*").str[1].str.strip()
-    paths["em"] = paths["path"].str.split("*").str[2].str.strip()
-    paths["target"] = paths["path"].str.split("*").str[3].str.strip()
-    paths["sender"] = paths["sender"].str.strip().str.lower()
-    paths["receiver"] = paths["receiver"].str.strip().str.lower()
-    paths["path"] = (
-        paths["path"]
-        .str.cat(paths["sender"], sep="*")
-        .str.cat(paths["receiver"], sep="*")
-    )
-
-    duplicates_mask = paths.duplicated()
-    if duplicates_mask.sum() > 0:
-        logger.warning(f"{duplicates_mask.sum()} duplicate rows found")
-
-    is_na_mask = (
-        paths[["afc", "sigprob_" + group_a, "sigprob_" + group_b]].isna().any(axis=1)
-    )
-    if is_na_mask.sum() > 0:
-        logger.info(
-            f"{is_na_mask.sum()} rows with invalid values found in required columns"
-        )
-
-    invalid = duplicates_mask | is_na_mask
-
-    if invalid.sum() > 0:
-        logger.info(f"Removing {invalid.sum()} duplicate or invalid rows")
-
-    paths = paths[~invalid].reset_index(drop=True)
-
-    return PathwayInput(
-        group_a=group_a,
-        group_b=group_b,
-        paths=paths,
-    )
-
-
-clusters, groups = get_clusters(os.environ["INCYTR_CLUSTERS"])
-pi = get_pathways(os.environ["INCYTR_PATHWAYS"], groups[0], groups[1])
-
-app.layout = html.Div(
-    [
-        dbc.NavbarSimple(
-            children=[
-                dbc.NavItem(
-                    html.Div(
-                        dbc.RadioItems(
-                            options=[
-                                {
-                                    "label": "Network View",
-                                    "value": "network",
-                                },
-                                {
-                                    "label": "River View",
-                                    "value": "sankey",
-                                },
-                            ],
-                            value="network",
-                            id="view-radio",
-                            className="btn-group",
-                            inputClassName="btn btn-check",
-                            labelClassName="btn btn-outline-primary",
-                            labelCheckedClassName="active",
-                        ),
-                    )
-                ),
-                dbc.NavItem(
-                    children=[
-                        dbc.Button(
-                            "Reset Filters",
-                            id="reset",
-                            className="btn btn-primary",
-                        ),
-                    ],
-                ),
-                dbc.NavItem(
-                    dbc.DropdownMenu(
-                        label="Options",
-                        children=html.Div(
-                            [
-                                dbc.Checkbox(
-                                    id="show-network-weights",
-                                    label="Show Network Weights",
-                                ),
-                                dbc.Checkbox(
-                                    id="show-population-fractions",
-                                    label="Show Population Sizes",
-                                ),
-                                dbc.Checkbox(
-                                    id="show-umap",
-                                    label="Show UMAP",
-                                    value=False,
-                                    disabled=not pi.has_umap,
-                                ),
-                                html.Div(
-                                    [
-                                        dcc.Slider(
-                                            id="node-scale-factor",
-                                            min=1.1,
-                                            max=10,
-                                            step=0.01,
-                                            value=2,
-                                            marks=None,
-                                            className="scaleFactor",
-                                        ),
-                                        html.Div("Scale Network Nodes"),
-                                    ],
-                                    className="optionSlider",
-                                ),
-                                html.Div(
-                                    [
-                                        dcc.Slider(
-                                            id="edge-scale-factor",
-                                            min=0.1,
-                                            max=3,
-                                            step=0.1,
-                                            value=1,
-                                            marks=None,
-                                            className="scaleFactor",
-                                        ),
-                                        html.Div("Scale Network Edges"),
-                                    ],
-                                    className="optionSlider",
-                                ),
-                                html.Div(
-                                    [
-                                        dcc.Slider(
-                                            id="label-scale-factor",
-                                            min=8,
-                                            max=24,
-                                            step=1,
-                                            value=12,
-                                            marks=None,
-                                            className="scaleFactor",
-                                        ),
-                                        html.Div("Scale Label Size"),
-                                    ],
-                                    className="optionSlider",
-                                ),
-                                dcc.Dropdown(
-                                    id="sankey-color-flow-dropdown",
-                                    placeholder="Color Sankey Flow By",
-                                    multi=False,
-                                    clearable=True,
-                                    options=[
-                                        "sender",
-                                        "receiver",
-                                        "kinase",
-                                    ],
-                                ),
-                            ],
-                            style={"padding": "5px 5px", "width": "300px"},
-                        ),
-                    )
-                ),
-                dbc.NavItem(dbc.Button("Help", id="open", n_clicks=0)),
-                dbc.Modal(
-                    [
-                        dbc.ModalHeader(dbc.ModalTitle("Incytr Data Visualization")),
-                        dbc.ModalBody(dcc.Markdown(children=help)),
-                        dbc.ModalFooter(
-                            dbc.Button(
-                                "Close",
-                                id="close",
-                                className="ms-auto",
-                                n_clicks=0,
-                            )
-                        ),
-                    ],
-                    id="modal",
-                    size="xl",
-                    is_open=False,
-                ),
-                dbc.NavItem(
-                    html.Button(
-                        "Download Current Paths",
-                        id="btn_csv",
-                        className="btn btn-primary",
+    app.layout = html.Div(
+        [
+            dcc.Store(id="clusters_file", data=clusters_file),
+            dcc.Store(id="pathways_file", data=pathways_file),
+            dbc.NavbarSimple(
+                children=[
+                    dbc.NavItem(
+                        html.Div(
+                            dbc.RadioItems(
+                                options=[
+                                    {
+                                        "label": "Network View",
+                                        "value": "network",
+                                    },
+                                    {
+                                        "label": "River View",
+                                        "value": "sankey",
+                                    },
+                                ],
+                                value="network",
+                                id="view-radio",
+                                className="btn-group",
+                                inputClassName="btn btn-check",
+                                labelClassName="btn btn-outline-primary",
+                                labelCheckedClassName="active",
+                            ),
+                        )
                     ),
-                ),
-                dcc.Download(id="download-dataframe-a-csv"),
-                dcc.Download(id="download-dataframe-b-csv"),
-            ],
-            brand="Incytr Pathway Visualization",
-            brand_href="#",
-            color="primary",
-            dark=True,
-        ),
-        html.Div(
-            slider_container(
-                has_tprs=pi.has_tprs, has_prs=pi.has_prs, has_p_value=pi.has_p_value
-            ),
-            id="slider-container",
-        ),
-        html.Div(
-            filter_container(
-                sender=list(pi.unique_senders),
-                receiver=list(pi.unique_receivers),
-                ligand=list(pi.unique_ligands),
-                receptor=list(pi.unique_receptors),
-                em=list(pi.unique_em),
-                target=list(pi.unique_targets),
-            ),
-            className="sidebar",
-            id="filter-container",
-        ),
-        dcc.Loading(
-            html.Div(
-                [
-                    html.Div(
-                        [
-                            html.Div(
-                                [
-                                    html.H3(
-                                        pi.group_a.title(),
-                                        style={"textTransform": "uppercase"},
-                                    ),
-                                    html.Div(
-                                        [
-                                            html.Span("Pathways Displayed: "),
-                                            html.Span(0, id="pathways-count-a"),
-                                        ],
-                                        className="pathwaysCount",
-                                    ),
-                                ],
-                                className="groupTitle",
-                            ),
-                            html.Div(
-                                umap_graph("a", pi.has_umap, pi.paths),
-                                className="umapContainer",
-                                id="umap-a-container",
-                                style={"display": "none"},
-                            ),
-                            html.Div(
-                                [
-                                    html.Div([dcc.Graph()], id="figure-a-container"),
-                                    html.Div(
-                                        [dcc.Graph(id="hist-a-graph")],
-                                        id="hist-a-container",
-                                        className="histContainer",
-                                    ),
-                                ],
-                                id="group-a-container",
-                                className="groupContainer",
+                    dbc.NavItem(
+                        children=[
+                            dbc.Button(
+                                "Reset Filters",
+                                id="reset",
+                                className="btn btn-primary",
                             ),
                         ],
                     ),
-                    html.Div(
-                        [
-                            html.Div(
+                    dbc.NavItem(
+                        dbc.DropdownMenu(
+                            label="Options",
+                            children=html.Div(
                                 [
-                                    html.H3(
-                                        pi.group_b.title(),
-                                        style={"textTransform": "uppercase"},
+                                    dbc.Checkbox(
+                                        id="show-network-weights",
+                                        label="Show Network Weights",
+                                    ),
+                                    dbc.Checkbox(
+                                        id="show-population-fractions",
+                                        label="Show Population Sizes",
+                                    ),
+                                    dbc.Checkbox(
+                                        id="show-umap",
+                                        label="Show UMAP",
+                                        value=False,
+                                        disabled=not pi.has_umap,
                                     ),
                                     html.Div(
                                         [
-                                            html.Span("Pathways Displayed: "),
-                                            html.Span(0, id="pathways-count-b"),
+                                            dcc.Slider(
+                                                id="node-scale-factor",
+                                                min=1.1,
+                                                max=10,
+                                                step=0.01,
+                                                value=2,
+                                                marks=None,
+                                                className="scaleFactor",
+                                            ),
+                                            html.Div("Scale Network Nodes"),
                                         ],
-                                        className="pathwaysCount",
+                                        className="optionSlider",
                                     ),
-                                ],
-                                className="groupTitle",
-                            ),
-                            html.Div(
-                                umap_graph("b", pi.has_umap, pi.paths),
-                                className="umapContainer",
-                                id="umap-b-container",
-                                style={"display": "none"},
-                            ),
-                            html.Div(
-                                [
-                                    html.Div([dcc.Graph()], id="figure-b-container"),
                                     html.Div(
-                                        [dcc.Graph(id="hist-b-graph")],
-                                        id="hist-b-container",
-                                        className="histContainer",
+                                        [
+                                            dcc.Slider(
+                                                id="edge-scale-factor",
+                                                min=0.1,
+                                                max=3,
+                                                step=0.1,
+                                                value=1,
+                                                marks=None,
+                                                className="scaleFactor",
+                                            ),
+                                            html.Div("Scale Network Edges"),
+                                        ],
+                                        className="optionSlider",
+                                    ),
+                                    html.Div(
+                                        [
+                                            dcc.Slider(
+                                                id="label-scale-factor",
+                                                min=8,
+                                                max=24,
+                                                step=1,
+                                                value=12,
+                                                marks=None,
+                                                className="scaleFactor",
+                                            ),
+                                            html.Div("Scale Label Size"),
+                                        ],
+                                        className="optionSlider",
+                                    ),
+                                    dcc.Dropdown(
+                                        id="sankey-color-flow-dropdown",
+                                        placeholder="Color Sankey Flow By",
+                                        multi=False,
+                                        clearable=True,
+                                        options=[
+                                            "sender",
+                                            "receiver",
+                                            "kinase",
+                                        ],
                                     ),
                                 ],
-                                id="group-b-container",
-                                className="groupContainer",
+                                style={"padding": "5px 5px", "width": "300px"},
                             ),
-                        ]
+                        )
                     ),
+                    dbc.NavItem(dbc.Button("Help", id="open", n_clicks=0)),
+                    dbc.Modal(
+                        [
+                            dbc.ModalHeader(
+                                dbc.ModalTitle("Incytr Data Visualization")
+                            ),
+                            dbc.ModalBody(dcc.Markdown(children=get_help_file())),
+                            dbc.ModalFooter(
+                                dbc.Button(
+                                    "Close",
+                                    id="close",
+                                    className="ms-auto",
+                                    n_clicks=0,
+                                )
+                            ),
+                        ],
+                        id="modal",
+                        size="xl",
+                        is_open=False,
+                    ),
+                    dbc.NavItem(
+                        html.Button(
+                            "Download Current Paths",
+                            id="btn_csv",
+                            className="btn btn-primary",
+                        ),
+                    ),
+                    dcc.Download(id="download-dataframe-a-csv"),
+                    dcc.Download(id="download-dataframe-b-csv"),
                 ],
-                className="mainContainer",
-                id="main-container",
+                brand="Incytr Pathway Visualization",
+                brand_href="#",
+                color="primary",
+                dark=True,
             ),
-            id="loading",
-            delay_show=500,
-        ),
-    ],
-    id="app-container",
-    className="app",
-)
+            html.Div(
+                slider_container(
+                    has_tprs=pi.has_tprs, has_prs=pi.has_prs, has_p_value=pi.has_p_value
+                ),
+                id="slider-container",
+            ),
+            html.Div(
+                filter_container(
+                    sender=list(pi.unique_senders),
+                    receiver=list(pi.unique_receivers),
+                    ligand=list(pi.unique_ligands),
+                    receptor=list(pi.unique_receptors),
+                    em=list(pi.unique_em),
+                    target=list(pi.unique_targets),
+                ),
+                className="sidebar",
+                id="filter-container",
+            ),
+            dcc.Loading(
+                html.Div(
+                    [
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        html.H3(
+                                            pi.group_a.title(),
+                                            style={"textTransform": "uppercase"},
+                                        ),
+                                        html.Div(
+                                            [
+                                                html.Span("Pathways Displayed: "),
+                                                html.Span(0, id="pathways-count-a"),
+                                            ],
+                                            className="pathwaysCount",
+                                        ),
+                                    ],
+                                    className="groupTitle",
+                                ),
+                                html.Div(
+                                    umap_graph("a", pi.has_umap, pi.paths),
+                                    className="umapContainer",
+                                    id="umap-a-container",
+                                    style={"display": "none"},
+                                ),
+                                html.Div(
+                                    [
+                                        html.Div(
+                                            [dcc.Graph()], id="figure-a-container"
+                                        ),
+                                        html.Div(
+                                            [dcc.Graph(id="hist-a-graph")],
+                                            id="hist-a-container",
+                                            className="histContainer",
+                                        ),
+                                    ],
+                                    id="group-a-container",
+                                    className="groupContainer",
+                                ),
+                            ],
+                        ),
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        html.H3(
+                                            pi.group_b.title(),
+                                            style={"textTransform": "uppercase"},
+                                        ),
+                                        html.Div(
+                                            [
+                                                html.Span("Pathways Displayed: "),
+                                                html.Span(0, id="pathways-count-b"),
+                                            ],
+                                            className="pathwaysCount",
+                                        ),
+                                    ],
+                                    className="groupTitle",
+                                ),
+                                html.Div(
+                                    umap_graph("b", pi.has_umap, pi.paths),
+                                    className="umapContainer",
+                                    id="umap-b-container",
+                                    style={"display": "none"},
+                                ),
+                                html.Div(
+                                    [
+                                        html.Div(
+                                            [dcc.Graph()], id="figure-b-container"
+                                        ),
+                                        html.Div(
+                                            [dcc.Graph(id="hist-b-graph")],
+                                            id="hist-b-container",
+                                            className="histContainer",
+                                        ),
+                                    ],
+                                    id="group-b-container",
+                                    className="groupContainer",
+                                ),
+                            ]
+                        ),
+                    ],
+                    className="mainContainer",
+                    id="main-container",
+                ),
+                id="loading",
+                delay_show=500,
+            ),
+        ],
+        id="app-container",
+        className="app",
+    )
 
-
-server = app.server
-logger.info("Running Incytr Viz using gunicorn web server")
-logger.info("Serving at http://localhost:8000")
-# def get_server(pathways_fpath, clusters_fpath):
-#     os.environ["INCYTR_PATHWAYS"] = pathways_fpath
-#     os.environ["INCYTR_CLUSTERS"] = clusters_fpath
-#     return app.server
+    return app.server
 
 
 def load_nodes(clusters: pd.DataFrame, node_scale_factor) -> list[dict]:
@@ -745,17 +505,11 @@ def pathways_df_to_sankey(
     return (ids, labels, source, target, value, color)
 
 
-# def store_data_inputs(state=False):
-
-#     klass = State if state else Input
-#     return dict(
-#         has_tprs=klass("has-tprs", "data"),
-#         has_prs=klass("has-prs", "data"),
-#         has_p_value=klass("has-p-value", "data"),
-#         has_umap=klass("has-umap", "data"),
-#         group_a_name=klass("group-a-name", "data"),
-#         group_b_name=klass("group-b-name", "data"),
-#     )
+def filepath_inputs():
+    return dict(
+        clusters_file=Input("clusters_file", "data"),
+        pathways_file=Input("pathways_file", "data"),
+    )
 
 
 def pathway_component_filter_inputs(state=False):
@@ -784,7 +538,7 @@ def network_style_inputs(state=False):
     )
 
 
-@app.callback(
+@callback(
     output=dict(
         hist_a=Output("hist-a-graph", "figure"),
         hist_b=Output("hist-b-graph", "figure"),
@@ -800,7 +554,10 @@ def network_style_inputs(state=False):
         sliders_container_children=State("allSlidersContainer", "children"),
         view_radio=Input("view-radio", "value"),
     ),
-    state=dict(show_network_weights=State("show-network-weights", "value")),
+    state=dict(
+        fpaths=filepath_inputs(),
+        show_network_weights=State("show-network-weights", "value"),
+    ),
     # prevent_initial_call=True,
 )
 def update_figure_and_histogram(
@@ -809,11 +566,12 @@ def update_figure_and_histogram(
     slider_changed,
     sliders_container_children,
     view_radio,
+    fpaths,
     show_network_weights,
 ):
 
-    clusters, groups = get_clusters(os.environ["INCYTR_CLUSTERS"])
-    pi = get_pathways(os.environ["INCYTR_PATHWAYS"], groups[0], groups[1])
+    clusters, groups = get_clusters(fpaths["clusters_file"])
+    pi = get_pathways(fpaths["pathways_file"], groups[0], groups[1])
 
     filter_umap_a = parse_umap_filter_data(pcf.get("umap_select_a"))
     filter_umap_b = parse_umap_filter_data(pcf.get("umap_select_b"))
@@ -960,7 +718,7 @@ def _relayout_umap(relayoutData):
         return None
 
 
-@app.callback(
+@callback(
     Output("umap-select-a", "value"),
     inputs=Input("scatter-plot-a", "relayoutData"),
     prevent_initial_call=True,
@@ -971,7 +729,7 @@ def relayout_umap_a(
     return _relayout_umap(relayoutData)
 
 
-@app.callback(
+@callback(
     Output("umap-select-b", "value"),
     inputs=Input("scatter-plot-b", "relayoutData"),
     prevent_initial_call=True,
@@ -982,7 +740,7 @@ def relayout_umap_b(
     return _relayout_umap(relayoutData)
 
 
-@app.callback(
+@callback(
     Output("umap-a-container", "style"),
     Output("umap-b-container", "style"),
     inputs=Input("show-umap", "value"),
@@ -997,7 +755,7 @@ def show_umap(
     return style, style
 
 
-@app.callback(
+@callback(
     Output("cytoscape-a", "stylesheet"),
     Output("cytoscape-b", "stylesheet"),
     inputs=[
@@ -1029,7 +787,7 @@ def show_network_weights_callback(
     return (stylesheet, stylesheet)
 
 
-@app.callback(
+@callback(
     Output("sender-select", "value"),
     Output("receiver-select", "value"),
     Output("view-radio", "value"),
@@ -1054,7 +812,7 @@ def cluster_edge_callback(
         return sender_select, receiver_select, view_radio
 
 
-@app.callback(
+@callback(
     Output(
         "ligand-select",
         "value",
@@ -1118,7 +876,7 @@ def update_filters_click_node(
     )
 
 
-@app.callback(
+@callback(
     output=dict(
         ligand_select=Output("ligand-select", "value", allow_duplicate=True),
         receptor_select=Output("receptor-select", "value", allow_duplicate=True),
@@ -1141,13 +899,14 @@ def update_filters_click_node(nclicks):
     return filter_defaults()
 
 
-@app.callback(
+@callback(
     Output("download-dataframe-a-csv", "data"),
     Output("download-dataframe-b-csv", "data"),
     inputs=dict(
         n_clicks=Input("btn_csv", "n_clicks"),
     ),
     state=dict(
+        fpaths=filepath_inputs(),
         pcf=pathway_component_filter_inputs(state=True),
         sliders_container_children=State("allSlidersContainer", "children"),
     ),
@@ -1155,12 +914,13 @@ def update_filters_click_node(nclicks):
 )
 def download(
     n_clicks: int,
+    fpaths,
     pcf: dict,
     sliders_container_children,
 ):
 
-    clusters, groups = get_clusters(os.environ["INCYTR_CLUSTERS"])
-    pi = get_pathways(os.environ["INCYTR_PATHWAYS"], groups[0], groups[1])
+    clusters, groups = get_clusters(fpaths["clusters_file"])
+    pi = get_pathways(fpaths["pathways_file"], groups[0], groups[1])
 
     if n_clicks and n_clicks > 0:
 
@@ -1193,7 +953,7 @@ def download(
         )
 
 
-@app.callback(
+@callback(
     Output("modal", "is_open"),
     [Input("open", "n_clicks"), Input("close", "n_clicks")],
     [State("modal", "is_open")],

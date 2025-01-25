@@ -1,12 +1,27 @@
 import json
 import logging
+from importlib import resources as impresources
 import pdb
 import re
+from flask_caching import Cache
 from dataclasses import dataclass, field
-
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from tabulate import tabulate
+
+from incytr_viz import assets
+from incytr_viz.dtypes import clusters_dtypes, pathways_dtypes
+
+
+def get_help_file():
+    helpfile = impresources.files(assets) / "help.md"
+
+    with helpfile.open("rt") as f:
+        return f.read()
+
+
+cache = Cache()
 
 
 def create_logger(name):
@@ -26,11 +41,147 @@ def create_logger(name):
 logger = create_logger(__name__)
 
 
+def cache_func(func, **cache_kwargs):
+    return cache.cached(**cache_kwargs)(func)
+
+
+def format_headers(headers):
+    return (
+        headers.str.strip()
+        .str.lower()
+        .str.replace(" ", "_")
+        .str.replace("sender.group", "sender")
+        .str.replace("receiver.group", "receiver")
+    )
+
+
+def _get_clusters(fpath):
+    if ".csv" in fpath:
+        sep = ","
+    elif ".tsv" in fpath:
+        sep = "\t"
+    else:
+        raise ValueError(
+            f"Pathways file suffix must be in [.csv,.tsv] -- check filename: {fpath}"
+        )
+
+    logger.info(
+        "Loading cluster populations from {} as {}".format(
+            fpath, {"\t": "TSV", ",": "CSV"}[sep]
+        )
+    )
+
+    df = pd.read_csv(fpath, dtype=clusters_dtypes, sep=sep, compression="infer")
+
+    df.columns = df.columns.str.lower().str.strip()
+    if not all(c in df.columns for c in clusters_dtypes.keys()):
+        raise ValueError(
+            f"Invalid cell populations file: ensure the following columns are present: {clusters_dtypes.keys()}"
+        )
+
+    df = df[list(clusters_dtypes.keys())].reset_index(drop=True)
+
+    df["type"] = df["type"].str.strip().str.lower()
+    df["group"] = df["condition"].str.strip().str.lower()
+    df = df.set_index("type")
+
+    df["population"] = df["population"].fillna(0)
+    df["pop_min_ratio"] = df["population"] / (
+        df[df["population"] > 0]["population"].min()
+    )
+
+    df.drop(columns=["condition"], inplace=True)
+    # assign colors to each cell type
+    cmap = plt.get_cmap("tab20")
+
+    cell_types = df.index.unique()
+
+    plt_colors = cmap(np.linspace(0, 1, len(cell_types)))
+
+    # 256 would not be websafe value
+    rgb_colors = [[int(x * 255) for x in c[0:3]] for c in plt_colors]
+
+    colors = {t: rgb_colors[i] for i, t in enumerate(cell_types)}
+    df["color"] = df.index.map(colors)
+    df["color"] = df["color"].apply(lambda x: f"rgb({x[0]},{x[1]},{x[2]})")
+
+    if len(df["group"].unique()) != 2:
+        raise ValueError(
+            f"Expected exactly 2 groups in cluster populations file, found {len(df['group'].unique())}"
+        )
+    return df, df["group"].unique()
+
+
+def parse_pathway_headers(headers, group_a, group_b):
+
+    formatted = format_headers(headers)
+
+    # Remove duplicate columns
+    mapper = list(zip(headers, formatted))
+
+    required = [
+        "path",
+        "sender",
+        "receiver",
+        "afc",
+        "sigprob_" + group_a,
+        "sigprob_" + group_b,
+    ]
+
+    optional = [
+        "p_value_" + group_a,
+        "p_value_" + group_b,
+        "tprs",
+        "prs",
+        "kinase_r_of_em",
+        "kinase_r_of_t",
+        "kinase_em_of_t",
+        "umap1",
+        "umap2",
+    ]
+
+    logger.info("scanning pathways file for required and optional columns")
+
+    required_df = pd.DataFrame.from_dict(
+        {"colname": required, "required": True, "found": False}
+    )
+    optional_df = pd.DataFrame.from_dict(
+        {"colname": optional, "required": False, "found": False}
+    )
+    columns_df = pd.concat([required_df, optional_df], axis=0)
+
+    for row in columns_df.iterrows():
+        col = row[1]["colname"]
+        columns_df.loc[columns_df["colname"] == col, "found"] = col in formatted
+
+    logger.info(
+        "Pathways file column summary\n"
+        + tabulate(columns_df, headers="keys", tablefmt="fancy_grid", showindex=False)
+    )
+
+    if (columns_df["required"] & ~columns_df["found"]).any():
+        raise ValueError(
+            f"Required columns not found in pathways file: {columns_df[columns_df['required'] & ~columns_df['found']]['colname'].values}"
+        )
+
+    if (~columns_df["found"] & ~columns_df["required"]).any():
+        logger.warning(
+            f"Optional columns missing in pathways file: {columns_df[~columns_df['found'] & ~columns_df['required']]['colname'].values}"
+        )
+
+    return [
+        x[0]
+        for x in mapper
+        if x[1] in columns_df[columns_df["found"]]["colname"].values
+    ]
+
+
 class PathwayInput:
-    def __init__(self, group_a, group_b):
+
+    def __init__(self, group_a, group_b, paths):
         self.group_a = group_a
         self.group_b = group_b
-        self.paths = validate_pathways(self.raw, self.group_a, self.group_b)
+        self.paths = paths
         self.has_tprs = "tprs" in self.paths.columns
         self.has_prs = "prs" in self.paths.columns
         self.has_p_value = all(
@@ -38,6 +189,102 @@ class PathwayInput:
             for x in ["p_value_" + self.group_a, "p_value_" + self.group_b]
         )
         self.has_umap = all(x in self.paths.columns for x in ["umap1", "umap2"])
+        self.unique_senders = self.paths["sender"].unique()
+        self.unique_receivers = self.paths["receiver"].unique()
+        self.unique_ligands = self.paths["ligand"].unique()
+        self.unique_receptors = self.paths["receptor"].unique()
+        self.unique_em = self.paths["em"].unique()
+        self.unique_targets = self.paths["target"].unique()
+
+
+def _get_pathways(fpath, group_a, group_b):
+    if ".csv" in fpath:
+        sep = ","
+    elif ".tsv" in fpath:
+        sep = "\t"
+    else:
+        raise ValueError(
+            f"Pathways file suffix must be in [.csv,.tsv] -- check filename {fpath}"
+        )
+
+    logger.info(
+        "Detected pathways at path {} as {}".format(
+            fpath, {"\t": "TSV", ",": "CSV"}[sep]
+        )
+    )
+
+    headers = pd.read_csv(fpath, nrows=0, sep=sep).columns
+    to_keep = parse_pathway_headers(headers, group_a, group_b)
+
+    logger.info("Loading pathways............")
+    paths = pd.read_csv(fpath, dtype=pathways_dtypes, usecols=to_keep, sep=sep)
+    paths.columns = format_headers(paths.columns)
+
+    paths = paths.astype(
+        {k: v for k, v in pathways_dtypes.items() if k in paths.columns}
+    )
+
+    num_invalid = 0
+
+    incomplete_paths = paths["path"].str.strip().str.split("*").str.len() != 4
+
+    if incomplete_paths.sum() > 0:
+        logger.warning(
+            f"{incomplete_paths.sum()} rows with invalid pathway format found. Expecting form L*R*EM*T"
+        )
+        logger.warning("First 10 invalid paths:")
+        logger.warning(paths[incomplete_paths]["path"].head().values)
+
+    num_invalid += len(incomplete_paths)
+
+    paths = paths.loc[~incomplete_paths]
+
+    paths["ligand"] = paths["path"].str.split("*").str[0].str.strip()
+    paths["receptor"] = paths["path"].str.split("*").str[1].str.strip()
+    paths["em"] = paths["path"].str.split("*").str[2].str.strip()
+    paths["target"] = paths["path"].str.split("*").str[3].str.strip()
+    paths["sender"] = paths["sender"].str.strip().str.lower()
+    paths["receiver"] = paths["receiver"].str.strip().str.lower()
+    paths["path"] = (
+        paths["path"]
+        .str.cat(paths["sender"], sep="*")
+        .str.cat(paths["receiver"], sep="*")
+    )
+
+    duplicates_mask = paths.duplicated()
+    if duplicates_mask.sum() > 0:
+        logger.warning(f"{duplicates_mask.sum()} duplicate rows found")
+
+    is_na_mask = (
+        paths[["afc", "sigprob_" + group_a, "sigprob_" + group_b]].isna().any(axis=1)
+    )
+    if is_na_mask.sum() > 0:
+        logger.info(
+            f"{is_na_mask.sum()} rows with invalid values found in required columns"
+        )
+
+    invalid = duplicates_mask | is_na_mask
+
+    if invalid.sum() > 0:
+        logger.info(f"Removing {invalid.sum()} duplicate or invalid rows")
+
+    paths = paths[~invalid].reset_index(drop=True)
+
+    return PathwayInput(
+        group_a=group_a,
+        group_b=group_b,
+        paths=paths,
+    )
+
+
+def get_clusters(fpath):
+    return cache_func(_get_clusters, key_prefix="clusters", timeout=None)(fpath)
+
+
+def get_pathways(fpath, group_a, group_b):
+    return cache_func(_get_pathways, key_prefix="pathways", timeout=None)(
+        fpath, group_a, group_b
+    )
 
 
 def validate_pathways(raw, group_a, group_b):

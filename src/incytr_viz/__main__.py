@@ -1,20 +1,8 @@
 import argparse
 import subprocess
-import os
 from incytr_viz.util import create_logger
 
 logger = create_logger(__name__)
-
-
-def jupyter(pathways, clusters):
-
-    os.environ["INCYTR_PATHWAYS"] = pathways
-    os.environ["INCYTR_CLUSTERS"] = clusters
-
-    # load after environment variables are set
-    from incytr_viz.app import app
-
-    app.run(debug=True)
 
 
 def main():
@@ -34,10 +22,14 @@ def main():
     PATHWAYS = args.pathways
     CLUSTERS = args.clusters
 
-    os.environ["INCYTR_PATHWAYS"] = PATHWAYS
-    os.environ["INCYTR_CLUSTERS"] = CLUSTERS
-
-    subprocess.run(["gunicorn", "incytr_viz.app:server"])
+    logger.info("Running Incytr Viz using gunicorn web server")
+    logger.info("Serving at http://localhost:8000")
+    subprocess.run(
+        [
+            "gunicorn",
+            f"incytr_viz.app:create_app(pathways_file='{PATHWAYS}', clusters_file='{CLUSTERS}')",
+        ]
+    )
 
 
 if __name__ == "__main__":
