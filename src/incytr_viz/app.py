@@ -152,7 +152,7 @@ def create_app(pathways_file, clusters_file):
                                     # ),
                                     dcc.Dropdown(
                                         id="sankey-color-flow-dropdown",
-                                        placeholder="Color Sankey Flow By",
+                                        placeholder="Color River Flow",
                                         multi=False,
                                         clearable=True,
                                         options=[
@@ -314,6 +314,7 @@ def create_app(pathways_file, clusters_file):
         className="app",
     )
 
+    logger.info("Serving app at <port>")
     return app.server
 
 
@@ -449,6 +450,26 @@ def pathways_df_to_sankey(
         df: pd.DataFrame, source_colname: str, target_colname: str
     ) -> pd.DataFrame:
 
+        def _kinase_color_map(row, source, target):
+
+            mapper = kinase_color_map()
+
+            if (source == "receptor") and (target == "em"):
+                if row["sik_r_of_em"] and row["sik_em_of_r"]:
+                    return mapper["bidirectional"]
+                elif row["sik_r_of_em"]:
+                    return mapper["sik_r_of_em"]
+                elif row["sik_em_of_r"]:
+                    return mapper["sik_em_of_r"]
+            elif (source == "em") and (target == "target"):
+                if row["sik_em_of_t"] and row["sik_t_of_em"]:
+                    return mapper["bidirectional"]
+                elif row["sik_em_of_t"]:
+                    return mapper["sik_em_of_t"]
+                elif row["sik_t_of_em"]:
+                    return mapper["sik_t_of_em"]
+            return "lightgrey"
+
         if sankey_color_flow in ["sender", "receiver"]:
             color_grouping_column = sankey_color_flow
             out = (
@@ -462,7 +483,29 @@ def pathways_df_to_sankey(
             out["color"] = out[color_grouping_column].map(
                 dict(zip(all_clusters.index, all_clusters["color"]))
             )
-        # elif sankey_color_flow == "kinase" and validate_has_kinase():
+        elif sankey_color_flow == "kinase":
+
+            # only coloring adjacent
+            adjacent_kinase_cols = [
+                "sik_r_of_em",
+                "sik_em_of_r",
+                "sik_em_of_t",
+                "sik_t_of_em",
+            ]
+
+            kinase_mask = df[adjacent_kinase_cols].any(axis=1)
+            df.loc[kinase_mask, "kinase_color_map"] = df.loc[kinase_mask].apply(
+                lambda row: _kinase_color_map(row, source_colname, target_colname),
+                axis=1,
+            )
+            df.loc[~kinase_mask, "kinase_color_map"] = "lightgrey"
+            out = (
+                df.groupby([source_colname, "kinase_color_map"])[target_colname]
+                .value_counts()
+                .reset_index(name="value")
+            )
+            out["color"] = out["kinase_color_map"]
+
         else:
             out = (
                 df.groupby([source_colname])[target_colname]
@@ -508,7 +551,6 @@ def pathways_df_to_sankey(
     value = links["value"]
 
     color = links["color"]
-
     return (ids, labels, source, target, value, color)
 
 

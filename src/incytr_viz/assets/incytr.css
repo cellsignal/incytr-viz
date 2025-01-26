@@ -250,14 +250,14 @@ nav > .container {
   height: 40px;
 }
 
-.sankeyCellTypeLegend {
+.sankeyLinkColorLegend {
   height: 300px;
   overflow: auto;
   width: 50%;
   padding: 5px 10px;
 }
 
-.sankeyCellTypeLegendRow {
+.sankeyLinkColorLegendRow {
   margin: 10px;
   padding: 10px;
 }

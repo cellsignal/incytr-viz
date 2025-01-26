@@ -124,6 +124,16 @@ def get_clusters(fpath):
     return df, df["group"].unique()
 
 
+def kinase_color_map():
+    return {
+        "sik_r_of_em": "red",
+        "sik_em_of_t": "blue",
+        "sik_em_of_r": "green",
+        "sik_t_of_em": "yellow",
+        "bidirectional": "black",
+    }
+
+
 def parse_pathway_headers(headers, group_a, group_b):
 
     formatted = format_headers(headers)
@@ -145,9 +155,12 @@ def parse_pathway_headers(headers, group_a, group_b):
         "p_value_" + group_b,
         "tprs",
         "prs",
-        "kinase_r_of_em",
-        "kinase_r_of_t",
-        "kinase_em_of_t",
+        "sik_r_of_em",
+        "sik_r_of_t",
+        "sik_em_of_t",
+        "sik_em_of_r",
+        "sik_t_of_r",
+        "sik_t_of_em",
         "umap1",
         "umap2",
     ]
@@ -210,7 +223,6 @@ class PathwayInput:
 
 
 def get_pathways(fpath, group_a, group_b):
-    logger.info("GET PATHWAYS CALLED")
     if ".csv" in fpath:
         sep = ","
     elif ".tsv" in fpath:
@@ -283,23 +295,23 @@ def get_pathways(fpath, group_a, group_b):
 
     paths = paths[~invalid].reset_index(drop=True)
 
+    kinase_cols = [
+        "sik_r_of_em",
+        "sik_r_of_t",
+        "sik_em_of_t",
+        "sik_em_of_r",
+        "sik_t_of_r",
+        "sik_t_of_em",
+    ]
+    for col in kinase_cols:
+        if col in paths.columns:
+            paths[col] = paths[col].replace([0, "NA", "nan", False], "")
+
     return PathwayInput(
         group_a=group_a,
         group_b=group_b,
         paths=paths,
     )
-
-
-# def get_clusters(fpath):
-#     return cache_func(_get_clusters, "cached", key_prefix="clusters", timeout=None)(
-#         fpath
-#     )
-
-
-# def get_pathways(fpath, group_a, group_b):
-#     return cache_func(_get_pathways, "cached", key_prefix="pathways", timeout=None)(
-#         fpath, group_a, group_b
-#     )
 
 
 def filter_defaults():
@@ -463,7 +475,6 @@ class PathwaysFilter:
                     :,
                 ]
 
-        # pdb.set_trace()
         df = df[df["sigprob"] >= self.sp_threshold]
         if self.pval_threshold:
             df = df[df["p_value"] <= self.pval_threshold]
@@ -492,19 +503,28 @@ class PathwaysFilter:
                 | df["em"].isin(self.filter_all_molecules)
                 | df["target"].isin(self.filter_all_molecules)
             ]
+
         if self.filter_kinase:
             val = self.filter_kinase
-            if not all(
-                x in df.columns
-                for x in ["kinase_r_of_em", "kinase_r_of_t", "kinase_em_of_t"]
-            ):
+
+            try:
+                if val == "r_em":
+                    df = df[~(df["sik_r_of_em"] == "")]
+                elif val == "r_t":
+                    df = df[~(df["sik_r_of_t"] == "")]
+                elif val == "em_t":
+                    df = df[~(df["sik_em_of_t"] == "")]
+                elif val == "em_r":
+                    df = df[~(df["sik_em_of_r"] == "")]
+                elif val == "t_r":
+                    df = df[~(df["sik_r_of_r"] == "")]
+                elif val == "t_em":
+                    df = df[~(df["sik_t_of_em"] == "")]
+            except KeyError:
+                logger.warning(
+                    f"kinase column not detected for {val} -- please check input"
+                )
                 df = df.iloc[0:0]
-            elif val == "r_em":
-                df = df[~df["kinase_r_of_em"].isna()]
-            elif val == "r_t":
-                df = df[~df["kinase_r_of_t"].isna()]
-            elif val == "em_t":
-                df = df[~df["kinase_em_of_t"].isna()]
 
         return df
 

@@ -181,7 +181,6 @@ def sankey_container(
     sankey_style = {"height": get_sankey_height(num_targets, num_links)}
 
     warn_style = {"display": "none"} if not warn else {}
-    celltype_legend_style = {"display": "none"} if not color_flow else {}
 
     # Drop duplicate rows based on row index
     unique_clusters = clusters.loc[~clusters.index.duplicated(keep="first")]
@@ -215,7 +214,7 @@ def sankey_container(
                                                                 },
                                                             ),
                                                         ],
-                                                        className="sankeyCellTypeLegendRow",
+                                                        className="sankeyLinkColorLegendRow",
                                                     )
                                                     for r in unique_clusters.iterrows()
                                                 ]
@@ -225,8 +224,45 @@ def sankey_container(
                                 ],
                             ),
                         ],
-                        className="sankeyCellTypeLegend",
-                        style=celltype_legend_style,
+                        className="sankeyLinkColorLegend",
+                        style=(
+                            {}
+                            if (color_flow in ["sender", "receiver"])
+                            else {"display": "none"}
+                        ),
+                    ),
+                    html.Div(
+                        [
+                            html.H4("Kinase Relationship"),
+                            html.Div(
+                                [
+                                    dbc.Table(
+                                        [
+                                            html.Tbody(
+                                                [
+                                                    html.Tr(
+                                                        [
+                                                            html.Td(k),
+                                                            html.Td(
+                                                                [],
+                                                                style={
+                                                                    "backgroundColor": v,
+                                                                    "width": "20px",
+                                                                },
+                                                            ),
+                                                        ],
+                                                        className="sankeyLinkColorLegendRow",
+                                                    )
+                                                    for k, v in kinase_color_map().items()
+                                                ]
+                                            )
+                                        ]
+                                    ),
+                                ],
+                            ),
+                        ],
+                        className="sankeyLinkColorLegend",
+                        style={} if (color_flow == "kinase") else {"display": "none"},
                     ),
                 ],
                 className="sankeyTitleAndLegend",
@@ -394,7 +430,7 @@ def filter_container(sender, receiver, em, target, ligand, receptor):
                         placeholder="Filter Kinase Interaction",
                         multi=False,
                         clearable=True,
-                        options=["r_em", "r_t", "em_t"],
+                        options=["r_em", "r_t", "em_t", "em_r", "t_r", "t_em"],
                         className="filter",
                     ),
                     dcc.Dropdown(
