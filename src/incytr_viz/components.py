@@ -283,61 +283,29 @@ def sankey_container(
     )
 
 
+def _sankey_legend(label, color):
+    return html.Span(
+        [
+            label,
+            html.Div(
+                [],
+                style={
+                    "backgroundColor": color,
+                },
+                className="sankeyColorLegendBox",
+            ),
+        ],
+        className="sankeyColorLegend",
+    )
+
+
 def sankey_legend_container() -> html.Div:
     return html.Div(
         [
-            html.Span(
-                [
-                    "Ligand",
-                    html.Div(
-                        [],
-                        style={
-                            "backgroundColor": "red",
-                        },
-                        className="sankeyColorLegendBox",
-                    ),
-                ],
-                className="sankeyColorLegend",
-            ),
-            html.Span(
-                [
-                    "Receptor",
-                    html.Div(
-                        [],
-                        style={
-                            "backgroundColor": "blue",
-                        },
-                        className="sankeyColorLegendBox",
-                    ),
-                ],
-                className="sankeyColorLegend",
-            ),
-            html.Span(
-                [
-                    "EM",
-                    html.Div(
-                        [],
-                        style={
-                            "backgroundColor": "green",
-                        },
-                        className="sankeyColorLegendBox",
-                    ),
-                ],
-                className="sankeyColorLegend",
-            ),
-            html.Span(
-                [
-                    "Target",
-                    html.Div(
-                        [],
-                        style={
-                            "backgroundColor": "purple",
-                        },
-                        className="sankeyColorLegendBox",
-                    ),
-                ],
-                className="sankeyColorLegend",
-            ),
+            _sankey_legend("Ligand", "red"),
+            _sankey_legend("Receptor", "blue"),
+            _sankey_legend("EM", "green"),
+            _sankey_legend("Target", "purple"),
         ],
         className="sankeyColorLegendsContainer",
     )
@@ -452,75 +420,26 @@ def filter_container(sender, receiver, em, target, ligand, receptor):
 
 
 def slider(
-    id: str,
-    minval: int,
-    maxval: int,
-    step: int,
-    value: int,
     label: str,
+    range: bool = False,
     **slider_kwargs,
 ):
 
-    tooltip_format = {
-        "placement": "left",
-        "always_visible": True,
-    }
+    component = dcc.Slider if not range else dcc.RangeSlider
 
-    class_name = "slider invertedSlider" if label.lower() == "sigprob" else "slider"
-
-    marks = {0: "0", 1: "1"} if label.lower() in ["sigprob", "p-value"] else None
-
-    return html.Div(
-        [
-            dcc.Slider(
-                min=minval,
-                max=maxval,
-                step=step,
-                value=value,
-                marks=marks,
-                tooltip=tooltip_format,
-                id=id,
-                className=class_name,
-                **slider_kwargs,
-            ),
-            html.Span(label),
-        ],
-        className="sliderContainer",
-    )
-
-
-def range_slider(
-    id: str,
-    minval: int,
-    maxval: int,
-    step: int,
-    value: list,
-    label: str,
-    disabled: bool,
-):
-
-    tooltip_format = {
-        "placement": "left",
-        "always_visible": True,
-    }
-
-    if label.lower() in ["tprs", "prs"]:
-        marks = {-2: "-2", 2: "2"}
+    if slider_kwargs.get("tooltip"):
+        tooltip_format = slider_kwargs.pop("tooltip")
     else:
-        marks = None
+        tooltip_format = {
+            "placement": "left",
+            "always_visible": True,
+        }
 
     return html.Div(
         [
-            dcc.RangeSlider(
-                min=minval,
-                max=maxval,
-                step=step,
-                value=value,
-                marks=marks,
+            component(
                 tooltip=tooltip_format,
-                id=id,
-                className="slider",
-                disabled=disabled,
+                **slider_kwargs,
             ),
             html.Span(label),
         ],
@@ -536,48 +455,53 @@ def slider_container(
 
     sliders = [
         slider(
+            "Sigprob",
             id={"type": "numerical-filter", "index": "sigprob"},
-            minval=0,
-            maxval=1,
+            min=0,
+            max=1,
             step=0.01,
-            value=0.9,
-            label="Sigprob",
-            disabled=False,
-        )
-    ]
-    sliders.append(
+            value=0.7,
+            marks={0: "0", 1: "1"},
+            className="slider invertedSlider",
+        ),
         slider(
-            {"type": "numerical-filter", "index": "p-value"},
-            minval=0,
-            maxval=1,
+            "P-Value",
+            id={"type": "numerical-filter", "index": "p-value"},
+            min=0,
+            max=1,
             step=0.01,
             value=0.05,
-            label="P-Value",
             disabled=not has_p_value,
-        )
-    )
-    sliders.append(
-        range_slider(
-            {"type": "numerical-filter", "index": "tprs"},
-            minval=-2,
-            maxval=2,
+            marks={0: "0", 1: "1"},
+            className="slider",
+        ),
+        slider(
+            "TPRS",
+            range=True,
+            id={"type": "numerical-filter", "index": "tprs"},
+            min=-1.1,
+            max=1.1,
             step=0.01,
-            value=[-2, 2],
-            label="TPRS",
+            value=[-0.5, 0.5],
             disabled=not has_tprs,
-        )
-    )
-    sliders.append(
-        range_slider(
-            {"type": "numerical-filter", "index": "prs"},
-            minval=-2,
-            maxval=2,
+            marks={-1.1: "-1.1", 1.1: "1.1"},
+            allowCross=False,
+            className="slider invertedSlider",
+        ),
+        slider(
+            "PRS",
+            range=True,
+            id={"type": "numerical-filter", "index": "prs"},
+            min=-1.1,
+            max=1.1,
             step=0.01,
-            value=[-2, 2],
-            label="PRS",
+            value=[-0.5, 0.5],
             disabled=not has_prs,
-        )
-    )
+            marks={-1.1: "-1.1", 1.1: "1.1"},
+            allowCross=False,
+            className="slider invertedSlider",
+        ),
+    ]
     return html.Div(
         [
             html.Div(sliders[0:2], className="sliderColumn"),

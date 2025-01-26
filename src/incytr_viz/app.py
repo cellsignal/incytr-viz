@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from dash import ALL, Dash, dcc, html, ctx, callback
 from dash.dependencies import Input, Output, State
+from flask import current_app
 
 from tabulate import tabulate
 
@@ -35,10 +36,13 @@ def create_app(pathways_file, clusters_file):
         external_stylesheets=[dbc.themes.BOOTSTRAP],
     )
 
-    cache.init_app(app.server, config={"CACHE_TYPE": "SimpleCache"})
+    # cache.init_app(app.server, config={"CACHE_TYPE": "SimpleCache"})
 
     clusters, groups = get_clusters(clusters_file)
     pi = get_pathways(pathways_file, groups[0], groups[1])
+
+    app.server.config["INCYTR_CLUSTERS"] = clusters
+    app.server.config["INCYTR_PATHWAYS"] = pi
 
     app.layout = html.Div(
         [
@@ -88,7 +92,12 @@ def create_app(pathways_file, clusters_file):
                                     ),
                                     dbc.Checkbox(
                                         id="show-population-fractions",
-                                        label="Show Population Sizes",
+                                        label="Show Cluster Population Sizes",
+                                    ),
+                                    dbc.Checkbox(
+                                        id="restrict-afc",
+                                        label="Restrict on aFC direction",
+                                        value=True,
                                     ),
                                     dbc.Checkbox(
                                         id="show-umap",
@@ -126,21 +135,21 @@ def create_app(pathways_file, clusters_file):
                                         ],
                                         className="optionSlider",
                                     ),
-                                    html.Div(
-                                        [
-                                            dcc.Slider(
-                                                id="label-scale-factor",
-                                                min=8,
-                                                max=24,
-                                                step=1,
-                                                value=12,
-                                                marks=None,
-                                                className="scaleFactor",
-                                            ),
-                                            html.Div("Scale Label Size"),
-                                        ],
-                                        className="optionSlider",
-                                    ),
+                                    # html.Div(
+                                    #     [
+                                    #         dcc.Slider(
+                                    #             id="label-scale-factor",
+                                    #             min=8,
+                                    #             max=24,
+                                    #             step=1,
+                                    #             value=12,
+                                    #             marks=None,
+                                    #             className="scaleFactor",
+                                    #         ),
+                                    #         html.Div("Scale Label Size"),
+                                    #     ],
+                                    #     className="optionSlider",
+                                    # ),
                                     dcc.Dropdown(
                                         id="sankey-color-flow-dropdown",
                                         placeholder="Color Sankey Flow By",
@@ -358,6 +367,7 @@ def load_nodes(clusters: pd.DataFrame, node_scale_factor) -> list[dict]:
     def _add_node(row: pd.Series) -> dict:
 
         node_type = row.name
+        node_label = row.type_userlabel
         node_population = row["population"]
 
         if (not node_population) or (np.isnan(node_population)):
@@ -365,9 +375,9 @@ def load_nodes(clusters: pd.DataFrame, node_scale_factor) -> list[dict]:
 
         data = dict()
         data["id"] = node_type
-        data["label"] = node_type
+        data["label"] = node_label
         data["cluster_size"] = node_population
-        data["label_with_size"] = f"{node_type} ({node_population:.4f})"
+        data["label_with_size"] = f"{node_label} ({node_population:.4f})"
         data["width"] = row["node_diameter"]
         data["height"] = row["node_diameter"]
         data["background_color"] = row["color"]
@@ -391,10 +401,9 @@ def load_edges(
     edges = []
 
     ## filter pathways if sender/receiver not in nodes
-    node_labels = pd.Series([x["data"]["label"] for x in nodes])
+    node_ids = pd.Series([x["data"]["id"] for x in nodes])
     pathways = pathways[
-        (pathways["sender"].isin(node_labels))
-        & (pathways["receiver"].isin(node_labels))
+        (pathways["sender"].isin(node_ids)) & (pathways["receiver"].isin(node_ids))
     ]
 
     ## filter pathways that are below sigprob threshold
@@ -414,9 +423,7 @@ def load_edges(
         data["weight"] = weight
         data["label"] = str(weight)
         data["line_color"] = next(
-            x["data"]["background_color"]
-            for x in nodes
-            if x["data"]["label"] == source_id
+            x["data"]["background_color"] for x in nodes if x["data"]["id"] == source_id
         )
 
         edges.append({"data": data})
@@ -455,7 +462,7 @@ def pathways_df_to_sankey(
             out["color"] = out[color_grouping_column].map(
                 dict(zip(all_clusters.index, all_clusters["color"]))
             )
-
+        # elif sankey_color_flow == "kinase" and validate_has_kinase():
         else:
             out = (
                 df.groupby([source_colname])[target_colname]
@@ -526,6 +533,7 @@ def pathway_component_filter_inputs(state=False):
         umap_select_a=klass("umap-select-a", "value"),
         umap_select_b=klass("umap-select-b", "value"),
         kinase_select=klass("kinase-select", "value"),
+        restrict_afc=klass("restrict-afc", "value"),
     )
 
 
@@ -534,7 +542,7 @@ def network_style_inputs(state=False):
     return dict(
         node_scale_factor=klass("node-scale-factor", "value"),
         edge_scale_factor=klass("edge-scale-factor", "value"),
-        label_scale_factor=klass("label-scale-factor", "value"),
+        # label_scale_factor=klass("label-scale-factor", "value"),
     )
 
 
@@ -570,9 +578,10 @@ def update_figure_and_histogram(
     show_network_weights,
 ):
 
-    clusters, groups = get_clusters(fpaths["clusters_file"])
-    pi = get_pathways(fpaths["pathways_file"], groups[0], groups[1])
-
+    # clusters, groups = get_clusters(fpaths["clusters_file"])
+    # pi = get_pathways(fpaths["pathways_file"], groups[0], groups[1])
+    clusters = current_app.config["INCYTR_CLUSTERS"]
+    pi = current_app.config["INCYTR_PATHWAYS"]
     filter_umap_a = parse_umap_filter_data(pcf.get("umap_select_a"))
     filter_umap_b = parse_umap_filter_data(pcf.get("umap_select_b"))
 
@@ -582,6 +591,7 @@ def update_figure_and_histogram(
         all_paths=pi.paths,
         group_a_name=pi.group_a,
         group_b_name=pi.group_b,
+        filter_afc_direction=pcf.get("restrict_afc"),
         filter_umap_a=filter_umap_a,
         filter_umap_b=filter_umap_b,
         filter_senders=pcf.get("sender_select"),
@@ -919,8 +929,7 @@ def download(
     sliders_container_children,
 ):
 
-    clusters, groups = get_clusters(fpaths["clusters_file"])
-    pi = get_pathways(fpaths["pathways_file"], groups[0], groups[1])
+    pi = current_app.config["INCYTR_PATHWAYS"]
 
     if n_clicks and n_clicks > 0:
 
@@ -929,6 +938,7 @@ def download(
             all_paths=pi.paths,
             group_a_name=pi.group_a,
             group_b_name=pi.group_b,
+            filter_afc_direction=pcf.get("restrict_afc"),
             filter_umap_a=parse_umap_filter_data(pcf.get("umap_select_a")),
             filter_umap_b=parse_umap_filter_data(pcf.get("umap_select_b")),
             filter_senders=pcf.get("sender_select"),

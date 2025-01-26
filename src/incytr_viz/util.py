@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from tabulate import tabulate
+from typing import Literal, Callable
 
 from incytr_viz import assets
 from incytr_viz.dtypes import clusters_dtypes, pathways_dtypes
@@ -41,8 +42,16 @@ def create_logger(name):
 logger = create_logger(__name__)
 
 
-def cache_func(func, **cache_kwargs):
-    return cache.cached(**cache_kwargs)(func)
+# def cache_func(
+#     func: Callable, cache_method: Literal["cached", "memoize"], **cache_kwargs
+# ):
+
+#     if cache_method == "cached":
+#         method = cache.cached
+#     elif cache_method == "memoize":
+#         method = cache.memoize
+
+#     return method(**cache_kwargs)(func)
 
 
 def format_headers(headers):
@@ -55,7 +64,7 @@ def format_headers(headers):
     )
 
 
-def _get_clusters(fpath):
+def get_clusters(fpath):
     if ".csv" in fpath:
         sep = ","
     elif ".tsv" in fpath:
@@ -80,6 +89,9 @@ def _get_clusters(fpath):
         )
 
     df = df[list(clusters_dtypes.keys())].reset_index(drop=True)
+
+    df["type_userlabel"] = df["type"]
+    df["condition_userlabel"] = df["condition"]
 
     df["type"] = df["type"].str.strip().str.lower()
     df["group"] = df["condition"].str.strip().str.lower()
@@ -197,7 +209,8 @@ class PathwayInput:
         self.unique_targets = self.paths["target"].unique()
 
 
-def _get_pathways(fpath, group_a, group_b):
+def get_pathways(fpath, group_a, group_b):
+    logger.info("GET PATHWAYS CALLED")
     if ".csv" in fpath:
         sep = ","
     elif ".tsv" in fpath:
@@ -277,113 +290,16 @@ def _get_pathways(fpath, group_a, group_b):
     )
 
 
-def get_clusters(fpath):
-    return cache_func(_get_clusters, key_prefix="clusters", timeout=None)(fpath)
+# def get_clusters(fpath):
+#     return cache_func(_get_clusters, "cached", key_prefix="clusters", timeout=None)(
+#         fpath
+#     )
 
 
-def get_pathways(fpath, group_a, group_b):
-    return cache_func(_get_pathways, key_prefix="pathways", timeout=None)(
-        fpath, group_a, group_b
-    )
-
-
-def validate_pathways(raw, group_a, group_b):
-
-    raw.columns = raw.columns.str.strip().str.lower()
-    required = [
-        "path",
-        "sender",
-        "receiver",
-        "afc",
-        "sigprob_" + group_a,
-        "sigprob_" + group_b,
-    ]
-
-    optional = [
-        "p_value_" + group_a,
-        "p_value_" + group_b,
-        "tprs",
-        "prs",
-        "kinase_r_of_em",
-        "kinase_r_of_t",
-        "kinase_em_of_t",
-        "umap1",
-        "umap2",
-    ]
-
-    logger.info("scanning pathways file for required and optional columns")
-
-    required_df = pd.DataFrame.from_dict(
-        {"colname": required, "required": True, "found": False}
-    )
-    optional_df = pd.DataFrame.from_dict(
-        {"colname": optional, "required": False, "found": False}
-    )
-    columns_df = pd.concat([required_df, optional_df], axis=0)
-
-    for row in columns_df.iterrows():
-        col = row[1]["colname"]
-        columns_df.loc[columns_df["colname"] == col, "found"] = col in raw.columns
-
-    logger.info(
-        "Pathways file column summary\n"
-        + tabulate(columns_df, headers="keys", tablefmt="fancy_grid", showindex=False)
-    )
-
-    if (columns_df["required"] & ~columns_df["found"]).any():
-        raise ValueError(
-            f"Required columns not found in pathways file: {columns_df[columns_df['required'] & ~columns_df['found']]['colname'].values}"
-        )
-
-    if (~columns_df["found"] & ~columns_df["required"]).any():
-        logger.warning(
-            f"Optional columns missing in pathways file: {columns_df[~columns_df['found'] & ~columns_df['required']]['colname'].values}"
-        )
-
-    paths = raw[[c for c in columns_df["colname"] if c in raw.columns]]
-
-    num_invalid = 0
-
-    incomplete_paths = paths["path"].str.strip().str.split("*").str.len() != 4
-
-    if incomplete_paths.sum() > 0:
-        logger.warning(
-            f"{incomplete_paths.sum()} rows with invalid pathway format found. Expecting form L*R*EM*T"
-        )
-        logger.warning("First 10 invalid paths:")
-        logger.warning(paths[incomplete_paths]["path"].head().values)
-
-    num_invalid += len(incomplete_paths)
-
-    paths = paths.loc[~incomplete_paths]
-
-    paths["ligand"] = paths["path"].str.split("*").str[0].str.strip()
-    paths["receptor"] = paths["path"].str.split("*").str[1].str.strip()
-    paths["em"] = paths["path"].str.split("*").str[2].str.strip()
-    paths["target"] = paths["path"].str.split("*").str[3].str.strip()
-    paths["sender"] = paths["sender"].str.strip().str.lower()
-    paths["receiver"] = paths["receiver"].str.strip().str.lower()
-    paths["path"] = (
-        paths["path"]
-        .str.cat(paths["sender"], sep="*")
-        .str.cat(paths["receiver"], sep="*")
-    )
-
-    duplicates = paths.duplicated()
-    logger.warning(f"{duplicates.sum()} duplicate rows found")
-
-    required_cols = columns_df[columns_df["required"]]["colname"].values
-
-    is_na = paths[required_cols].isna().any(axis=1)
-
-    logger.info(f"{is_na.sum()} rows with invalid values found in required columns")
-
-    invalid = duplicates | is_na
-
-    logger.info(f"Removing {invalid.sum()} duplicate or invalid rows")
-    paths = paths[~invalid].reset_index(drop=True)
-
-    return paths
+# def get_pathways(fpath, group_a, group_b):
+#     return cache_func(_get_pathways, "cached", key_prefix="pathways", timeout=None)(
+#         fpath, group_a, group_b
+#     )
 
 
 def filter_defaults():
@@ -397,10 +313,10 @@ def filter_defaults():
         "target_select": [],
         "any_role_select": [],
         "kinase_select": None,
-        "sigprob": 0.9,
+        "sigprob": 0.7,
         "p_value": 0.05,
-        "prs": [-2, 2],
-        "tprs": [-2, 2],
+        "prs": [-0.5, 0.5],
+        "tprs": [-0.5, 0.5],
     }
 
 
@@ -444,6 +360,7 @@ class PathwaysFilter:
     all_paths: pd.DataFrame
     group_a_name: str
     group_b_name: str
+    filter_afc_direction: bool
     sp_threshold: float = 0
     pval_threshold: float = None
     prs_bounds: list[float] = field(default_factory=list)
@@ -463,6 +380,7 @@ class PathwaysFilter:
 
         self.a_suffix = f"_{self.group_a_name}"
         self.b_suffix = f"_{self.group_b_name}"
+        self.cache = cache
 
         if not self.filter_senders:
             self.filter_senders = self.all_paths["sender"].unique()
@@ -492,7 +410,8 @@ class PathwaysFilter:
     @property
     def a_data(self):
         df = self.all_paths.loc[:, ~self.all_paths.columns.str.endswith(self.b_suffix)]
-
+        if self.filter_afc_direction:
+            df = df.loc[df["afc"] > 0]
         pattern = re.compile(f"_{self.group_a_name}$")
 
         return df.rename(
@@ -506,6 +425,9 @@ class PathwaysFilter:
         df = self.all_paths.loc[
             :, ~self.all_paths.columns.str.endswith(self.a_suffix)
         ].copy()
+
+        if self.filter_afc_direction:
+            df = df.loc[df["afc"] < 0]
 
         pattern = re.compile(f"_{self.group_b_name}$")
 
@@ -545,14 +467,15 @@ class PathwaysFilter:
         df = df[df["sigprob"] >= self.sp_threshold]
         if self.pval_threshold:
             df = df[df["p_value"] <= self.pval_threshold]
+
         if self.prs_bounds:
             df = df[
-                (df["prs"] >= self.prs_bounds[0]) & (df["prs"] <= self.prs_bounds[1])
+                (df["prs"] <= self.prs_bounds[0]) | (df["prs"] >= self.prs_bounds[1])
             ]
         if self.tprs_bounds:
             df = df[
-                (df["tprs"] >= self.tprs_bounds[0])
-                & (df["tprs"] <= self.tprs_bounds[1])
+                (df["tprs"] <= self.tprs_bounds[0])
+                | (df["tprs"] >= self.tprs_bounds[1])
             ]
         df = df[
             df["ligand"].isin(self.filter_ligands)
