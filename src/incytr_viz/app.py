@@ -453,21 +453,20 @@ def pathways_df_to_sankey(
         def _kinase_color_map(row, source, target):
 
             mapper = kinase_color_map()
-
             if (source == "receptor") and (target == "em"):
                 if row["sik_r_of_em"] and row["sik_em_of_r"]:
-                    return mapper["bidirectional"]
+                    return mapper["Bidirectional"]
                 elif row["sik_r_of_em"]:
-                    return mapper["sik_r_of_em"]
+                    return mapper["Receptor --> Effector"]
                 elif row["sik_em_of_r"]:
-                    return mapper["sik_em_of_r"]
+                    return mapper["Effector --> (Receptor/Target Gene)"]
             elif (source == "em") and (target == "target"):
                 if row["sik_em_of_t"] and row["sik_t_of_em"]:
-                    return mapper["bidirectional"]
+                    return mapper["Bidirectional"]
                 elif row["sik_em_of_t"]:
-                    return mapper["sik_em_of_t"]
+                    return mapper["Effector --> (Receptor/Target Gene)"]
                 elif row["sik_t_of_em"]:
-                    return mapper["sik_t_of_em"]
+                    return mapper["Target --> Effector"]
             return "lightgrey"
 
         if sankey_color_flow in ["sender", "receiver"]:

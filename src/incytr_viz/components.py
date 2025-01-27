@@ -233,7 +233,7 @@ def sankey_container(
                     ),
                     html.Div(
                         [
-                            html.H4("Kinase Relationship"),
+                            html.H4("Kinase-Substrate Relationship"),
                             html.Div(
                                 [
                                     dbc.Table(

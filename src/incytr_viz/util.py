@@ -125,13 +125,23 @@ def get_clusters(fpath):
 
 
 def kinase_color_map():
+
     return {
-        "sik_r_of_em": "red",
-        "sik_em_of_t": "blue",
-        "sik_em_of_r": "green",
-        "sik_t_of_em": "yellow",
-        "bidirectional": "black",
+        "Receptor --> Effector": "rgb(111,104,252)",
+        "Effector --> (Receptor/Target Gene)": "rgb(90,199,99)",
+        "Target --> Effector": "rgb(148,102,227)",
+        "Bidirectional": "rgb(130,107,107)",
+        "Receptor <--> Target:  Not Shown -- Please Use Filter": "rgb(255,255,255)",
     }
+
+    # plt_colors = cmap(np.linspace(0, 1, len(labels)))
+
+    # # 256 would not be websafe value
+    # rgb_colors = [[int(x * 255) for x in c[0:3]] for c in plt_colors]
+
+    # rgb_colors = [f"rgb({x[0]},{x[1]},{x[2]})" for x in rgb_colors]
+
+    # return {l: rgb_colors[i] for i, l in enumerate(labels)}
 
 
 def parse_pathway_headers(headers, group_a, group_b):
