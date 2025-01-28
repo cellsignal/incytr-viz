@@ -46,4 +46,6 @@ Troubleshooting and other tips
 -- Targets may not be displayed when there are too many pathways passing the current filters. Please apply additional filters.
 -- When downloading outputs, your browser may ask you to allow the app to download multiple files.
 -- Some filters may be disabled if the metric is not detected or available.
--- Large files (1 million pathways) may slow rendering speed. It may be helpful to 
+-- "Address already in use" error: This likely means the gunicorn process was not terminated when a terminal was closed. This can happen when running a program from a code editor like VS Code
+-- Large files (~1M pathways) may take slightly longer to filter. 
+-- Warning! Dash cytoscape > 0.3.0 (e.g. 1.0.0 and above) have bugs that affect graph updates as of July 2024

@@ -159,164 +159,184 @@ def sankey_container(
     target,
     value,
     color,
-    title,
     group_id,
-    warn,
     color_flow,
 ):
 
-    def get_sankey_height(num_targets, num_links):
-        if num_links == 0:
+    num_links = len(source)
+    is_empty = num_links == 0
+    num_targets = len([x for x in ids if "_target" in x])
+    num_effectors = len([x for x in ids if "_em" in x])
+    no_targets = num_targets == 0
+
+    def get_sankey_height(is_empty, no_targets, num_targets, num_effectors):
+
+        num_terminal_nodes = num_effectors if no_targets else num_targets
+        if is_empty:
             out = 250
-        elif num_targets == 0:
-            out = 400
-        elif num_targets < 50:
-            out = num_targets * 25
+        elif num_terminal_nodes < 50:
+            out = num_terminal_nodes * 25
         else:
-            out = num_targets * 15
+            out = num_terminal_nodes * 15
         return f"{max(out, 250)}px"
 
-    num_targets = len([x for x in ids if "_target" in x])
-    num_links = len(ids)
-    sankey_style = {"height": get_sankey_height(num_targets, num_links)}
+    sankey_style = {
+        "height": get_sankey_height(is_empty, no_targets, num_targets, num_effectors)
+    }
 
-    warn_style = {"display": "none"} if not warn else {}
+    warn_style = {"display": "none"} if not no_targets else {}
 
     # Drop duplicate rows based on row index
     unique_clusters = clusters.loc[~clusters.index.duplicated(keep="first")]
 
-    return html.Div(
-        [
-            html.Div(
-                [
-                    sankey_legend_container(),
-                    html.Div(
-                        [
-                            html.H4("Cell type"),
-                            html.Div(
-                                [
-                                    dbc.Table(
-                                        [
-                                            html.Tbody(
-                                                [
-                                                    html.Tr(
-                                                        [
-                                                            html.Td(r[0]),
-                                                            html.Td(
-                                                                [],
-                                                                style={
-                                                                    "backgroundColor": r[
-                                                                        1
-                                                                    ][
-                                                                        "color"
-                                                                    ],
-                                                                    "width": "20px",
-                                                                },
-                                                            ),
-                                                        ],
-                                                        className="sankeyLinkColorLegendRow",
-                                                    )
-                                                    for r in unique_clusters.iterrows()
-                                                ]
-                                            )
-                                        ]
-                                    ),
-                                ],
-                            ),
-                        ],
-                        className="sankeyLinkColorLegend",
-                        style=(
-                            {}
-                            if (color_flow in ["sender", "receiver"])
-                            else {"display": "none"}
-                        ),
-                    ),
-                    html.Div(
-                        [
-                            html.H4("Kinase-Substrate Relationship"),
-                            html.Div(
-                                [
-                                    dbc.Table(
-                                        [
-                                            html.Tbody(
-                                                [
-                                                    html.Tr(
-                                                        [
-                                                            html.Td(k),
-                                                            html.Td(
-                                                                [],
-                                                                style={
-                                                                    "backgroundColor": v,
-                                                                    "width": "20px",
-                                                                },
-                                                            ),
-                                                        ],
-                                                        className="sankeyLinkColorLegendRow",
-                                                    )
-                                                    for k, v in kinase_color_map().items()
-                                                ]
-                                            )
-                                        ]
-                                    ),
-                                ],
-                            ),
-                        ],
-                        className="sankeyLinkColorLegend",
-                        style={} if (color_flow == "kinase") else {"display": "none"},
-                    ),
-                ],
-                className="sankeyTitleAndLegend",
-            ),
-            dcc.Graph(
-                figure=go.Figure(
-                    go.Sankey(
-                        arrangement="fixed",
-                        node=dict(
-                            pad=15,
-                            thickness=20,
-                            line=dict(color="black", width=0.5),
-                            label=labels,
-                            customdata=ids,
-                            hovertemplate="%{label}: %{value:.0f} pathways<extra></extra>",
-                            color=get_node_colors(ids),
-                        ),
-                        link=dict(
-                            source=source,
-                            target=target,
-                            value=value,
-                            color=color,
-                            customdata=color,
-                            hovertemplate="%{source.customdata} --> %{target.customdata}: %{value:.0f} pathways<extra></extra>",
-                        ),
-                    ),
+    if num_links > 2000:
+        return html.Div(
+            [
+                sankey_legend_container(),
+                html.Div(
+                    "Too many links to display. Please apply additional filters.",
+                    className="linksWarning",
                 ),
-                id=f"sankey-{group_id}",
-                className="sankey",
-                style=sankey_style,
-            ),
-            html.Div(
-                [
-                    dbc.Button(
-                        "!",
-                        id=f"sankey-warning-{group_id}",
-                        color="white",
-                        style=warn_style,
-                        className="sankeyWarning",
-                    ),
-                    dbc.Popover(
-                        dbc.PopoverBody(
-                            "Too many target genes to display. To display targets, please apply additional filters"
+            ],
+            className="sankeyTitleAndLegend",
+        )
+
+    else:
+
+        return html.Div(
+            [
+                html.Div(
+                    [
+                        sankey_legend_container(),
+                        html.Div(
+                            [
+                                html.H4("Cell type"),
+                                html.Div(
+                                    [
+                                        dbc.Table(
+                                            [
+                                                html.Tbody(
+                                                    [
+                                                        html.Tr(
+                                                            [
+                                                                html.Td(r[0]),
+                                                                html.Td(
+                                                                    [],
+                                                                    style={
+                                                                        "backgroundColor": r[
+                                                                            1
+                                                                        ][
+                                                                            "color"
+                                                                        ],
+                                                                        "width": "20px",
+                                                                    },
+                                                                ),
+                                                            ],
+                                                            className="sankeyLinkColorLegendRow",
+                                                        )
+                                                        for r in unique_clusters.iterrows()
+                                                    ]
+                                                )
+                                            ]
+                                        ),
+                                    ],
+                                ),
+                            ],
+                            className="sankeyLinkColorLegend",
+                            style=(
+                                {}
+                                if (color_flow in ["sender", "receiver"])
+                                else {"display": "none"}
+                            ),
                         ),
-                        trigger="hover",
-                        body=True,
-                        target=f"sankey-warning-{group_id}",
+                        html.Div(
+                            [
+                                html.H4("Kinase-Substrate Relationship"),
+                                html.Div(
+                                    [
+                                        dbc.Table(
+                                            [
+                                                html.Tbody(
+                                                    [
+                                                        html.Tr(
+                                                            [
+                                                                html.Td(k),
+                                                                html.Td(
+                                                                    [],
+                                                                    style={
+                                                                        "backgroundColor": v,
+                                                                        "width": "20px",
+                                                                    },
+                                                                ),
+                                                            ],
+                                                            className="sankeyLinkColorLegendRow",
+                                                        )
+                                                        for k, v in kinase_color_map().items()
+                                                    ]
+                                                )
+                                            ]
+                                        ),
+                                    ],
+                                ),
+                            ],
+                            className="sankeyLinkColorLegend",
+                            style=(
+                                {} if (color_flow == "kinase") else {"display": "none"}
+                            ),
+                        ),
+                    ],
+                    className="sankeyTitleAndLegend",
+                ),
+                dcc.Graph(
+                    figure=go.Figure(
+                        go.Sankey(
+                            arrangement="fixed",
+                            node=dict(
+                                pad=15,
+                                thickness=20,
+                                line=dict(color="black", width=0.5),
+                                label=labels,
+                                customdata=ids,
+                                hovertemplate="%{label}: %{value:.0f} pathways<extra></extra>",
+                                color=get_node_colors(ids),
+                            ),
+                            link=dict(
+                                source=source,
+                                target=target,
+                                value=value,
+                                color=color,
+                                customdata=color,
+                                hovertemplate="%{source.customdata} --> %{target.customdata}: %{value:.0f} pathways<extra></extra>",
+                            ),
+                        ),
                     ),
-                ],
-                className="sankeyWarningAndLegendContainer",
-            ),
-        ],
-        className="sankeyContainer",
-    )
+                    id=f"sankey-{group_id}",
+                    className="sankey",
+                    style=sankey_style,
+                ),
+                html.Div(
+                    [
+                        dbc.Button(
+                            "!",
+                            id=f"sankey-warning-{group_id}",
+                            color="white",
+                            style=warn_style,
+                            className="sankeyWarning",
+                        ),
+                        dbc.Popover(
+                            dbc.PopoverBody(
+                                "Too many target genes to display. To display targets, please apply additional filters"
+                            ),
+                            trigger="hover",
+                            body=True,
+                            target=f"sankey-warning-{group_id}",
+                        ),
+                    ],
+                    className="sankeyWarningAndLegendContainer",
+                ),
+            ],
+            className="sankeyContainer",
+        )
 
 
 def _sankey_legend(label, color):
@@ -463,7 +483,7 @@ def slider(
 
     component = dcc.Slider if not range else dcc.RangeSlider
 
-    if slider_kwargs.get("tooltip"):
+    if "tooltip" in slider_kwargs:
         tooltip_format = slider_kwargs.pop("tooltip")
     else:
         tooltip_format = {
@@ -489,6 +509,8 @@ def slider_container(
     has_p_value,
 ):
 
+    pval_map = p_value_slider_map()
+
     sliders = [
         slider(
             "Sigprob",
@@ -503,13 +525,14 @@ def slider_container(
         slider(
             "P-Value",
             id={"type": "numerical-filter", "index": "p-value"},
-            min=0,
-            max=1,
-            step=0.01,
-            value=0.05,
+            min=pval_map[0][0],
+            max=pval_map[-1][0],
+            step=1,
+            value=4,
+            marks={str(x[0]): x[1] for x in pval_map},
             disabled=not has_p_value,
-            marks={0: "0", 1: "1"},
-            className="slider",
+            tooltip={"style": {"display": "none"}},
+            className="slider" if has_p_value else "slider disabledSlider",
         ),
         slider(
             "TPRS",

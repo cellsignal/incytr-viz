@@ -223,6 +223,17 @@ class PathwayInput:
             x in self.paths.columns
             for x in ["p_value_" + self.group_a, "p_value_" + self.group_b]
         )
+        self.has_kinase = all(
+            x in self.paths.columns
+            for x in [
+                "sik_r_of_em",
+                "sik_r_of_t",
+                "sik_em_of_t",
+                "sik_em_of_r",
+                "sik_t_of_r",
+                "sik_t_of_em",
+            ]
+        )
         self.has_umap = all(x in self.paths.columns for x in ["umap1", "umap2"])
         self.unique_senders = self.paths["sender"].unique()
         self.unique_receivers = self.paths["receiver"].unique()
@@ -350,6 +361,10 @@ def parse_umap_filter_data(umap_json_str):
     return {}
 
 
+def p_value_slider_map():
+    return [(1, 0.0001), (2, 0.001), (3, 0.01), (4, 0.05), (5, 0.1), (6, 0.5), (7, 1)]
+
+
 def parse_slider_values_from_tree(children):
 
     sliders = []
@@ -367,7 +382,15 @@ def parse_slider_values_from_tree(children):
     out = {id: None for id in slider_ids}
     for id in slider_ids:
         try:
-            out[id] = _get_slider_value(sliders, id)
+            if id == "p-value":
+                raw_val = _get_slider_value(sliders, id)
+                mapped_val = next(
+                    x[1] for x in p_value_slider_map() if x[0] == int(raw_val)
+                )
+                print(raw_val, mapped_val)
+                out[id] = mapped_val
+            else:
+                out[id] = _get_slider_value(sliders, id)
         except StopIteration:
             continue
 
@@ -486,6 +509,7 @@ class PathwaysFilter:
                 ]
 
         df = df[df["sigprob"] >= self.sp_threshold]
+
         if self.pval_threshold:
             df = df[df["p_value"] <= self.pval_threshold]
 

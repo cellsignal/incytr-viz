@@ -155,11 +155,15 @@ def create_app(pathways_file, clusters_file):
                                         placeholder="Color River Flow",
                                         multi=False,
                                         clearable=True,
-                                        options=[
-                                            "sender",
-                                            "receiver",
-                                            "kinase",
-                                        ],
+                                        options=(
+                                            [
+                                                "sender",
+                                                "receiver",
+                                                "kinase",
+                                            ]
+                                            if pi.has_kinase
+                                            else ["sender", "receiver"]
+                                        ),
                                     ),
                                 ],
                                 style={"padding": "5px 5px", "width": "300px"},
@@ -232,7 +236,7 @@ def create_app(pathways_file, clusters_file):
                                         ),
                                         html.Div(
                                             [
-                                                html.Span("Pathways Displayed: "),
+                                                html.Span("Pathways: "),
                                                 html.Span(0, id="pathways-count-a"),
                                             ],
                                             className="pathwaysCount",
@@ -272,7 +276,7 @@ def create_app(pathways_file, clusters_file):
                                         ),
                                         html.Div(
                                             [
-                                                html.Span("Pathways Displayed: "),
+                                                html.Span("Pathways: "),
                                                 html.Span(0, id="pathways-count-b"),
                                             ],
                                             className="pathwaysCount",
@@ -535,7 +539,8 @@ def pathways_df_to_sankey(
     def _should_display_targets() -> bool:
         num_targets = len(em_t["target"].unique())
 
-        return num_targets <= 200
+        return num_targets <= 400
+        # return True
 
     if _should_display_targets():
         included_links.append(em_t)
@@ -690,7 +695,6 @@ def update_figure_and_histogram(
                 sankey_color_flow=pcf.get("sankey_color_flow"),
                 all_clusters=clusters,
             )
-            warn = ids and not any(x.endswith("target") for x in ids)
 
             sankey = sankey_container(
                 clusters,
@@ -700,9 +704,7 @@ def update_figure_and_histogram(
                 target,
                 value,
                 color,
-                "Sankey " + group_name,
                 group_id,
-                warn,
                 color_flow=pcf.get("sankey_color_flow"),
             )
 
@@ -902,7 +904,6 @@ def update_filters_click_node(
         return list(set(current + [new]) if isinstance(current, list) else set([new]))
 
     click_data = click_data_a or click_data_b
-    # pdb.set_trace()
     if click_data:
         try:
             customdata = click_data["points"][0]["customdata"]

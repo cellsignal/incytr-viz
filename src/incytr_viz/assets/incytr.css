@@ -76,6 +76,19 @@ nav > .container {
   background-color: #abe2fb;
 }
 
+.linksWarning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid black;
+  color: red;
+  /* width: 5%; */
+  margin: 5px 5px 5px auto;
+  /* font-size: 30px; */
+  font-weight: bold;
+  /* height: 40px; */
+}
+
 .app {
   width: 100vw;
   display: flex;
