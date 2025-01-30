@@ -1,0 +1,255 @@
+We have referenced open-source software tools in our software, that were licensed under the following license types:
+
+-- BSD-3-Clause License
+
+-- MIT License
+
+-- CMU-MIT
+    Copyright 1989, 1991, 1992 by Carnegie Mellon University
+    Derivative Work - 1996, 1998-2000
+    Copyright 1996, 1998-2000 The Regents of the University of California
+
+-- Python Software Foundation License
+    Copyright 2001, 2002, 2003, 2004, 2005, 2006 Python Software Foundation; All Rights
+    Reserved.
+
+-- Apache License
+    Licensed under the Apache License, Version 2.0 (the "License"); 
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+    Unless required by applicable law or agreed to in writing, software distributed under the License is 
+    distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+    See the License for the specific language governing permissions and limitations under the License.
+
+-- Mozilla Public License v2.0
+    This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/
+
+
+
+--------------------------------------------------------------------------------------------------------------------
+
+
+The following is a list of copyright statements for the open-source software tools that we have referenced in our software, either as a direct dependency or a subcomponent of a direct dependency:
+
+Flask
+------------------
+Copyright 2010 Pallets
+
+Flask-Caching
+------------------
+Copyright (c) 2010 by Thadeus Burgess.
+Copyright (c) 2016 by Peter Justin.
+
+Jinja2
+------------------
+Copyright 2007 Pallets
+
+MarkupSafe
+------------------
+Copyright 2010 Pallets
+
+Werkzeug
+------------------
+Copyright 2007 Pallets
+
+blinker
+------------------
+Copyright 2010 Jason Kirtland
+
+cachelib
+------------------
+Copyright 2018 Pallets
+
+certifi
+------------------
+
+charset-normalizer
+------------------
+Copyright (c) 2025 TAHRI Ahmed R.
+
+click
+------------------
+Copyright 2014 Pallets
+
+contourpy
+------------------
+BSD 3-Clause License
+Copyright (c) 2021-2024, ContourPy Developers.
+All rights reserved.
+
+cycler
+------------------
+Copyright (c) 2015, matplotlib project
+All rights reserved.
+
+dash
+------------------
+MIT License
+Copyright (c) 2015-2024 Plotly Technologies Inc.
+
+dash-bootstrap-components
+------------------
+Copyright 2018-2022 Faculty Science Limited
+
+dash-core-components
+------------------
+Copyright (c) 2019 Plotly Technologies
+
+dash-cytoscape
+------------------
+Copyright (c) 2017 Plotly, Inc
+
+dash-html-components
+------------------
+YEAR: 2020
+COPYRIGHT HOLDER: Plotly, Inc.
+
+dash-table
+------------------
+The MIT License (MIT)
+Copyright (c) 2018-Present Plotly, Inc
+
+fonttools
+------------------
+MIT License
+Copyright (c) 2017 Just van Rossum
+
+gunicorn
+------------------
+2009-2024 (c) Benoît Chesneau <benoitc@gunicorn.org>
+2009-2015 (c) Paul J. Davis <paul.joseph.davis@gmail.com>
+
+idna
+------------------
+Copyright (c) 2013-2024, Kim Davies and contributors.
+All rights reserved.
+
+importlib_metadata
+------------------
+                                 
+   Copyright [yyyy] [name of copyright owner]
+
+
+itsdangerous
+------------------
+Copyright 2011 Pallets
+
+kiwisolver
+------------------
+Copyright (c) 2013-2024, Nucleic Development Team
+All rights reserved.
+Our Copyright Policy
+--------------------
+Nucleic uses a shared copyright model. Each contributor maintains copyright
+over their contributions to Nucleic. But, it is important to note that these
+contributions are typically only changes to the repositories. Thus, the Nucleic
+source code, in its entirety is not the copyright of any single person or
+institution. Instead, it is the collective copyright of the entire Nucleic
+Development Team. If individual contributors want to maintain a record of what
+changes/contributions they have specific copyright on, they should indicate
+their copyright in the commit message of the change, when they commit the
+change to one of the Nucleic repositories.
+With this in mind, the following banner should be used in any source code file
+to indicate the copyright and license terms:
+#------------------------------------------------------------------------------
+# Copyright (c) 2013-2024, Nucleic Development Team.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file LICENSE, distributed with this software.
+#------------------------------------------------------------------------------
+
+matplotlib
+------------------
+John Hunter began Matplotlib around 2003. Since shortly before his passing in 2012, Michael Droettboom has been the lead maintainer of Matplotlib, but, as has always been the case, Matplotlib is the work of many.
+
+Prior to July of 2013, and the 1.3.0 release, the copyright of the source code was held by John Hunter. As of July 2013, and the 1.3.0 release, matplotlib has moved to a shared copyright model.
+
+Matplotlib uses a shared copyright model. Each contributor maintains copyright over their contributions to Matplotlib. But, it is important to note that these contributions are typically only changes to the repositories. Thus, the Matplotlib source code, in its entirety, is not the copyright of any single person or institution. Instead, it is the collective copyright of the entire Matplotlib Development Team. If individual contributors want to maintain a record of what changes/contributions they have specific copyright on, they should indicate their copyright in the commit message of the change, when they commit the change to one of the matplotlib repositories.
+
+The Matplotlib Development Team is the set of all contributors to the matplotlib project. A full list can be obtained from the git version control logs.
+
+nest-asyncio
+------------------
+BSD 2-Clause License
+Copyright (c) 2018-2020, Ewald de Wit
+All rights reserved.
+
+numpy
+------------------
+Copyright (c) 2005-2024, NumPy Developers.
+All rights reserved.
+
+pandas
+------------------
+BSD 3-Clause License
+Copyright (c) 2008-2011, AQR Capital Management, LLC, Lambda Foundry, Inc. and PyData Development Team
+All rights reserved.
+
+pillow
+------------------
+The Python Imaging Library (PIL) is
+    Copyright © 1997-2011 by Secret Labs AB
+    Copyright © 1995-2011 by Fredrik Lundh and contributors
+Pillow is the friendly PIL fork. It is
+    Copyright © 2010 by Jeffrey A. Clark and contributors
+
+plotly
+------------------
+The MIT License (MIT)
+Copyright (c) 2016-2018 Plotly, Inc
+
+pyparsing
+------------------
+
+python-dateutil
+------------------
+Copyright 2017- Paul Ganssle <paul@ganssle.io>
+Copyright 2017- dateutil contributors (see AUTHORS file)
+dateutil - Extensions to the standard Python datetime module.
+Copyright (c) 2003-2011 - Gustavo Niemeyer <gustavo@niemeyer.net>
+Copyright (c) 2012-2014 - Tomi Pieviläinen <tomi.pievilainen@iki.fi>
+Copyright (c) 2014-2016 - Yaron de Leeuw <me@jarondl.net>
+Copyright (c) 2015-     - Paul Ganssle <paul@ganssle.io>
+Copyright (c) 2015-     - dateutil contributors (see AUTHORS file)
+All rights reserved.
+
+pytz
+------------------
+Copyright (c) 2003-2019 Stuart Bishop <stuart@stuartbishop.net>
+
+requests
+------------------
+
+retrying
+------------------
+Copyright [yyyy] [name of copyright owner]
+
+six
+------------------
+Copyright (c) 2010-2024 Benjamin Peterson
+
+tabulate
+------------------
+Copyright (c) 2011-2020 Sergey Astanin and contributors
+
+tenacity
+------------------
+Copyright [yyyy] [name of copyright owner]
+
+typing_extensions
+------------------
+Copyright (c) 1991 - 1995, Stichting Mathematisch Centrum Amsterdam,
+The Netherlands.  All rights reserved.
+
+tzdata
+------------------
+Apache Software License 2.0
+Copyright (c) 2020, Paul Ganssle (Google)
+
+urllib3
+------------------
+Copyright (c) 2008-2020 Andrey Petrov and contributors.
+
+zipp
+------------------
