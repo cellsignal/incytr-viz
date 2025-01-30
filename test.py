@@ -40,7 +40,7 @@ def pcf():
 
 @pytest.fixture
 def slider_values():
-    return {"sigprob": 0.7, "tprs": [-2, 2], "prs": [-2, 2], "p-value": 1}
+    return {"sigprob": 0.7, "tpds": [-2, 2], "ppds": [-2, 2], "p-value": 1}
 
 
 def test_get_pathways(pi):
@@ -57,8 +57,8 @@ def test_get_pathways(pi):
                 "sigprob_14days",
                 "sigprob_10days",
                 "afc",
-                "tprs",
-                "prs",
+                "tpds",
+                "ppds",
                 "ligand",
                 "receptor",
                 "em",
@@ -68,8 +68,8 @@ def test_get_pathways(pi):
     )
 
     assert pi.has_p_value == True
-    assert pi.has_prs == True
-    assert pi.has_tprs == True
+    assert pi.has_ppds == True
+    assert pi.has_tpds == True
     assert pi.has_umap == False
     assert pi.group_a == "10days"
     assert pi.group_b == "14days"

@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 from incytr_viz.util import *
 
 
-def create_hist_figure(paths, has_tprs, has_prs, has_p_value):
+def create_hist_figure(paths, has_tpds, has_ppds, has_p_value):
 
     plot_order = [(1, 1), (1, 2), (2, 1), (2, 2)]
     curr_idx = 0
@@ -28,22 +28,22 @@ def create_hist_figure(paths, has_tprs, has_prs, has_p_value):
     )
     curr_idx += 1
 
-    if has_tprs:
+    if has_tpds:
         fig.add_trace(
             go.Histogram(
-                x=paths["tprs"],
-                name="TPRS",
+                x=paths["tpds"],
+                name="TPDS",
                 **common_hist_params,
             ),
             row=plot_order[curr_idx][0],
             col=plot_order[curr_idx][1],
         )
         curr_idx += 1
-    if has_prs:
+    if has_ppds:
         fig.add_trace(
             go.Histogram(
-                x=paths["prs"],
-                name="PRS",
+                x=paths["ppds"],
+                name="PPDS",
                 **common_hist_params,
             ),
             row=plot_order[curr_idx][0],
@@ -505,8 +505,8 @@ def slider(
 
 
 def slider_container(
-    has_tprs,
-    has_prs,
+    has_tpds,
+    has_ppds,
     has_p_value,
 ):
 
@@ -529,34 +529,34 @@ def slider_container(
             min=pval_map[0][0],
             max=pval_map[-1][0],
             step=1,
-            value=4,
+            value=7,
             marks={str(x[0]): x[1] for x in pval_map},
             disabled=not has_p_value,
             tooltip={"style": {"display": "none"}},
             className="slider" if has_p_value else "slider disabledSlider",
         ),
         slider(
-            "TPRS",
+            "TPDS",
             range=True,
-            id={"type": "numerical-filter", "index": "tprs"},
+            id={"type": "numerical-filter", "index": "tpds"},
             min=-1.1,
             max=1.1,
             step=0.01,
             value=[-0.5, 0.5],
-            disabled=not has_tprs,
+            disabled=not has_tpds,
             marks={-1.1: "-1.1", 1.1: "1.1"},
             allowCross=False,
             className="slider invertedSlider",
         ),
         slider(
-            "PRS",
+            "PPDS",
             range=True,
-            id={"type": "numerical-filter", "index": "prs"},
+            id={"type": "numerical-filter", "index": "ppds"},
             min=-1.1,
             max=1.1,
             step=0.01,
             value=[-0.5, 0.5],
-            disabled=not has_prs,
+            disabled=not has_ppds,
             marks={-1.1: "-1.1", 1.1: "1.1"},
             allowCross=False,
             className="slider invertedSlider",

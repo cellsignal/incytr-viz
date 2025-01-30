@@ -163,8 +163,8 @@ def parse_pathway_headers(headers, group_a, group_b):
     optional = [
         "p_value_" + group_a,
         "p_value_" + group_b,
-        "tprs",
-        "prs",
+        "tpds",
+        "ppds",
         "sik_r_of_em",
         "sik_r_of_t",
         "sik_em_of_t",
@@ -217,8 +217,8 @@ class PathwayInput:
         self.group_a = group_a
         self.group_b = group_b
         self.paths = paths
-        self.has_tprs = "tprs" in self.paths.columns
-        self.has_prs = "prs" in self.paths.columns
+        self.has_tpds = "tpds" in self.paths.columns
+        self.has_ppds = "ppds" in self.paths.columns
         self.has_p_value = all(
             x in self.paths.columns
             for x in ["p_value_" + self.group_a, "p_value_" + self.group_b]
@@ -347,9 +347,9 @@ def filter_defaults():
         "any_role_select": [],
         "kinase_select": None,
         "sigprob": 0.7,
-        "p_value": 0.05,
-        "prs": [-0.5, 0.5],
-        "tprs": [-0.5, 0.5],
+        "p_value": 7,  # integer p-values mapped to nonlinear scale -- see utils
+        "ppds": [-0.5, 0.5],
+        "tpds": [-0.5, 0.5],
     }
 
 
@@ -377,7 +377,7 @@ def parse_slider_values_from_tree(children):
             s for s in sliders if s["props"].get("id", {}).get("index", "") == index
         )["props"]["value"]
 
-    slider_ids = ["sigprob", "tprs", "prs", "p-value"]
+    slider_ids = ["sigprob", "tpds", "ppds", "p-value"]
 
     out = {id: None for id in slider_ids}
     for id in slider_ids:
@@ -387,7 +387,6 @@ def parse_slider_values_from_tree(children):
                 mapped_val = next(
                     x[1] for x in p_value_slider_map() if x[0] == int(raw_val)
                 )
-                print(raw_val, mapped_val)
                 out[id] = mapped_val
             else:
                 out[id] = _get_slider_value(sliders, id)
@@ -408,8 +407,8 @@ class PathwaysFilter:
     filter_afc_direction: bool
     sp_threshold: float = 0
     pval_threshold: float = None
-    prs_bounds: list[float] = field(default_factory=list)
-    tprs_bounds: list[float] = field(default_factory=list)
+    ppds_bounds: list[float] = field(default_factory=list)
+    tppds_bounds: list[float] = field(default_factory=list)
     filter_kinase: str = ""
     filter_senders: list[str] = field(default_factory=list)
     filter_receivers: list[str] = field(default_factory=list)
@@ -513,14 +512,15 @@ class PathwaysFilter:
         if self.pval_threshold:
             df = df[df["p_value"] <= self.pval_threshold]
 
-        if self.prs_bounds:
+        if self.ppds_bounds:
             df = df[
-                (df["prs"] <= self.prs_bounds[0]) | (df["prs"] >= self.prs_bounds[1])
+                (df["ppds"] <= self.ppds_bounds[0])
+                | (df["ppds"] >= self.ppds_bounds[1])
             ]
-        if self.tprs_bounds:
+        if self.tppds_bounds:
             df = df[
-                (df["tprs"] <= self.tprs_bounds[0])
-                | (df["tprs"] >= self.tprs_bounds[1])
+                (df["tpds"] <= self.tppds_bounds[0])
+                | (df["tpds"] >= self.tppds_bounds[1])
             ]
         df = df[
             df["ligand"].isin(self.filter_ligands)

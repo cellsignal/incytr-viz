@@ -207,7 +207,9 @@ def create_app(pathways_file, clusters_file):
             ),
             html.Div(
                 slider_container(
-                    has_tprs=pi.has_tprs, has_prs=pi.has_prs, has_p_value=pi.has_p_value
+                    has_tpds=pi.has_tpds,
+                    has_ppds=pi.has_ppds,
+                    has_p_value=pi.has_p_value,
                 ),
                 id="slider-container",
             ),
@@ -318,7 +320,6 @@ def create_app(pathways_file, clusters_file):
         className="app",
     )
 
-    logger.info("Serving app at <port>")
     return app.server
 
 
@@ -648,9 +649,9 @@ def update_figure_and_histogram(
         filter_em=pcf.get("em_select"),
         filter_target_genes=pcf.get("target_select"),
         filter_all_molecules=pcf.get("any_role_select"),
-        prs_bounds=pi.has_prs and slider_values.get("prs"),
+        ppds_bounds=pi.has_ppds and slider_values.get("ppds"),
         sp_threshold=slider_values.get("sigprob"),
-        tprs_bounds=pi.has_tprs and slider_values.get("tprs"),
+        tppds_bounds=pi.has_tpds and slider_values.get("tpds"),
         pval_threshold=pi.has_p_value and slider_values.get("p-value"),
     )
 
@@ -713,8 +714,8 @@ def update_figure_and_histogram(
             graph_container,
             create_hist_figure(
                 paths=filtered_group_paths,
-                has_tprs=pi.has_tprs,
-                has_prs=pi.has_prs,
+                has_tpds=pi.has_tpds,
+                has_ppds=pi.has_ppds,
                 has_p_value=pi.has_p_value,
             ),
         ]
@@ -773,7 +774,7 @@ def _relayout_umap(relayoutData):
 
 @callback(
     Output("umap-select-a", "value"),
-    inputs=Input("scatter-plot-a", "relayoutData"),
+    inputs=Input("umap-graph-a", "relayoutData"),
     prevent_initial_call=True,
 )
 def relayout_umap_a(
@@ -784,7 +785,7 @@ def relayout_umap_a(
 
 @callback(
     Output("umap-select-b", "value"),
-    inputs=Input("scatter-plot-b", "relayoutData"),
+    inputs=Input("umap-graph-b", "relayoutData"),
     prevent_initial_call=True,
 )
 def relayout_umap_b(
@@ -940,8 +941,8 @@ def update_filters_click_node(
         any_role_select=Output("any-role-select", "value"),
         sigprob=Output({"type": "numerical-filter", "index": "sigprob"}, "value"),
         p_value=Output({"type": "numerical-filter", "index": "p-value"}, "value"),
-        tprs=Output({"type": "numerical-filter", "index": "tprs"}, "value"),
-        prs=Output({"type": "numerical-filter", "index": "prs"}, "value"),
+        tpds=Output({"type": "numerical-filter", "index": "tpds"}, "value"),
+        ppds=Output({"type": "numerical-filter", "index": "ppds"}, "value"),
     ),
     inputs=[Input("reset", "n_clicks")],
     prevent_initial_call=True,
@@ -990,9 +991,9 @@ def download(
             filter_em=pcf.get("em_select"),
             filter_target_genes=pcf.get("target_select"),
             filter_all_molecules=pcf.get("any_role_select"),
-            prs_bounds=pi.has_prs and slider_values.get("prs"),
+            ppds_bounds=pi.has_ppds and slider_values.get("ppds"),
             sp_threshold=slider_values.get("sigprob"),
-            tprs_bounds=pi.has_tprs and slider_values.get("tprs"),
+            tppds_bounds=pi.has_tpds and slider_values.get("tpds"),
             pval_threshold=pi.has_p_value and slider_values.get("p-value"),
         )
 

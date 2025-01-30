@@ -36,9 +36,16 @@ class StandaloneApplication(gunicorn.app.base.BaseApplication):
         return self.application
 
     def run(self):
-        logger.info(
-            f"Running incytr-viz with gunicorn at {self.cfg.settings['bind'].value}"
-        )
+        bind = self.cfg.settings.get("bind").value
+
+        # should always be pointing to a single port on localhost
+        if isinstance(bind, list) and len(bind) == 1:
+            location = "http://" + bind[0]
+        else:
+            location = bind
+
+        logger.info(f"Running incytr-viz with gunicorn at {location}")
+
         try:
             CustomArbiter(self).run()
         except RuntimeError as e:
@@ -53,11 +60,9 @@ def main():
         "--clusters",
         type=str,
         required=True,
-        help="Path to clusters A CSV file",
+        help="cell clusters filepath",
     )
-    parser.add_argument(
-        "--pathways", type=str, required=True, help="Path to pathways CSV file"
-    )
+    parser.add_argument("--pathways", type=str, required=True, help="pathways filepath")
 
     args = parser.parse_args()
 
@@ -66,7 +71,15 @@ def main():
 
     logger.info("Running Incytr Viz using gunicorn web server")
     app = create_app(pathways_file=PATHWAYS, clusters_file=CLUSTERS)
-    StandaloneApplication(app=app).run()
+
+    g_app = StandaloneApplication(app=app)
+
+    try:
+        g_app.cfg.settings["loglevel"].value = "warning"
+    except:
+        pass
+
+    g_app.run()
 
 
 if __name__ == "__main__":

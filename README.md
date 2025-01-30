@@ -57,8 +57,8 @@ This file should be a CSV or TSV that is the main output of the incytr analysis 
 #### Optional:
 - p_value_\<control group name>\
 - p_value_ \<experimental group name>\
-- tprs
-- prs
+- TPDS
+- PPDS
 - sik_r_of_em
 - sik_r_of_t
 - sik_em_of_t
