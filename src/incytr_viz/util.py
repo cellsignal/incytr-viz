@@ -3,7 +3,6 @@ import logging
 from importlib import resources as impresources
 import pdb
 import re
-from flask_caching import Cache
 from dataclasses import dataclass, field
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,9 +21,6 @@ def get_help_file():
         return f.read()
 
 
-cache = Cache()
-
-
 def create_logger(name):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
@@ -40,28 +36,6 @@ def create_logger(name):
 
 
 logger = create_logger(__name__)
-
-
-# def cache_func(
-#     func: Callable, cache_method: Literal["cached", "memoize"], **cache_kwargs
-# ):
-
-#     if cache_method == "cached":
-#         method = cache.cached
-#     elif cache_method == "memoize":
-#         method = cache.memoize
-
-#     return method(**cache_kwargs)(func)
-
-
-def format_headers(headers):
-    return (
-        headers.str.strip()
-        .str.lower()
-        .str.replace(" ", "_")
-        .str.replace("sender.group", "sender")
-        .str.replace("receiver.group", "receiver")
-    )
 
 
 def get_clusters(fpath):
@@ -144,71 +118,131 @@ def kinase_color_map():
     # return {l: rgb_colors[i] for i, l in enumerate(labels)}
 
 
-def parse_pathway_headers(headers, group_a, group_b):
+class PathwayHeaders:
 
-    formatted = format_headers(headers)
+    def __init__(self, raw_headers, expected_groups):
+        self.raw_headers = raw_headers
+        self.expected_groups = expected_groups
+        self.formatted_headers = self.format_headers(raw_headers)
+        self.pos, self.neg = None, None
 
-    # Remove duplicate columns
-    mapper = list(zip(headers, formatted))
+        if len(self.expected_groups) != 2:
+            raise ValueError(
+                f"Expected exactly 2 groups in cluster populations file, found {len(self.expected_groups)}: {self.expected_groups}"
+            )
 
-    required = [
-        "path",
-        "sender",
-        "receiver",
-        "afc",
-        "sigprob_" + group_a,
-        "sigprob_" + group_b,
-    ]
+        self.assign_group_direction()
 
-    optional = [
-        "p_value_" + group_a,
-        "p_value_" + group_b,
-        "tpds",
-        "ppds",
-        "sik_r_of_em",
-        "sik_r_of_t",
-        "sik_em_of_t",
-        "sik_em_of_r",
-        "sik_t_of_r",
-        "sik_t_of_em",
-        "umap1",
-        "umap2",
-    ]
-
-    logger.info("scanning pathways file for required and optional columns")
-
-    required_df = pd.DataFrame.from_dict(
-        {"colname": required, "required": True, "found": False}
-    )
-    optional_df = pd.DataFrame.from_dict(
-        {"colname": optional, "required": False, "found": False}
-    )
-    columns_df = pd.concat([required_df, optional_df], axis=0)
-
-    for row in columns_df.iterrows():
-        col = row[1]["colname"]
-        columns_df.loc[columns_df["colname"] == col, "found"] = col in formatted
-
-    logger.info(
-        "Pathways file column summary\n"
-        + tabulate(columns_df, headers="keys", tablefmt="fancy_grid", showindex=False)
-    )
-
-    if (columns_df["required"] & ~columns_df["found"]).any():
-        raise ValueError(
-            f"Required columns not found in pathways file: {columns_df[columns_df['required'] & ~columns_df['found']]['colname'].values}"
+    @staticmethod
+    def format_headers(raw_headers):
+        return (
+            raw_headers.str.strip()
+            .str.lower()
+            .str.replace(" ", "_")
+            .str.replace("sender.group", "sender")
+            .str.replace("receiver.group", "receiver")
         )
 
-    if (~columns_df["found"] & ~columns_df["required"]).any():
-        logger.warning(
-            f"Optional columns missing in pathways file: {columns_df[~columns_df['found'] & ~columns_df['required']]['colname'].values}"
+    def assign_group_direction(self):
+        sigprobs = [x for x in self.formatted_headers if "sigprob" in x]
+
+        if not all(
+            x in sigprobs
+            for x in [
+                "sigprob_" + self.expected_groups[0],
+                "sigprob_" + self.expected_groups[1],
+            ]
+        ):
+            raise ValueError(
+                f"""
+                Could not match experimental conditions to results columns: 
+                \n Experimental conditions: {self.expected_groups}
+                \n Sigprob Columns: {sigprobs}
+            """
+            )
+        first_sigprob = sigprobs[0]
+
+        if first_sigprob == "sigprob_" + self.expected_groups[0]:
+            self.pos = self.expected_groups[0]
+            self.neg = self.expected_groups[1]
+
+        elif first_sigprob == "sigprob_" + self.expected_groups[1]:
+            self.pos = self.expected_groups[1]
+            self.neg = self.expected_groups[0]
+
+        logger.info(
+            f"Assigned {self.pos} as positive group and {self.neg} as negative group"
         )
 
-    return [
-        x[0]
-        for x in mapper
-        if x[1] in columns_df[columns_df["found"]]["colname"].values
-    ]
+        return self.pos, self.neg
+
+    def parse_pathway_headers(self):
+
+        group_a, group_b = self.pos, self.neg
+        formatted = self.formatted_headers
+
+        mapper = list(zip(self.raw_headers, formatted))
+
+        required = [
+            "path",
+            "sender",
+            "receiver",
+            "afc",
+            "sigprob_" + group_a,
+            "sigprob_" + group_b,
+        ]
+
+        optional = [
+            "p_value_" + group_a,
+            "p_value_" + group_b,
+            "tpds",
+            "ppds",
+            "sik_r_of_em",
+            "sik_r_of_t",
+            "sik_em_of_t",
+            "sik_em_of_r",
+            "sik_t_of_r",
+            "sik_t_of_em",
+            "umap1",
+            "umap2",
+        ]
+
+        logger.info("scanning pathways file for required and optional columns")
+
+        required_df = pd.DataFrame.from_dict(
+            {"colname": required, "required": True, "found": False}
+        )
+        optional_df = pd.DataFrame.from_dict(
+            {"colname": optional, "required": False, "found": False}
+        )
+        columns_df = pd.concat([required_df, optional_df], axis=0)
+
+        for row in columns_df.iterrows():
+            col = row[1]["colname"]
+            columns_df.loc[columns_df["colname"] == col, "found"] = col in formatted
+
+        logger.info(
+            "Pathways file column summary\n"
+            + tabulate(
+                columns_df, headers="keys", tablefmt="fancy_grid", showindex=False
+            )
+        )
+
+        if (columns_df["required"] & ~columns_df["found"]).any():
+            raise ValueError(
+                f"Required columns not found in pathways file: {columns_df[columns_df['required'] & ~columns_df['found']]['colname'].values}"
+            )
+
+        if (~columns_df["found"] & ~columns_df["required"]).any():
+            logger.warning(
+                f"Optional columns missing in pathways file: {columns_df[~columns_df['found'] & ~columns_df['required']]['colname'].values}"
+            )
+
+        return [
+            x[0]
+            for x in mapper
+            if x[1] in columns_df[columns_df["found"]]["colname"].values
+        ]
 
 
 class PathwayInput:
@@ -243,7 +277,7 @@ class PathwayInput:
         self.unique_targets = self.paths["target"].unique()
 
 
-def get_pathways(fpath, group_a, group_b):
+def get_pathways(fpath, groups):
     if ".csv" in fpath:
         sep = ","
     elif ".tsv" in fpath:
@@ -260,11 +294,14 @@ def get_pathways(fpath, group_a, group_b):
     )
 
     headers = pd.read_csv(fpath, nrows=0, sep=sep).columns
-    to_keep = parse_pathway_headers(headers, group_a, group_b)
+    ph = PathwayHeaders(headers, groups)
+    to_keep = ph.parse_pathway_headers()
+    group_a, group_b = ph.pos, ph.neg
 
     logger.info("Loading pathways............")
+
     paths = pd.read_csv(fpath, dtype=pathways_dtypes, usecols=to_keep, sep=sep)
-    paths.columns = format_headers(paths.columns)
+    paths.columns = PathwayHeaders.format_headers(paths.columns)
 
     paths = paths.astype(
         {k: v for k, v in pathways_dtypes.items() if k in paths.columns}
@@ -348,8 +385,8 @@ def filter_defaults():
         "kinase_select": None,
         "sigprob": 0.7,
         "p_value": 7,  # integer p-values mapped to nonlinear scale -- see utils
-        "ppds": [-0.5, 0.5],
-        "tpds": [-0.5, 0.5],
+        "ppds": [-0.25, 0.25],
+        "tpds": [-0.25, 0.25],
     }
 
 
@@ -424,7 +461,6 @@ class PathwaysFilter:
 
         self.a_suffix = f"_{self.group_a_name}"
         self.b_suffix = f"_{self.group_b_name}"
-        self.cache = cache
 
         if not self.filter_senders:
             self.filter_senders = self.all_paths["sender"].unique()
@@ -565,13 +601,6 @@ class PathwaysFilter:
 
 def update_filter_value(current, new):
     return list(set(current + [new]) if isinstance(current, list) else set([new]))
-
-
-def clean_clusters(df) -> pd.DataFrame:
-
-    # TODO handle duplicates
-    # duplicates = df[df.duplicated(subset="Type", keep=False)]
-    return df
 
 
 def edge_width_map(

@@ -23,7 +23,6 @@ from incytr_viz.components import (
 )
 
 from incytr_viz.util import *
-from incytr_viz.util import cache
 
 
 logger = create_logger(__name__)
@@ -39,7 +38,7 @@ def create_app(pathways_file, clusters_file):
     # cache.init_app(app.server, config={"CACHE_TYPE": "SimpleCache"})
 
     clusters, groups = get_clusters(clusters_file)
-    pi = get_pathways(pathways_file, groups[0], groups[1])
+    pi = get_pathways(pathways_file, groups)
 
     app.server.config["INCYTR_CLUSTERS"] = clusters
     app.server.config["INCYTR_PATHWAYS"] = pi
@@ -233,8 +232,21 @@ def create_app(pathways_file, clusters_file):
                                 html.Div(
                                     [
                                         html.H3(
-                                            pi.group_a.title(),
-                                            style={"textTransform": "uppercase"},
+                                            [
+                                                html.Span(
+                                                    "⊕",
+                                                    style={
+                                                        "fontSize": "40px",
+                                                        "paddingRight": "10px",
+                                                        "alignItems": "center",
+                                                    },
+                                                ),
+                                                html.Span(pi.group_a.title()),
+                                            ],
+                                            style={
+                                                "textTransform": "uppercase",
+                                                "display": "flex",
+                                            },
                                         ),
                                         html.Div(
                                             [
@@ -273,8 +285,21 @@ def create_app(pathways_file, clusters_file):
                                 html.Div(
                                     [
                                         html.H3(
-                                            pi.group_b.title(),
-                                            style={"textTransform": "uppercase"},
+                                            [
+                                                html.Span(
+                                                    "⊖",
+                                                    style={
+                                                        "fontSize": "40px",
+                                                        "paddingRight": "10px",
+                                                        "alignItems": "center",
+                                                    },
+                                                ),
+                                                html.Span(pi.group_b.title()),
+                                            ],
+                                            style={
+                                                "textTransform": "uppercase",
+                                                "display": "flex",
+                                            },
                                         ),
                                         html.Div(
                                             [

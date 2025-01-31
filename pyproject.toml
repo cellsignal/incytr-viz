@@ -26,9 +26,9 @@ dependencies = [
   "matplotlib",
   "gunicorn>=23.0.0",
   "tabulate",
-  "flask-caching>=2.3.0"
 ]
-scripts = {"incytr-viz" = "incytr_viz.__main__:main" }
+scripts = {"incytr-viz" = "incytr_viz.__main__:main", "incytr-viz-develop" = "incytr_viz.__main__:develop"}
+
 
 [project.optional-dependencies]
 test = [

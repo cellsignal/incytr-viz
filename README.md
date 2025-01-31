@@ -18,10 +18,16 @@
 2) After pathways have loaded, navigate to http://127.0.0.1:8000/ in your web browser. Large datasets (~1M pathways) may take longer on initial load.
 
 
+## Use
+
+Instructions on using the tool can be found in the "Help" section on the loaded page. You can also find the same information in the incytr repository at src/incytr_viz/assets/help.md
+
 
 ## Input Format
 
-*Column names are case-insensitive*
+### General notes:
+      - Column names are case-insensitive
+      - Conditions listed in the clusters CSV should match the suffixes on condition-specific columns in the pathways CSV. Here, the two conditions are 5X and WT, but will vary with your data
 
 ### Clusters File (CSV/TSV format)
 
@@ -68,8 +74,8 @@
             - path -- 4-step network with components separated by *
             - sender -- sending cell population
             - receiver -- receiving sell population
-            - sigprob_<experimental group name> -- signaling probability for experimental (positive aFC) condition
-            - sigprob_<control group name> -- signaling probability for control (negative aFC) condition
+            - sigprob_<experimental group name here> -- signaling probability for experimental (positive aFC) condition
+            - sigprob_<control group name here> -- signaling probability for control (negative aFC) condition
             - afc -- adjusted fold change
 
             #### Optional:

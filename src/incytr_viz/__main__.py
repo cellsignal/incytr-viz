@@ -1,7 +1,8 @@
 import argparse
 import sys
+import time
 from incytr_viz.app import create_app
-from incytr_viz.util import create_logger
+from incytr_viz.util import create_logger, ascii
 
 logger = create_logger(__name__)
 
@@ -69,7 +70,9 @@ def main():
     PATHWAYS = args.pathways
     CLUSTERS = args.clusters
 
-    logger.info("Running Incytr Viz using gunicorn web server")
+    print(ascii())
+    time.sleep(1)
+
     app = create_app(pathways_file=PATHWAYS, clusters_file=CLUSTERS)
 
     g_app = StandaloneApplication(app=app)
@@ -77,9 +80,30 @@ def main():
     try:
         g_app.cfg.settings["loglevel"].value = "warning"
     except:
-        pass
+        logger.warning("Could not set gunicorn loglevel")
 
     g_app.run()
+
+
+def develop():
+    parser = argparse.ArgumentParser(description="Run the InCytr visualization app.")
+    parser.add_argument(
+        "--clusters",
+        type=str,
+        required=True,
+        help="cell clusters filepath",
+    )
+    parser.add_argument("--pathways", type=str, required=True, help="pathways filepath")
+
+    args = parser.parse_args()
+
+    PATHWAYS = args.pathways
+    CLUSTERS = args.clusters
+
+    logger.info("Running Incytr Viz using gunicorn web server")
+    app = create_app(pathways_file=PATHWAYS, clusters_file=CLUSTERS)
+
+    app.run(debug=True)
 
 
 if __name__ == "__main__":
