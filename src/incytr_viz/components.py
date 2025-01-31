@@ -145,7 +145,7 @@ def cytoscape_container(
                         },
                     },
                 ],
-                style={"width": "1200px", "height": "1200px"},
+                style={"width": "900px", "height": "900px"},
             ),
         ],
         className="cytoscapeContainer",

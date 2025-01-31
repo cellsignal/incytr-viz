@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from tabulate import tabulate
+import time
 from typing import Literal, Callable
 
 from incytr_viz import assets
@@ -271,18 +272,22 @@ class IncytrInput:
         optional_df = pd.DataFrame.from_dict(
             {"colname": optional, "required": False, "found": False}
         )
-        columns_df = pd.concat([required_df, optional_df], axis=0)
 
-        for row in columns_df.iterrows():
+        for row in required_df.iterrows():
             col = row[1]["colname"]
-            columns_df.loc[columns_df["colname"] == col, "found"] = col in formatted
+            found = col in formatted
+            required_df.loc[required_df["colname"] == col, "found"] = found
+            logger.info(f"{col} (required) .... {'found' if found else 'not found'}")
+            time.sleep(0.05)
 
-        logger.info(
-            "Pathways file column summary\n"
-            + tabulate(
-                columns_df, headers="keys", tablefmt="fancy_grid", showindex=False
-            )
-        )
+        for row in optional_df.iterrows():
+            col = row[1]["colname"]
+            found = col in formatted
+            optional_df.loc[optional_df["colname"] == col, "found"] = found
+            logger.info(f"{col} (optional) .... {'found' if found else 'not found'}")
+            time.sleep(0.05)
+
+        columns_df = pd.concat([required_df, optional_df], axis=0)
 
         if (columns_df["required"] & ~columns_df["found"]).any():
             raise ValueError(
