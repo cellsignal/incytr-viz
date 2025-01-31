@@ -14,13 +14,6 @@ from incytr_viz import assets
 from incytr_viz.dtypes import clusters_dtypes, pathways_dtypes
 
 
-def get_help_file():
-    helpfile = impresources.files(assets) / "help.md"
-
-    with helpfile.open("rt") as f:
-        return f.read()
-
-
 def create_logger(name):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
@@ -38,64 +31,30 @@ def create_logger(name):
 logger = create_logger(__name__)
 
 
-def get_clusters(fpath):
+def get_help_file():
+    helpfile = impresources.files(assets) / "help.md"
+
+    with helpfile.open("rt") as f:
+        return f.read()
+
+
+def parse_separator(fpath, input_type="input"):
     if ".csv" in fpath:
         sep = ","
     elif ".tsv" in fpath:
         sep = "\t"
     else:
         raise ValueError(
-            f"Pathways file suffix must be in [.csv,.tsv] -- check filename: {fpath}"
+            f"Pathways file suffix must be in [.csv,.tsv] -- check filename {fpath}"
         )
 
     logger.info(
-        "Loading cluster populations from {} as {}".format(
-            fpath, {"\t": "TSV", ",": "CSV"}[sep]
+        "Detected {} at path {} as {}".format(
+            input_type, fpath, {"\t": "TSV", ",": "CSV"}[sep]
         )
     )
 
-    df = pd.read_csv(fpath, dtype=clusters_dtypes, sep=sep, compression="infer")
-
-    df.columns = df.columns.str.lower().str.strip()
-    if not all(c in df.columns for c in clusters_dtypes.keys()):
-        raise ValueError(
-            f"Invalid cell populations file: ensure the following columns are present: {clusters_dtypes.keys()}"
-        )
-
-    df = df[list(clusters_dtypes.keys())].reset_index(drop=True)
-
-    df["type_userlabel"] = df["type"]
-    df["condition_userlabel"] = df["condition"]
-
-    df["type"] = df["type"].str.strip().str.lower()
-    df["group"] = df["condition"].str.strip().str.lower()
-    df = df.set_index("type")
-
-    df["population"] = df["population"].fillna(0)
-    df["pop_min_ratio"] = df["population"] / (
-        df[df["population"] > 0]["population"].min()
-    )
-
-    df.drop(columns=["condition"], inplace=True)
-    # assign colors to each cell type
-    cmap = plt.get_cmap("tab20")
-
-    cell_types = df.index.unique()
-
-    plt_colors = cmap(np.linspace(0, 1, len(cell_types)))
-
-    # 256 would not be websafe value
-    rgb_colors = [[int(x * 255) for x in c[0:3]] for c in plt_colors]
-
-    colors = {t: rgb_colors[i] for i, t in enumerate(cell_types)}
-    df["color"] = df.index.map(colors)
-    df["color"] = df["color"].apply(lambda x: f"rgb({x[0]},{x[1]},{x[2]})")
-
-    if len(df["group"].unique()) != 2:
-        raise ValueError(
-            f"Expected exactly 2 groups in cluster populations file, found {len(df['group'].unique())}"
-        )
-    return df, df["group"].unique()
+    return sep
 
 
 def kinase_color_map():
@@ -108,30 +67,116 @@ def kinase_color_map():
         "Receptor <--> Target:  Not Shown -- Please Use Filter": "rgb(255,255,255)",
     }
 
-    # plt_colors = cmap(np.linspace(0, 1, len(labels)))
 
-    # # 256 would not be websafe value
-    # rgb_colors = [[int(x * 255) for x in c[0:3]] for c in plt_colors]
+class IncytrInput:
 
-    # rgb_colors = [f"rgb({x[0]},{x[1]},{x[2]})" for x in rgb_colors]
+    def __init__(self, clusters_path, pathways_path):
+        self.clusters, self.groups = IncytrInput.get_clusters(clusters_path)
 
-    # return {l: rgb_colors[i] for i, l in enumerate(labels)}
-
-
-class PathwayHeaders:
-
-    def __init__(self, raw_headers, expected_groups):
-        self.raw_headers = raw_headers
-        self.expected_groups = expected_groups
-        self.formatted_headers = self.format_headers(raw_headers)
-        self.pos, self.neg = None, None
-
-        if len(self.expected_groups) != 2:
+        if len(self.groups) != 2:
             raise ValueError(
-                f"Expected exactly 2 groups in cluster populations file, found {len(self.expected_groups)}: {self.expected_groups}"
+                f"Expected exactly 2 groups in cluster populations file, found {len(self.groups)}: {self.groups}"
             )
 
-        self.assign_group_direction()
+        pathways_sep = parse_separator(pathways_path, "pathways")
+
+        self.raw_headers = pd.read_csv(pathways_path, nrows=0, sep=pathways_sep).columns
+
+        self.formatted_headers = IncytrInput.format_headers(self.raw_headers)
+
+        self.pos, self.neg = IncytrInput.assign_group_direction(
+            self.formatted_headers, self.groups
+        )
+
+        self.group_a, self.group_b = self.pos, self.neg
+
+        columns_to_keep = self.parse_columns_to_keep()
+
+        paths = pd.read_csv(
+            pathways_path,
+            dtype=self.map_dtypes(),
+            usecols=columns_to_keep,
+            sep=pathways_sep,
+        )
+
+        paths.columns = IncytrInput.format_headers(paths.columns)
+
+        self.paths = self.filter_pathways(paths)
+
+        self.has_tpds = "tpds" in self.paths.columns
+        self.has_ppds = "ppds" in self.paths.columns
+
+        self.has_p_value = all(
+            x in self.paths.columns
+            for x in ["p_value_" + self.group_a, "p_value_" + self.group_b]
+        )
+
+        self.has_kinase = all(
+            x in self.paths.columns
+            for x in [
+                "sik_r_of_em",
+                "sik_r_of_t",
+                "sik_em_of_t",
+                "sik_em_of_r",
+                "sik_t_of_r",
+                "sik_t_of_em",
+            ]
+        )
+
+        self.has_umap = all(x in self.paths.columns for x in ["umap1", "umap2"])
+        self.unique_senders = self.paths["sender"].unique()
+        self.unique_receivers = self.paths["receiver"].unique()
+        self.unique_ligands = self.paths["ligand"].unique()
+        self.unique_receptors = self.paths["receptor"].unique()
+        self.unique_em = self.paths["em"].unique()
+        self.unique_targets = self.paths["target"].unique()
+
+    @staticmethod
+    def get_clusters(fpath):
+        sep = parse_separator(fpath, input_type="clusters")
+
+        df = pd.read_csv(fpath, dtype=clusters_dtypes, sep=sep, compression="infer")
+
+        df.columns = df.columns.str.lower().str.strip()
+        if not all(c in df.columns for c in clusters_dtypes.keys()):
+            raise ValueError(
+                f"Invalid cell populations file: ensure the following columns are present: {clusters_dtypes.keys()}"
+            )
+
+        df = df[list(clusters_dtypes.keys())].reset_index(drop=True)
+
+        df["type_userlabel"] = df["type"]
+        df["condition_userlabel"] = df["condition"]
+
+        df["type"] = df["type"].str.strip().str.lower()
+        df["group"] = df["condition"].str.strip().str.lower()
+        df = df.set_index("type")
+
+        df["population"] = df["population"].fillna(0)
+        df["pop_min_ratio"] = df["population"] / (
+            df[df["population"] > 0]["population"].min()
+        )
+
+        df.drop(columns=["condition"], inplace=True)
+        # assign colors to each cell type
+        cmap = plt.get_cmap("tab20")
+
+        cell_types = df.index.unique()
+
+        plt_colors = cmap(np.linspace(0, 1, len(cell_types)))
+
+        # 256 would not be websafe value
+        rgb_colors = [[int(x * 255) for x in c[0:3]] for c in plt_colors]
+
+        colors = {t: rgb_colors[i] for i, t in enumerate(cell_types)}
+        df["color"] = df.index.map(colors)
+        df["color"] = df["color"].apply(lambda x: f"rgb({x[0]},{x[1]},{x[2]})")
+
+        if len(df["group"].unique()) != 2:
+            raise ValueError(
+                f"Expected exactly 2 groups in cluster populations file, found {len(df['group'].unique())}"
+            )
+        return df, df["group"].unique()
 
     @staticmethod
     def format_headers(raw_headers):
@@ -143,42 +188,53 @@ class PathwayHeaders:
             .str.replace("receiver.group", "receiver")
         )
 
-    def assign_group_direction(self):
-        sigprobs = [x for x in self.formatted_headers if "sigprob" in x]
+    def map_dtypes(self):
+        """Generate a new dtype dict for the pathways file based on how the raw headers map to the formatted ones"""
+
+        r_f = list(zip(self.raw_headers, self.formatted_headers))
+
+        return {r: pathways_dtypes[f] for r, f in r_f if f in pathways_dtypes}
+
+    @staticmethod
+    def assign_group_direction(formatted_headers, expected_groups):
+        """
+        match group names to fold change/incytr score direction
+
+        positive fold change --> first condition in pathways CSV
+        negative fold change --> second condition in pathways CSV
+        """
+        sigprobs = [x for x in formatted_headers if "sigprob" in x]
 
         if not all(
             x in sigprobs
             for x in [
-                "sigprob_" + self.expected_groups[0],
-                "sigprob_" + self.expected_groups[1],
+                "sigprob_" + expected_groups[0],
+                "sigprob_" + expected_groups[1],
             ]
         ):
             raise ValueError(
                 f"""
                 Could not match experimental conditions to results columns: 
-                \n Experimental conditions: {self.expected_groups}
+                \n Experimental conditions: {expected_groups}
                 \n Sigprob Columns: {sigprobs}
             """
             )
-        first_sigprob = sigprobs[0]
+        first = sigprobs[0]
 
-        if first_sigprob == "sigprob_" + self.expected_groups[0]:
-            self.pos = self.expected_groups[0]
-            self.neg = self.expected_groups[1]
+        if first == "sigprob_" + expected_groups[0]:
+            pos = expected_groups[0]
+            neg = expected_groups[1]
 
-        elif first_sigprob == "sigprob_" + self.expected_groups[1]:
-            self.pos = self.expected_groups[1]
-            self.neg = self.expected_groups[0]
+        elif first == "sigprob_" + expected_groups[1]:
+            pos = expected_groups[1]
+            neg = expected_groups[0]
 
-        logger.info(
-            f"Assigned {self.pos} as positive group and {self.neg} as negative group"
-        )
+        logger.info(f"Assigning {pos} as positive group and {neg} as negative group")
 
-        return self.pos, self.neg
+        return pos, neg
 
-    def parse_pathway_headers(self):
+    def parse_columns_to_keep(self):
 
-        group_a, group_b = self.pos, self.neg
         formatted = self.formatted_headers
 
         mapper = list(zip(self.raw_headers, formatted))
@@ -188,13 +244,13 @@ class PathwayHeaders:
             "sender",
             "receiver",
             "afc",
-            "sigprob_" + group_a,
-            "sigprob_" + group_b,
+            "sigprob_" + self.group_a,
+            "sigprob_" + self.group_b,
         ]
 
         optional = [
-            "p_value_" + group_a,
-            "p_value_" + group_b,
+            "p_value_" + self.group_a,
+            "p_value_" + self.group_b,
             "tpds",
             "ppds",
             "sik_r_of_em",
@@ -244,132 +300,69 @@ class PathwayHeaders:
             if x[1] in columns_df[columns_df["found"]]["colname"].values
         ]
 
+    def filter_pathways(self, paths):
 
-class PathwayInput:
+        num_invalid = 0
 
-    def __init__(self, group_a, group_b, paths):
-        self.group_a = group_a
-        self.group_b = group_b
-        self.paths = paths
-        self.has_tpds = "tpds" in self.paths.columns
-        self.has_ppds = "ppds" in self.paths.columns
-        self.has_p_value = all(
-            x in self.paths.columns
-            for x in ["p_value_" + self.group_a, "p_value_" + self.group_b]
-        )
-        self.has_kinase = all(
-            x in self.paths.columns
-            for x in [
-                "sik_r_of_em",
-                "sik_r_of_t",
-                "sik_em_of_t",
-                "sik_em_of_r",
-                "sik_t_of_r",
-                "sik_t_of_em",
-            ]
-        )
-        self.has_umap = all(x in self.paths.columns for x in ["umap1", "umap2"])
-        self.unique_senders = self.paths["sender"].unique()
-        self.unique_receivers = self.paths["receiver"].unique()
-        self.unique_ligands = self.paths["ligand"].unique()
-        self.unique_receptors = self.paths["receptor"].unique()
-        self.unique_em = self.paths["em"].unique()
-        self.unique_targets = self.paths["target"].unique()
+        incomplete_paths = paths["path"].str.strip().str.split("*").str.len() != 4
 
+        if incomplete_paths.sum() > 0:
+            logger.warning(
+                f"{incomplete_paths.sum()} rows with invalid pathway format found. Expecting form L*R*EM*T"
+            )
+            logger.warning("First 10 invalid paths:")
+            logger.warning(paths[incomplete_paths]["path"].head().values)
 
-def get_pathways(fpath, groups):
-    if ".csv" in fpath:
-        sep = ","
-    elif ".tsv" in fpath:
-        sep = "\t"
-    else:
-        raise ValueError(
-            f"Pathways file suffix must be in [.csv,.tsv] -- check filename {fpath}"
+        num_invalid += len(incomplete_paths)
+
+        paths = paths.loc[~incomplete_paths]
+
+        paths["ligand"] = paths["path"].str.split("*").str[0].str.strip()
+        paths["receptor"] = paths["path"].str.split("*").str[1].str.strip()
+        paths["em"] = paths["path"].str.split("*").str[2].str.strip()
+        paths["target"] = paths["path"].str.split("*").str[3].str.strip()
+        paths["sender"] = paths["sender"].str.strip().str.lower()
+        paths["receiver"] = paths["receiver"].str.strip().str.lower()
+        paths["path"] = (
+            paths["path"]
+            .str.cat(paths["sender"], sep="*")
+            .str.cat(paths["receiver"], sep="*")
         )
 
-    logger.info(
-        "Detected pathways at path {} as {}".format(
-            fpath, {"\t": "TSV", ",": "CSV"}[sep]
+        duplicates_mask = paths.duplicated()
+        if duplicates_mask.sum() > 0:
+            logger.warning(f"{duplicates_mask.sum()} duplicate rows found")
+
+        is_na_mask = (
+            paths[["afc", "sigprob_" + self.group_a, "sigprob_" + self.group_b]]
+            .isna()
+            .any(axis=1)
         )
-    )
+        if is_na_mask.sum() > 0:
+            logger.info(
+                f"{is_na_mask.sum()} rows with invalid values found in required columns"
+            )
 
-    headers = pd.read_csv(fpath, nrows=0, sep=sep).columns
-    ph = PathwayHeaders(headers, groups)
-    to_keep = ph.parse_pathway_headers()
-    group_a, group_b = ph.pos, ph.neg
+        invalid = duplicates_mask | is_na_mask
 
-    logger.info("Loading pathways............")
+        if invalid.sum() > 0:
+            logger.info(f"Removing {invalid.sum()} duplicate or invalid rows")
 
-    paths = pd.read_csv(fpath, dtype=pathways_dtypes, usecols=to_keep, sep=sep)
-    paths.columns = PathwayHeaders.format_headers(paths.columns)
+        paths = paths[~invalid].reset_index(drop=True)
 
-    paths = paths.astype(
-        {k: v for k, v in pathways_dtypes.items() if k in paths.columns}
-    )
+        kinase_cols = [
+            "sik_r_of_em",
+            "sik_r_of_t",
+            "sik_em_of_t",
+            "sik_em_of_r",
+            "sik_t_of_r",
+            "sik_t_of_em",
+        ]
+        for col in kinase_cols:
+            if col in paths.columns:
+                paths[col] = paths[col].replace([0, "NA", "nan", False], "")
 
-    num_invalid = 0
-
-    incomplete_paths = paths["path"].str.strip().str.split("*").str.len() != 4
-
-    if incomplete_paths.sum() > 0:
-        logger.warning(
-            f"{incomplete_paths.sum()} rows with invalid pathway format found. Expecting form L*R*EM*T"
-        )
-        logger.warning("First 10 invalid paths:")
-        logger.warning(paths[incomplete_paths]["path"].head().values)
-
-    num_invalid += len(incomplete_paths)
-
-    paths = paths.loc[~incomplete_paths]
-
-    paths["ligand"] = paths["path"].str.split("*").str[0].str.strip()
-    paths["receptor"] = paths["path"].str.split("*").str[1].str.strip()
-    paths["em"] = paths["path"].str.split("*").str[2].str.strip()
-    paths["target"] = paths["path"].str.split("*").str[3].str.strip()
-    paths["sender"] = paths["sender"].str.strip().str.lower()
-    paths["receiver"] = paths["receiver"].str.strip().str.lower()
-    paths["path"] = (
-        paths["path"]
-        .str.cat(paths["sender"], sep="*")
-        .str.cat(paths["receiver"], sep="*")
-    )
-
-    duplicates_mask = paths.duplicated()
-    if duplicates_mask.sum() > 0:
-        logger.warning(f"{duplicates_mask.sum()} duplicate rows found")
-
-    is_na_mask = (
-        paths[["afc", "sigprob_" + group_a, "sigprob_" + group_b]].isna().any(axis=1)
-    )
-    if is_na_mask.sum() > 0:
-        logger.info(
-            f"{is_na_mask.sum()} rows with invalid values found in required columns"
-        )
-
-    invalid = duplicates_mask | is_na_mask
-
-    if invalid.sum() > 0:
-        logger.info(f"Removing {invalid.sum()} duplicate or invalid rows")
-
-    paths = paths[~invalid].reset_index(drop=True)
-
-    kinase_cols = [
-        "sik_r_of_em",
-        "sik_r_of_t",
-        "sik_em_of_t",
-        "sik_em_of_r",
-        "sik_t_of_r",
-        "sik_t_of_em",
-    ]
-    for col in kinase_cols:
-        if col in paths.columns:
-            paths[col] = paths[col].replace([0, "NA", "nan", False], "")
-
-    return PathwayInput(
-        group_a=group_a,
-        group_b=group_b,
-        paths=paths,
-    )
+        return paths
 
 
 def filter_defaults():

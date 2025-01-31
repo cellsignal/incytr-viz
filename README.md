@@ -20,7 +20,7 @@
 
 ## Use
 
-Instructions on using the tool can be found in the "Help" section on the loaded page. You can also find the same information in the incytr repository at src/incytr_viz/assets/help.md
+Instructions on using the tool can be found in the "Help" section on the loaded page. You can also find the same information in this repository at src/incytr_viz/assets/help.md
 
 
 ## Input Format

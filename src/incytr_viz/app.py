@@ -1,5 +1,4 @@
 import json
-import os
 
 from typing import Optional
 
@@ -35,13 +34,9 @@ def create_app(pathways_file, clusters_file):
         external_stylesheets=[dbc.themes.BOOTSTRAP],
     )
 
-    # cache.init_app(app.server, config={"CACHE_TYPE": "SimpleCache"})
+    incytr_input = IncytrInput(clusters_path=clusters_file, pathways_path=pathways_file)
 
-    clusters, groups = get_clusters(clusters_file)
-    pi = get_pathways(pathways_file, groups)
-
-    app.server.config["INCYTR_CLUSTERS"] = clusters
-    app.server.config["INCYTR_PATHWAYS"] = pi
+    app.server.config["INCYTR_INPUT"] = incytr_input
 
     app.layout = html.Div(
         [
@@ -95,14 +90,14 @@ def create_app(pathways_file, clusters_file):
                                     ),
                                     dbc.Checkbox(
                                         id="restrict-afc",
-                                        label="Restrict on aFC direction",
+                                        label="Restrict on aFC direction (recommended)",
                                         value=True,
                                     ),
                                     dbc.Checkbox(
                                         id="show-umap",
                                         label="Show UMAP",
                                         value=False,
-                                        disabled=not pi.has_umap,
+                                        disabled=not incytr_input.has_umap,
                                     ),
                                     html.Div(
                                         [
@@ -160,7 +155,7 @@ def create_app(pathways_file, clusters_file):
                                                 "receiver",
                                                 "kinase",
                                             ]
-                                            if pi.has_kinase
+                                            if incytr_input.has_kinase
                                             else ["sender", "receiver"]
                                         ),
                                     ),
@@ -206,20 +201,20 @@ def create_app(pathways_file, clusters_file):
             ),
             html.Div(
                 slider_container(
-                    has_tpds=pi.has_tpds,
-                    has_ppds=pi.has_ppds,
-                    has_p_value=pi.has_p_value,
+                    has_tpds=incytr_input.has_tpds,
+                    has_ppds=incytr_input.has_ppds,
+                    has_p_value=incytr_input.has_p_value,
                 ),
                 id="slider-container",
             ),
             html.Div(
                 filter_container(
-                    sender=list(pi.unique_senders),
-                    receiver=list(pi.unique_receivers),
-                    ligand=list(pi.unique_ligands),
-                    receptor=list(pi.unique_receptors),
-                    em=list(pi.unique_em),
-                    target=list(pi.unique_targets),
+                    sender=list(incytr_input.unique_senders),
+                    receiver=list(incytr_input.unique_receivers),
+                    ligand=list(incytr_input.unique_ligands),
+                    receptor=list(incytr_input.unique_receptors),
+                    em=list(incytr_input.unique_em),
+                    target=list(incytr_input.unique_targets),
                 ),
                 className="sidebar",
                 id="filter-container",
@@ -241,7 +236,7 @@ def create_app(pathways_file, clusters_file):
                                                         "alignItems": "center",
                                                     },
                                                 ),
-                                                html.Span(pi.group_a.title()),
+                                                html.Span(incytr_input.group_a.title()),
                                             ],
                                             style={
                                                 "textTransform": "uppercase",
@@ -259,7 +254,9 @@ def create_app(pathways_file, clusters_file):
                                     className="groupTitle",
                                 ),
                                 html.Div(
-                                    umap_graph("a", pi.has_umap, pi.paths),
+                                    umap_graph(
+                                        "a", incytr_input.has_umap, incytr_input.paths
+                                    ),
                                     className="umapContainer",
                                     id="umap-a-container",
                                     style={"display": "none"},
@@ -294,7 +291,7 @@ def create_app(pathways_file, clusters_file):
                                                         "alignItems": "center",
                                                     },
                                                 ),
-                                                html.Span(pi.group_b.title()),
+                                                html.Span(incytr_input.group_b.title()),
                                             ],
                                             style={
                                                 "textTransform": "uppercase",
@@ -312,7 +309,9 @@ def create_app(pathways_file, clusters_file):
                                     className="groupTitle",
                                 ),
                                 html.Div(
-                                    umap_graph("b", pi.has_umap, pi.paths),
+                                    umap_graph(
+                                        "b", incytr_input.has_umap, incytr_input.paths
+                                    ),
                                     className="umapContainer",
                                     id="umap-b-container",
                                     style={"display": "none"},
@@ -650,19 +649,18 @@ def update_figure_and_histogram(
     show_network_weights,
 ):
 
-    # clusters, groups = get_clusters(fpaths["clusters_file"])
-    # pi = get_pathways(fpaths["pathways_file"], groups[0], groups[1])
-    clusters = current_app.config["INCYTR_CLUSTERS"]
-    pi = current_app.config["INCYTR_PATHWAYS"]
+    incytr_input = current_app.config["INCYTR_INPUT"]
+    clusters = incytr_input.clusters
+
     filter_umap_a = parse_umap_filter_data(pcf.get("umap_select_a"))
     filter_umap_b = parse_umap_filter_data(pcf.get("umap_select_b"))
 
     slider_values = parse_slider_values_from_tree(sliders_container_children)
 
     pf = PathwaysFilter(
-        all_paths=pi.paths,
-        group_a_name=pi.group_a,
-        group_b_name=pi.group_b,
+        all_paths=incytr_input.paths,
+        group_a_name=incytr_input.group_a,
+        group_b_name=incytr_input.group_b,
         filter_afc_direction=pcf.get("restrict_afc"),
         filter_umap_a=filter_umap_a,
         filter_umap_b=filter_umap_b,
@@ -674,10 +672,10 @@ def update_figure_and_histogram(
         filter_em=pcf.get("em_select"),
         filter_target_genes=pcf.get("target_select"),
         filter_all_molecules=pcf.get("any_role_select"),
-        ppds_bounds=pi.has_ppds and slider_values.get("ppds"),
+        ppds_bounds=incytr_input.has_ppds and slider_values.get("ppds"),
         sp_threshold=slider_values.get("sigprob"),
-        tppds_bounds=pi.has_tpds and slider_values.get("tpds"),
-        pval_threshold=pi.has_p_value and slider_values.get("p-value"),
+        tppds_bounds=incytr_input.has_tpds and slider_values.get("tpds"),
+        pval_threshold=incytr_input.has_p_value and slider_values.get("p-value"),
     )
 
     a_pathways = pf.filter("a", should_filter_umap=bool(filter_umap_a))
@@ -739,9 +737,9 @@ def update_figure_and_histogram(
             graph_container,
             create_hist_figure(
                 paths=filtered_group_paths,
-                has_tpds=pi.has_tpds,
-                has_ppds=pi.has_ppds,
-                has_p_value=pi.has_p_value,
+                has_tpds=incytr_input.has_tpds,
+                has_ppds=incytr_input.has_ppds,
+                has_p_value=incytr_input.has_p_value,
             ),
         ]
 
@@ -759,14 +757,14 @@ def update_figure_and_histogram(
         filtered_group_paths=a_pathways,
         clusters=clusters,
         global_max_paths=global_max_paths,
-        group_name=pi.group_a,
+        group_name=incytr_input.group_a,
         group_id="a",
     )
     group_b_figs = _get_group_figures(
         filtered_group_paths=b_pathways,
         clusters=clusters,
         global_max_paths=global_max_paths,
-        group_name=pi.group_b,
+        group_name=incytr_input.group_b,
         group_id="b",
     )
     num_paths_a = len(a_pathways)
@@ -997,15 +995,15 @@ def download(
     sliders_container_children,
 ):
 
-    pi = current_app.config["INCYTR_PATHWAYS"]
+    incytr_input = current_app.config["INCYTR_INPUT"]
 
     if n_clicks and n_clicks > 0:
 
         slider_values = parse_slider_values_from_tree(sliders_container_children)
         pf = PathwaysFilter(
-            all_paths=pi.paths,
-            group_a_name=pi.group_a,
-            group_b_name=pi.group_b,
+            all_paths=incytr_input.paths,
+            group_a_name=incytr_input.group_a,
+            group_b_name=incytr_input.group_b,
             filter_afc_direction=pcf.get("restrict_afc"),
             filter_umap_a=parse_umap_filter_data(pcf.get("umap_select_a")),
             filter_umap_b=parse_umap_filter_data(pcf.get("umap_select_b")),
@@ -1016,18 +1014,18 @@ def download(
             filter_em=pcf.get("em_select"),
             filter_target_genes=pcf.get("target_select"),
             filter_all_molecules=pcf.get("any_role_select"),
-            ppds_bounds=pi.has_ppds and slider_values.get("ppds"),
+            ppds_bounds=incytr_input.has_ppds and slider_values.get("ppds"),
             sp_threshold=slider_values.get("sigprob"),
-            tppds_bounds=pi.has_tpds and slider_values.get("tpds"),
-            pval_threshold=pi.has_p_value and slider_values.get("p-value"),
+            tppds_bounds=incytr_input.has_tpds and slider_values.get("tpds"),
+            pval_threshold=incytr_input.has_p_value and slider_values.get("p-value"),
         )
 
-        a_pathways = pf.filter("a", should_filter_umap=pi.has_umap)
-        b_pathways = pf.filter("b", should_filter_umap=pi.has_umap)
+        a_pathways = pf.filter("a", should_filter_umap=incytr_input.has_umap)
+        b_pathways = pf.filter("b", should_filter_umap=incytr_input.has_umap)
 
         return (
-            dcc.send_data_frame(a_pathways.to_csv, f"{pi.group_a}.csv"),
-            dcc.send_data_frame(b_pathways.to_csv, f"{pi.group_b}.csv"),
+            dcc.send_data_frame(a_pathways.to_csv, f"{incytr_input.group_a}.csv"),
+            dcc.send_data_frame(b_pathways.to_csv, f"{incytr_input.group_b}.csv"),
         )
 
 
