@@ -484,7 +484,7 @@ def slider(
 
     component = dcc.Slider if not range else dcc.RangeSlider
 
-    if "tooltip" in slider_kwargs:
+    if "tooltip" in slider_kwargs and slider_kwargs.get("tooltip") != None:
         tooltip_format = slider_kwargs.pop("tooltip")
     else:
         tooltip_format = {
@@ -546,7 +546,8 @@ def slider_container(
             disabled=not has_tpds,
             marks={-1.1: "-1.1", 1.1: "1.1"},
             allowCross=False,
-            className="slider invertedSlider",
+            tooltip={"style": {"display": "none"}} if not has_tpds else None,
+            className="slider" if has_tpds else "slider disabledSlider",
         ),
         slider(
             "PPDS",
@@ -559,7 +560,8 @@ def slider_container(
             disabled=not has_ppds,
             marks={-1.1: "-1.1", 1.1: "1.1"},
             allowCross=False,
-            className="slider invertedSlider",
+            tooltip={"style": {"display": "none"}} if not has_tpds else None,
+            className="slider" if has_ppds else "slider disabledSlider",
         ),
     ]
     return html.Div(

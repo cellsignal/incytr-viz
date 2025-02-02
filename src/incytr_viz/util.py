@@ -7,9 +7,9 @@ from dataclasses import dataclass, field
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from tabulate import tabulate
 import time
 from typing import Literal, Callable
+from tqdm import tqdm
 
 from incytr_viz import assets
 from incytr_viz.dtypes import clusters_dtypes, pathways_dtypes
@@ -93,12 +93,32 @@ class IncytrInput:
 
         columns_to_keep = self.parse_columns_to_keep()
 
-        paths = pd.read_csv(
-            pathways_path,
-            dtype=self.map_dtypes(),
-            usecols=columns_to_keep,
-            sep=pathways_sep,
+        logger.info("Loading pathways............")
+        # paths = pd.read_csv(
+        #     pathways_path,
+        #     dtype=self.map_dtypes(),
+        #     usecols=columns_to_keep,
+        #     sep=pathways_sep,
+        # )
+
+        paths = pd.concat(
+            [
+                chunk
+                for chunk in tqdm(
+                    pd.read_csv(
+                        pathways_path,
+                        dtype=self.map_dtypes(),
+                        usecols=columns_to_keep,
+                        sep=pathways_sep,
+                        chunksize=1000,
+                    ),
+                    desc="Loading data",
+                    bar_format="{l_bar}{bar}| {n_fmt} chunks/{total_fmt} [{elapsed}]",
+                )
+            ]
         )
+
+        print("csv loaded")
 
         paths.columns = IncytrInput.format_headers(paths.columns)
 
@@ -131,6 +151,8 @@ class IncytrInput:
         self.unique_receptors = self.paths["receptor"].unique()
         self.unique_em = self.paths["em"].unique()
         self.unique_targets = self.paths["target"].unique()
+
+        logger.info("Pathways loaded.")
 
     @staticmethod
     def get_clusters(fpath):
@@ -363,9 +385,10 @@ class IncytrInput:
             "sik_t_of_r",
             "sik_t_of_em",
         ]
-        for col in kinase_cols:
-            if col in paths.columns:
-                paths[col] = paths[col].replace([0, "NA", "nan", False], "")
+
+        paths.loc[:, kinase_cols] = paths[kinase_cols].replace(
+            [0, "NA", "nan", False, np.nan], ""
+        )
 
         return paths
 

@@ -10,7 +10,6 @@ from dash import ALL, Dash, dcc, html, ctx, callback
 from dash.dependencies import Input, Output, State
 from flask import current_app
 
-from tabulate import tabulate
 
 from incytr_viz.components import (
     create_hist_figure,

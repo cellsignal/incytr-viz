@@ -76,6 +76,14 @@ nav > .container {
   background-color: #abe2fb;
 }
 
+.disabledSlider .rc-slider-track {
+  background-color: #484848;
+}
+
+.disabledSlider .rc-slider-rail {
+  background-color: #484848;
+}
+
 .linksWarning {
   display: flex;
   align-items: center;

@@ -1,24 +1,14 @@
 import os
 import pytest
-from incytr_viz.util import PathwaysFilter
-
-os.environ["INCYTR_PATHWAYS"] = (
-    "/home/icossentino/code/incytr-viz/tests/data/mc38/mc38_hegs_degs_proteomics_jan2025_ligand-target_sample.tsv"
-)
-os.environ["INCYTR_CLUSTERS"] = (
-    "/home/icossentino/code/incytr-viz/tests/data/mc38/pop.csv"
-)
-
-from incytr_viz.app import get_pathways, cache
+from incytr_viz.util import PathwaysFilter, IncytrInput
 
 
 @pytest.fixture
-def pi():
-    group_a = "10days"
-    group_b = "14days"
-    fpath = os.environ["INCYTR_PATHWAYS"]
-    yield get_pathways(fpath=fpath, group_a=group_a, group_b=group_b)
-    cache.clear()
+def incytr_input():
+    return IncytrInput(
+        clusters_path="/home/icossentino/code/incytr-viz/tutorial/clusters.csv",
+        pathways_path="/home/icossentino/code/incytr-viz/tutorial/pathways.csv",
+    )
 
 
 @pytest.fixture
@@ -43,9 +33,9 @@ def slider_values():
     return {"sigprob": 0.7, "tpds": [-2, 2], "ppds": [-2, 2], "p-value": 1}
 
 
-def test_get_pathways(pi):
+def test_get_pathways(incytr_input):
 
-    paths = pi.paths
+    paths = incytr_input.paths
 
     assert all(
         [
@@ -54,40 +44,45 @@ def test_get_pathways(pi):
                 "path",
                 "sender",
                 "receiver",
-                "sigprob_14days",
-                "sigprob_10days",
+                "sigprob_5x",
+                "sigprob_wt",
                 "afc",
                 "tpds",
                 "ppds",
-                "ligand",
-                "receptor",
-                "em",
-                "target",
             ]
         ]
     )
 
-    assert pi.has_p_value == True
-    assert pi.has_ppds == True
-    assert pi.has_tpds == True
-    assert pi.has_umap == False
-    assert pi.group_a == "10days"
-    assert pi.group_b == "14days"
-    assert (paths == cache.get("pathways").paths).all().all()
+    assert incytr_input.has_p_value == True
+    assert incytr_input.has_ppds == True
+    assert incytr_input.has_tpds == True
+    assert incytr_input.has_umap == False
+    assert incytr_input.group_a == "5x"
+    assert incytr_input.group_b == "wt"
 
 
-def test_filter_pathways(pi):
+def test_filter_pathways(incytr_input):
+
+    paths = incytr_input.paths
 
     pf = PathwaysFilter(
-        all_paths=pi.paths,
-        group_a_name=pi.group_a,
-        group_b_name=pi.group_b,
+        all_paths=paths,
+        group_a_name=incytr_input.group_a,
+        group_b_name=incytr_input.group_b,
         sp_threshold=0.7,
+        filter_afc_direction=True,
     )
 
     filtered_a = pf.filter("a", should_filter_umap=False)
     filtered_b = pf.filter("b", should_filter_umap=False)
 
-    assert filtered_a.shape[0] == pi.paths[pi.paths.sigprob_10days >= 0.7].shape[0]
-    assert filtered_b.shape[0] == pi.paths[pi.paths.sigprob_14days >= 0.7].shape[0]
-    assert filtered_a.shape[0] != filtered_b.shape[0] != len(pi.paths)
+    assert (
+        filtered_a.shape[0]
+        == paths[(paths.sigprob_5x >= 0.7) & (paths.afc > 0)].shape[0]
+    )
+    assert (
+        filtered_b.shape[0]
+        == paths[(paths.sigprob_wt >= 0.7) & (paths.afc < 0)].shape[0]
+    )
+
+    assert filtered_a.shape[0] != filtered_b.shape[0] != len(paths)
