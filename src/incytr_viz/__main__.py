@@ -1,8 +1,9 @@
 import argparse
 import sys
 import time
+
 from incytr_viz.app import create_app
-from incytr_viz.util import create_logger, ascii
+from incytr_viz.util import ascii, create_logger
 
 logger = create_logger(__name__)
 

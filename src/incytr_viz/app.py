@@ -1,27 +1,17 @@
 import json
-
 from typing import Optional
 
 import dash_bootstrap_components as dbc
-
 import numpy as np
 import pandas as pd
-from dash import ALL, Dash, dcc, html, ctx, callback
+from dash import ALL, Dash, callback, ctx, dcc, html
 from dash.dependencies import Input, Output, State
 from flask import current_app
 
-
-from incytr_viz.components import (
-    create_hist_figure,
-    cytoscape_container,
-    filter_container,
-    sankey_container,
-    slider_container,
-    umap_graph,
-)
-
+from incytr_viz.components import (create_hist_figure, cytoscape_container,
+                                   filter_container, sankey_container,
+                                   slider_container, umap_graph)
 from incytr_viz.util import *
-
 
 logger = create_logger(__name__)
 

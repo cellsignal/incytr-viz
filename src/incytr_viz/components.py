@@ -145,7 +145,7 @@ def cytoscape_container(
                         },
                     },
                 ],
-                style={"width": "900px", "height": "900px"},
+                style={"width": "100%", "height": "900px"},
             ),
         ],
         className="cytoscapeContainer",
@@ -484,13 +484,7 @@ def slider(
 
     component = dcc.Slider if not range else dcc.RangeSlider
 
-    if "tooltip" in slider_kwargs and slider_kwargs.get("tooltip") != None:
-        tooltip_format = slider_kwargs.pop("tooltip")
-    else:
-        tooltip_format = {
-            "placement": "left",
-            "always_visible": True,
-        }
+    tooltip_format = slider_kwargs.pop("tooltip", default_slider_tooltip)
 
     return html.Div(
         [
@@ -546,8 +540,12 @@ def slider_container(
             disabled=not has_tpds,
             marks={-1.1: "-1.1", 1.1: "1.1"},
             allowCross=False,
-            tooltip={"style": {"display": "none"}} if not has_tpds else None,
-            className="slider" if has_tpds else "slider disabledSlider",
+            tooltip=(
+                {"style": {"display": "none"}}
+                if not has_tpds
+                else default_slider_tooltip
+            ),
+            className="slider invertedSlider" if has_tpds else "slider disabledSlider",
         ),
         slider(
             "PPDS",
@@ -560,8 +558,12 @@ def slider_container(
             disabled=not has_ppds,
             marks={-1.1: "-1.1", 1.1: "1.1"},
             allowCross=False,
-            tooltip={"style": {"display": "none"}} if not has_tpds else None,
-            className="slider" if has_ppds else "slider disabledSlider",
+            tooltip=(
+                {"style": {"display": "none"}}
+                if not has_tpds
+                else default_slider_tooltip
+            ),
+            className="slider invertedSlider" if has_ppds else "slider disabledSlider",
         ),
     ]
     return html.Div(

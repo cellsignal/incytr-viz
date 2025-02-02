@@ -1,18 +1,24 @@
 import json
 import logging
-from importlib import resources as impresources
 import pdb
 import re
+import time
 from dataclasses import dataclass, field
+from importlib import resources as impresources
+from typing import Callable, Literal
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import time
-from typing import Literal, Callable
 from tqdm import tqdm
 
 from incytr_viz import assets
 from incytr_viz.dtypes import clusters_dtypes, pathways_dtypes
+
+default_slider_tooltip = {
+    "placement": "left",
+    "always_visible": True,
+}
 
 
 def create_logger(name):
