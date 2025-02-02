@@ -5,15 +5,15 @@
 
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1; 
+  background: #f1f1f1;
 }
- 
+
 ::-webkit-scrollbar-thumb {
-  background: #888; 
+  background: #888;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555; 
+  background: #555;
 }
 
 .navbar {
@@ -25,6 +25,27 @@
   border: 2px solid black;
 }
 
+
+.groupTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 40px;
+}
+
+.groupTitle>* {
+  padding: 0px 5px;
+}
+
+
+.fcDirectionGraphic {
+  font-size: 40px;
+  padding-right: 10px;
+  align-items: center;
+  justify-content: center;
+  vertical-align: super;
+}
+
 .nav-item {
   padding-left: 10px;
   padding-right: 10px;
@@ -32,7 +53,7 @@
   align-items: center;
 }
 
-nav > .container {
+nav>.container {
   display: flex;
   width: 95vw;
   max-width: none;
@@ -41,18 +62,18 @@ nav > .container {
 
 }
 
-#view-radio > .form-check {
+#view-radio>.form-check {
   padding: 0px 0px;
 }
 
-#view-radio > .form-check > label.active {
+#view-radio>.form-check>label.active {
   background-color: green;
   padding: 1rem;
   border-radius: 10px;
   border: 2px solid black;
 }
 
-#view-radio > .form-check > label:not(.active) {
+#view-radio>.form-check>label:not(.active) {
   background-color: white;
   padding: 1rem;
   border: 2px solid black;
@@ -139,7 +160,7 @@ nav > .container {
   max-width: 200px;
 }
 
-.groupTitle {
+.groupHeader {
   border: 1px solid black;
   height: 50px;
   display: flex;
@@ -213,8 +234,10 @@ nav > .container {
 
 .pathwaysCount {
   display: flex;
-  width: 30%;
+  /* width: 30%; */
   justify-content: space-evenly;
+  align-items: center;
+  font-size: 24px;
 }
 
 .sankeyColorLegendBox {
@@ -227,6 +250,7 @@ nav > .container {
   align-items: center;
   justify-content: space-between;
 }
+
 .sankeyColorLegendsContainer {
   min-width: 100px;
   margin: 5px;

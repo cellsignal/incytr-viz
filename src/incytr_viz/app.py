@@ -8,9 +8,14 @@ from dash import ALL, Dash, callback, ctx, dcc, html
 from dash.dependencies import Input, Output, State
 from flask import current_app
 
-from incytr_viz.components import (create_hist_figure, cytoscape_container,
-                                   filter_container, sankey_container,
-                                   slider_container, umap_graph)
+from incytr_viz.components import (
+    create_hist_figure,
+    cytoscape_container,
+    filter_container,
+    sankey_container,
+    slider_container,
+    umap_graph,
+)
 from incytr_viz.util import *
 
 logger = create_logger(__name__)
@@ -29,8 +34,6 @@ def create_app(pathways_file, clusters_file):
 
     app.layout = html.Div(
         [
-            dcc.Store(id="clusters_file", data=clusters_file),
-            dcc.Store(id="pathways_file", data=pathways_file),
             dbc.NavbarSimple(
                 children=[
                     dbc.NavItem(
@@ -215,32 +218,27 @@ def create_app(pathways_file, clusters_file):
                             [
                                 html.Div(
                                     [
-                                        html.H3(
+                                        html.Div(
                                             [
                                                 html.Span(
                                                     "⊕",
-                                                    style={
-                                                        "fontSize": "40px",
-                                                        "paddingRight": "10px",
-                                                        "alignItems": "center",
-                                                    },
                                                 ),
                                                 html.Span(incytr_input.group_a.title()),
                                             ],
-                                            style={
-                                                "textTransform": "uppercase",
-                                                "display": "flex",
-                                            },
+                                            className="groupTitle",
                                         ),
                                         html.Div(
                                             [
-                                                html.Span("Pathways: "),
+                                                html.Span(
+                                                    "Pathways Displayed:",
+                                                    style={"paddingRight": "5px"},
+                                                ),
                                                 html.Span(0, id="pathways-count-a"),
                                             ],
                                             className="pathwaysCount",
                                         ),
                                     ],
-                                    className="groupTitle",
+                                    className="groupHeader",
                                 ),
                                 html.Div(
                                     umap_graph(
@@ -270,32 +268,27 @@ def create_app(pathways_file, clusters_file):
                             [
                                 html.Div(
                                     [
-                                        html.H3(
+                                        html.Div(
                                             [
                                                 html.Span(
                                                     "⊖",
-                                                    style={
-                                                        "fontSize": "40px",
-                                                        "paddingRight": "10px",
-                                                        "alignItems": "center",
-                                                    },
                                                 ),
                                                 html.Span(incytr_input.group_b.title()),
                                             ],
-                                            style={
-                                                "textTransform": "uppercase",
-                                                "display": "flex",
-                                            },
+                                            className="groupTitle",
                                         ),
                                         html.Div(
                                             [
-                                                html.Span("Pathways: "),
+                                                html.Span(
+                                                    "Pathways Displayed:",
+                                                    style={"paddingRight": "5px"},
+                                                ),
                                                 html.Span(0, id="pathways-count-b"),
                                             ],
                                             className="pathwaysCount",
                                         ),
                                     ],
-                                    className="groupTitle",
+                                    className="groupHeader",
                                 ),
                                 html.Div(
                                     umap_graph(
@@ -572,13 +565,6 @@ def pathways_df_to_sankey(
     return (ids, labels, source, target, value, color)
 
 
-def filepath_inputs():
-    return dict(
-        clusters_file=Input("clusters_file", "data"),
-        pathways_file=Input("pathways_file", "data"),
-    )
-
-
 def pathway_component_filter_inputs(state=False):
     klass = State if state else Input
     return dict(
@@ -623,7 +609,6 @@ def network_style_inputs(state=False):
         view_radio=Input("view-radio", "value"),
     ),
     state=dict(
-        fpaths=filepath_inputs(),
         show_network_weights=State("show-network-weights", "value"),
     ),
     # prevent_initial_call=True,
@@ -634,7 +619,6 @@ def update_figure_and_histogram(
     slider_changed,
     sliders_container_children,
     view_radio,
-    fpaths,
     show_network_weights,
 ):
 
@@ -971,7 +955,6 @@ def update_filters_click_node(nclicks):
         n_clicks=Input("btn_csv", "n_clicks"),
     ),
     state=dict(
-        fpaths=filepath_inputs(),
         pcf=pathway_component_filter_inputs(state=True),
         sliders_container_children=State("allSlidersContainer", "children"),
     ),
@@ -979,7 +962,6 @@ def update_filters_click_node(nclicks):
 )
 def download(
     n_clicks: int,
-    fpaths,
     pcf: dict,
     sliders_container_children,
 ):
