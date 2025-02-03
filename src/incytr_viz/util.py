@@ -67,9 +67,9 @@ def parse_separator(fpath, input_type="input"):
 def kinase_color_map():
 
     return {
-        "Receptor --> Effector": "rgb(111,104,252)",
-        "Effector --> (Receptor/Target Gene)": "rgb(90,199,99)",
-        "Target --> Effector": "rgb(148,102,227)",
+        "Receptor --> EM": "rgb(111,104,252)",
+        "EM --> (Receptor/Target Gene)": "rgb(90,199,99)",
+        "Target --> EM": "rgb(148,102,227)",
         "Bidirectional": "rgb(130,107,107)",
         "Receptor <--> Target:  Not Shown -- Please Use Filter": "rgb(255,255,255)",
     }
@@ -107,7 +107,7 @@ class IncytrInput:
         #     sep=pathways_sep,
         # )
 
-        paths = pd.concat(
+        self.paths = pd.concat(
             [
                 chunk
                 for chunk in tqdm(
@@ -126,9 +126,7 @@ class IncytrInput:
 
         print("csv loaded")
 
-        paths.columns = IncytrInput.format_headers(paths.columns)
-
-        self.paths = self.filter_pathways(paths)
+        self.paths.columns = IncytrInput.format_headers(self.paths.columns)
 
         self.has_tpds = "tpds" in self.paths.columns
         self.has_ppds = "ppds" in self.paths.columns
@@ -149,8 +147,10 @@ class IncytrInput:
                 "sik_t_of_em",
             ]
         )
-
         self.has_umap = all(x in self.paths.columns for x in ["umap1", "umap2"])
+
+        self.paths = self.filter_pathways(self.paths)
+
         self.unique_senders = self.paths["sender"].unique()
         self.unique_receivers = self.paths["receiver"].unique()
         self.unique_ligands = self.paths["ligand"].unique()
@@ -398,9 +398,11 @@ class IncytrInput:
             "sik_t_of_em",
         ]
 
-        paths.loc[:, kinase_cols] = paths[kinase_cols].replace(
-            [0, "NA", "nan", False, np.nan], ""
-        )
+        if self.has_kinase:
+
+            paths.loc[:, kinase_cols] = paths[kinase_cols].replace(
+                [0, "NA", "nan", False, np.nan], ""
+            )
 
         return paths
 
@@ -611,17 +613,17 @@ class PathwaysFilter:
             val = self.filter_kinase
 
             try:
-                if val == "r_em":
+                if val == "Receptor->EM":
                     df = df[~(df["sik_r_of_em"] == "")]
-                elif val == "r_t":
+                elif val == "Receptor->Target":
                     df = df[~(df["sik_r_of_t"] == "")]
-                elif val == "em_t":
+                elif val == "EM->Target":
                     df = df[~(df["sik_em_of_t"] == "")]
-                elif val == "em_r":
+                elif val == "EM->Receptor":
                     df = df[~(df["sik_em_of_r"] == "")]
-                elif val == "t_r":
-                    df = df[~(df["sik_r_of_r"] == "")]
-                elif val == "t_em":
+                elif val == "Target->Receptor":
+                    df = df[~(df["sik_t_of_r"] == "")]
+                elif val == "Target->EM":
                     df = df[~(df["sik_t_of_em"] == "")]
             except KeyError:
                 logger.warning(

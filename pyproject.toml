@@ -9,7 +9,7 @@ version = "0.0.1"
 authors = [{ name = "Ian Cossentino", email = "ian.cossentino@cellsignal.com" }]
 description = "A browser-based tool to visualize and interact with signaling pathways returned by the Incytr program."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: MIT License",

@@ -451,7 +451,14 @@ def filter_container(sender, receiver, em, target, ligand, receptor):
                         placeholder="Filter Kinase Interaction",
                         multi=False,
                         clearable=True,
-                        options=["r_em", "r_t", "em_t", "em_r", "t_r", "t_em"],
+                        options=[
+                            "Receptor->EM",
+                            "Receptor->Target",
+                            "EM->Target",
+                            "EM->Receptor",
+                            "Target->Receptor",
+                            "Target->EM",
+                        ],
                         className="filter",
                     ),
                     dcc.Dropdown(
