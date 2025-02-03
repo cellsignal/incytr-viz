@@ -4,9 +4,14 @@
 
 *It is recommended to install this program in a virtual environment using tools such as [venv](https://docs.python.org/3/library/venv.html) or [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html)
 
-####
 
 ```pip install --upgrade incytr-viz```
+
+## Install from Source
+
+1. Clone repo ```git clone git@github.com:cellsignal/incytr-viz.git```
+2. Run ```git checkout develop```
+3. Run ```pip install .```
 
 
 ## Demo

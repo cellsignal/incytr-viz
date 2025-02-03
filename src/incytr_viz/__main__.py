@@ -130,7 +130,7 @@ def demo():
     """
 
     # Example usage:
-    zenodo_url = "https://zenodo.org/api/records/14775408/draft/files/incytr_viz_demo.zip/content?download=1&token=eyJhbGciOiJIUzUxMiIsImlhdCI6MTczODI2OTE0MywiZXhwIjoxNzQwNzAwNzk5fQ.eyJpZCI6IjM3MjkwMjhhLTQ4ZDktNDYyOC1hMDc1LThiNjMxZGQ3MDJiNyIsImRhdGEiOnt9LCJyYW5kb20iOiI0NjI1NWFkNWI2NGMyYTc1OTkyMWY0MDc1NjlhNmU2NCJ9.pR2eHubISH-4aC8ozbBbDBAdxKM7EJ9mGSi7lGt6C_oYo5reSe24ADS2hSyw08zwf5eKtq5mYC7w-Bi1zTDK-g"  # Replace with the actual Zenodo URL
+    zenodo_url = "https://zenodo.org/api/records/14775408/draft/files/incytr_viz_tutorial.zip/content?download=1&token=eyJhbGciOiJIUzUxMiIsImlhdCI6MTczODI2OTE0MywiZXhwIjoxNzQwNzAwNzk5fQ.eyJpZCI6IjM3MjkwMjhhLTQ4ZDktNDYyOC1hMDc1LThiNjMxZGQ3MDJiNyIsImRhdGEiOnt9LCJyYW5kb20iOiI0NjI1NWFkNWI2NGMyYTc1OTkyMWY0MDc1NjlhNmU2NCJ9.pR2eHubISH-4aC8ozbBbDBAdxKM7EJ9mGSi7lGt6C_oYo5reSe24ADS2hSyw08zwf5eKtq5mYC7w-Bi1zTDK-g"  # Replace with the actual Zenodo URL
     extract_dir = "incytr_viz_demo"
 
     try:
