@@ -1,43 +1,165 @@
+# Incytr Visualization
+
 ## Install
 
-Requires python >= 3.11
+Requires Python >= 3.10
 
-Dependencies:
+*It is recommended to install this program in a virtual environment using tools such as [venv](https://docs.python.org/3/library/venv.html) or [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html)
 
-- pandas
-- numpy
-- plotly
-- dash
-- dash_cytoscape==0.3.0
 
-## Run in browser
+```pip install --upgrade incytr-viz```
 
-1. Install dependencies if necessary (pip install -r requirements.txt)
-2. Ensure your CSV has the following columns (currently case insensitive):
+## Install from Source
 
-- Path (ligand, em, receptor, target columns are generated from the Path column)
-- Sender
-- Receiver
-- Ligand
-- Receptor
-- EM
-- Target
-- SigWeight_x, where x can be any suffix representing experimental group
-- SigWeight_y, where y can be any suffix representing experimental group
-- p_value_x, where x can be any suffix representing experimental group
-- p_value_y, where y can be any suffix representing experimental group
-- RNA_score (optional)
-- final_score (optional)
+Requires Python >= 3.10
 
-3. Open main.py and update CLUSTERS_A_FILE (exp group) CLUSTERS_B_FILE (wt group) and PATHWAYS_FILE to appropriate file paths
+*It is recommended to install this program in a virtual environment using tools such as [venv](https://docs.python.org/3/library/venv.html) or [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html)
 
-4. Run 'python main.py'
 
-## Run in jupyter notebook
+1. Clone repo ```git clone git@github.com:cellsignal/incytr-viz.git```
+2. Run ```pip install .```
 
-1. See steps 2-3 above
-2. Run notebook
 
-## Notes
+## Demo
 
-Warning! Dash cytoscape > 0.3.0 (e.g. 1.0.0 and above) have bugs that affect graph updates as of July 2024
+This will download small demo files from [Zenodo](https://zenodo.org/) and start the program for you with example data.
+
+1) Run ```incytr-viz-demo``` in your console (no arguments required). If this does not work for you, you can download the file ```incytr_tutorial.zip``` manually from (TBD zenodo repository link), unzip the file, and proceed with the quickstart instructions below
+
+2) After the pathways have loaded, navigate to http://127.0.0.1:8000/ in your web browser. Instructions on using the tool can be found in the "Help" section on the loaded page.
+
+
+## Quickstart
+
+1) Run incytr: ```incytr-viz --clusters path/to/clusters.csv --pathways path/to/pathways.csv```
+
+      See Input Format section below for details on clusters and pathways files
+
+
+2) After pathways have loaded, navigate to http://127.0.0.1:8000/ in your web browser. Large datasets (~1M pathways) may take longer on initial load.
+
+
+## Use
+
+Instructions on using the tool can be found in the "Help" section on the loaded page. You can also find the same information in this repository at src/incytr_viz/assets/help.md
+
+
+## Input Format
+
+### A. Clusters File
+
+CSV or TSV with the names of experimental conditions and cell populations analyzed by incytr. Column names are case-insensitive
+
+      *Important: Ensure that the entries in the "Condition" column in the clusters file match the condition names provided to incytr. Note the Sigprob_5X and SigProb_WT column headers in pathways file (below) align with "5X" and "WT" conditions in the clusters file. 
+
+#### Required columns:
+
+- condition -- Name of experimental condition.
+- type -- Name of cell population. Not all population types need to be present in both conditions.
+
+#### Optional columns:
+- population: number of cells for that condition and type. This is used only for sizing nodes in the network view
+
+*Note: running ```incytr-viz-demo``` will also download an appropriately-formatted example input at incytr_viz_demo/clusters.csv*
+
+#### Example:
+
+      ```
+            +-----------+----------------------+--------------------+
+            | Condition |         Type         |     Population     |
+            +-----------+----------------------+--------------------+
+            |    5X     |  Excitatory.neurons  | 0.492917685875192  |
+            |    5X     | Medium.spiny.neurons | 0.090448830991524  |
+            |    5X     |   Oligodendrocytes   | 0.161840832811878  |
+            |    5X     |  Endothelial.cells   | 0.0176915637977132 |
+            |    5X     |         OPCs         | 0.0271915353546846 |
+            |    5X     |      Microglia       | 0.0845326810398771 |
+            |    WT     |  Excitatory.neurons  | 0.500769230769231  |
+            |    WT     |     Interneurons     | 0.0891452991452991 |
+            |    WT     |      Astrocytes      | 0.0512393162393162 |
+            |    WT     |  Endothelial.cells   | 0.0205128205128205 |
+            |    WT     |         OPCs         | 0.0291880341880342 |
+            |    WT     |      Microglia       | 0.0343162393162393 |
+            +-----------+----------------------+--------------------+
+
+      ```
+
+### B. Pathways File
+
+This file should be a CSV or TSV output generated by the incytr analysis package, with optional additional columns. Column names are case-insensitive
+            
+            *Important: Ensure that the entries in the "Condition" column in the clusters file match the condition names provided to incytr.
+            Note the Sigprob_5X and SigProb_WT column headers below align with "5X" and "WT" conditions in the clusters file.  
+
+#### Required columns:
+- path -- 4-step network with components separated by *
+- sender -- sending cell population
+- receiver -- receiving sell population
+- sigprob_<experimental group name here> -- signaling probability for experimental (positive aFC) condition
+- sigprob_<control group name here> -- signaling probability for control (negative aFC) condition
+- afc -- adjusted fold change
+
+#### Optional columns:
+- p_value_<control group name>
+- p_value_ <experimental group name>
+- TPDS (transcriptomics-based pathway differential score)
+- PPDS (proteomics-based pathway differential score)
+- sik_r_of_em
+- sik_r_of_t
+- sik_em_of_t
+- sik_em_of_r
+- sik_t_of_r
+- sik_t_of_em
+- umap1 -- optional first 2-d umap coordinate for pathway
+- umap2 -- optional second 2-d umap coordinate for pathway
+
+*Note: running ```incytr-viz-demo``` will also download an appropriately-formatted example input at incytr_viz_demo/pathways.csv*
+
+#### Example (with all required and optional columns):
+
+            +---+------------------------+--------------------+--------------------+-------------+-------------+--------------+      \
+            |   |          Path          |       Sender       |      Receiver      | SigProb_5X  | SigProb_WT  |     aFC      |      \
+            +---+------------------------+--------------------+--------------------+-------------+-------------+--------------+      \
+            | 0 |  Cntn4*App*Aak1*Dock7  | Excitatory.neurons | Excitatory.neurons | 0.819899544 | 0.465168271 | 0.816354872  |      \
+            | 1 |  Cntn4*App*Aak1*Etl4   | Excitatory.neurons | Excitatory.neurons | 0.886444905 | 0.890006529 | -0.005778447 |      \
+            | 2 |  Cntn4*App*Aak1*Stk39  | Excitatory.neurons | Excitatory.neurons | 0.293952701 | 0.243354205 | 0.098756719  |      \
+            | 3 |   Cntn4*App*Aak1*Syp   | Excitatory.neurons | Excitatory.neurons | 0.909707784 | 0.922833896 | -0.020645266 |      \
+            | 4 |  Cntn4*App*Aak1*Basp1  | Excitatory.neurons | Excitatory.neurons | 0.863494378 | 0.878796052 | -0.025312546 |      \
+            | 5 |  Cntn4*App*Aak1*Rph3a  | Excitatory.neurons | Interneurons | 0.826835011 | 0.76565119  | 0.110772934  |            \
+            | 6 |  Cntn4*App*Aak1*Mark2  | Excitatory.neurons | Interneurons | 0.42778563  | 0.359672825 | 0.159537491  |            \
+            | 7 | Cntn4*App*Aak1*Pitpnm2 | Excitatory.neurons | Interneurons | 0.824016257 | 0.494738382 | 0.734843587  |            \
+            | 8 | Cntn4*App*Aak1*Slc2a3  | Excitatory.neurons | Interneurons | 0.489517379 | 0.752109522 | -0.618555434 |            \
+            +---+------------------------+--------------------+--------------------+-------------+-------------+--------------+      \
+
+
+            +---+------------+------------+-------------+------------+-------------+-------------+------------+-------------+ \
+            |   | p_value_5X | p_value_WT | SiK_R_of_EM | SiK_R_of_T | SiK_EM_of_T | SiK_EM_of_R | SiK_T_of_R | SiK_T_of_EM | \
+            +---+------------+------------+-------------+------------+-------------+-------------+------------+-------------+ \
+            | 0 |     0      |     0      |     nan     |    nan     |    Aak1     |     nan     |    nan     |     nan     | \
+            | 1 |     0      |     0      |     nan     |    nan     |    Aak1     |     nan     |    nan     |     nan     | \
+            | 2 |     0      |     0      |     nan     |    nan     |    Aak1     |     nan     |    nan     |    Stk39    | \
+            | 3 |     0      |     0      |     nan     |    nan     |    Aak1     |     nan     |    nan     |     nan     | \
+            | 4 |     0      |     0      |     nan     |    nan     |    Aak1     |     nan     |    nan     |     nan     | \
+            | 5 |     0      |     0      |     nan     |    nan     |    Aak1     |     nan     |    nan     |     nan     | \
+            | 6 |     0      |     0      |     nan     |    nan     |    Aak1     |     nan     |    nan     |    Mark2    | \
+            | 7 |     0      |     0      |     nan     |    nan     |    Aak1     |     nan     |    nan     |     nan     | \
+            | 8 |     0      |     0      |     nan     |    nan     |    Aak1     |     nan     |    nan     |     nan     | \
+            +---+------------+------------+-------------+------------+-------------+-------------+------------+-------------+ \
+
+            +---+--------------+--------------+-----------+-----------+
+            |   |     TPDS     |     PPDS     |   umap1   |   umap2   |
+            +---+--------------+--------------+-----------+-----------+
+            | 0 | 0.673081017  | -0.077709086 | 12.823026 | -1.528055 |
+            | 1 | -0.005778383 | -0.167344206 | 6.683978  | 6.683978  |
+            | 2 | 0.098436913  | -0.081214482 | -1.552083 | -1.552083 |
+            | 3 | -0.020642333 | -0.107245137 | -1.578296 | -1.578296 |
+            | 4 | -0.025307141 | -0.211122838 | -1.457079 | -1.457079 |
+            | 5 | 0.110322062  | -0.095464928 | -2.996066 | -2.996066 |
+            | 6 | 0.158197604  | -0.088897533 | 0.496085  | 0.496085  |
+            | 7 | 0.626019667  | -0.078997138 | -1.435241 | -1.435241 |
+            | 8 | -0.550121437 | -0.15471897  | 6.417764  | 6.417764  |
+            +---+--------------+--------------+-----------+-----------+
+
+
+
+
