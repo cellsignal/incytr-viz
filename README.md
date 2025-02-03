@@ -17,7 +17,7 @@ Requires Python >= 3.10
 
 
 1. Clone repo ```git clone git@github.com:cellsignal/incytr-viz.git```
-2. Run ```pip install .```
+2. Enter repo directory and run ```pip install .``` or e.g. ```pip install /path/to/repo/dir```
 
 
 ## Demo
