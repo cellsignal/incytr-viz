@@ -223,7 +223,7 @@ def create_app(pathways_file, clusters_file):
                                                 html.Span(
                                                     "⊕",
                                                 ),
-                                                html.Span(incytr_input.group_a.title()),
+                                                html.Span(incytr_input.group_a),
                                             ],
                                             className="groupTitle",
                                         ),
@@ -273,7 +273,7 @@ def create_app(pathways_file, clusters_file):
                                                 html.Span(
                                                     "⊖",
                                                 ),
-                                                html.Span(incytr_input.group_b.title()),
+                                                html.Span(incytr_input.group_b),
                                             ],
                                             className="groupTitle",
                                         ),
@@ -355,6 +355,11 @@ def load_nodes(clusters: pd.DataFrame, node_scale_factor) -> list[dict]:
     def calculate_node_diameters(clusters, node_scale_factor):
 
         clusters = clusters.copy()
+
+        if clusters["population"].isnull().any():
+            clusters.loc[:, "node_diameter"] = "40px"
+            return clusters
+
         if (clusters["population"] <= 0).all():
 
             clusters.loc[:, "node_diameter"] = 0
@@ -382,14 +387,17 @@ def load_nodes(clusters: pd.DataFrame, node_scale_factor) -> list[dict]:
         node_label = row.type_userlabel
         node_population = row["population"]
 
-        if (not node_population) or (np.isnan(node_population)):
+        if node_population == None:
+            stringified_population = ""
+        elif np.isnan(node_population):
             return np.nan
+        else:
+            stringified_population = f"{node_population:.4f}"
 
         data = dict()
         data["id"] = node_type
         data["label"] = node_label
-        data["cluster_size"] = node_population
-        data["label_with_size"] = f"{node_label} ({node_population:.4f})"
+        data["label_with_size"] = f"{node_label} ({stringified_population})"
         data["width"] = row["node_diameter"]
         data["height"] = row["node_diameter"]
         data["background_color"] = row["color"]

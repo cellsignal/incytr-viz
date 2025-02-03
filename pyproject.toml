@@ -1,21 +1,19 @@
 [build-system]
-requires = [ "setuptools>=61.0",]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 
 [project]
 name = "incytr_viz"
-version="0.0.1"
-authors = [
-  { name="Ian Cossentino", email="ian.cossentino@cellsignal.com" },
-]
-description = "A browser-based tool to visualize and interact with signaling pathways returned by the Incytr program."  
+version = "0.0.1"
+authors = [{ name = "Ian Cossentino", email = "ian.cossentino@cellsignal.com" }]
+description = "A browser-based tool to visualize and interact with signaling pathways returned by the Incytr program."
 readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
 ]
 dependencies = [
   "dash>=2.18.2",
@@ -25,18 +23,13 @@ dependencies = [
   "plotly>=5.24.1",
   "matplotlib",
   "gunicorn>=23.0.0",
-  "tqdm"
+  "tqdm",
 ]
-scripts = {"incytr-viz" = "incytr_viz.__main__:main", "incytr-viz-develop" = "incytr_viz.__main__:develop"}
+scripts = { "incytr-viz" = "incytr_viz.__main__:main", "incytr-viz-develop" = "incytr_viz.__main__:develop", "incytr-viz-demo" = "incytr_viz.__main__:demo" }
 
 
 [project.optional-dependencies]
-test = [
-    "pytest>=7.3.1",
-    "pytest-cov>=4.0.0",
-    "black>=23.1.0",
-    "flake8>=6.0.0",
-]
+test = ["pytest>=7.3.1", "pytest-cov>=4.0.0", "black>=23.1.0", "flake8>=6.0.0"]
 
 
 [project.urls]
@@ -49,4 +42,3 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 incytr_viz = ["assets/incytr.css", "assets/help.md"]
-

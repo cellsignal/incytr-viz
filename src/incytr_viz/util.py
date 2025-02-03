@@ -166,13 +166,16 @@ class IncytrInput:
 
         df = pd.read_csv(fpath, dtype=clusters_dtypes, sep=sep, compression="infer")
 
+        mandatory = ["type", "condition"]
         df.columns = df.columns.str.lower().str.strip()
-        if not all(c in df.columns for c in clusters_dtypes.keys()):
+        if not all(c in df.columns for c in mandatory):
             raise ValueError(
-                f"Invalid cell populations file: ensure the following columns are present: {clusters_dtypes.keys()}"
+                f"Invalid cell populations file: ensure the following columns are present: {mandatory}"
             )
 
-        df = df[list(clusters_dtypes.keys())].reset_index(drop=True)
+        df = df[
+            [x for x in df.columns if x in list(clusters_dtypes.keys())]
+        ].reset_index(drop=True)
 
         df["type_userlabel"] = df["type"]
         df["condition_userlabel"] = df["condition"]
@@ -181,10 +184,13 @@ class IncytrInput:
         df["group"] = df["condition"].str.strip().str.lower()
         df = df.set_index("type")
 
-        df["population"] = df["population"].fillna(0)
-        df["pop_min_ratio"] = df["population"] / (
-            df[df["population"] > 0]["population"].min()
-        )
+        if "population" in df.columns:
+            df.loc[:, "population"] = df["population"].fillna(0)
+            df.loc[:, "pop_min_ratio"] = df["population"] / (
+                df[df["population"] > 0]["population"].min()
+            )
+        else:
+            df.loc[:, "population"] = None
 
         df.drop(columns=["condition"], inplace=True)
         # assign colors to each cell type
