@@ -26,12 +26,13 @@ The left and right panels correspond to pathway data for the two user-provided e
 ### Network View
 
 - The network view shows the number of 4-step networks occurring between various cell types, subject to the applied filter.
+- By default, node area is logarithmically (log2) proportional to the cluster's population share within the total cell population for the condition, and edge widths are linearly proportional to the raw number of pathways the edge represents. Sizes can be adjusted in the options tab, as datasets vary significantly. Please select 'Show network weights' and 'Show cluster population sizes' in the options tab to show exact numbers.
 
 - Click on an edge to switch to the river view, which will show the component genes involved in the pathways comprising that edge
 
 - In the options tab, you can choose to:
   - show/hide cell population counts (if provided) and edge weights. Edge weights represent number of pathways.
-  - Increase or decrease edge and node sizing. Nodes are sized on a log scale (by default a node with 2^5 cells will be twice the size (by area) as a node with 2^4 cells), and edges on an exponential scale.
+  - Increase or decrease edge and node sizing. 
 
 ### River view
 

@@ -185,10 +185,10 @@ class IncytrInput:
         df = df.set_index("type")
 
         if "population" in df.columns:
-            df.loc[:, "population"] = df["population"].fillna(0)
-            df.loc[:, "pop_min_ratio"] = df["population"] / (
-                df[df["population"] > 0]["population"].min()
+            df["pop_proportion"] = df.groupby("group")["population"].transform(
+                lambda x: (x / x.sum())
             )
+            df.loc[:, "population"] = df["population"].fillna(0)
         else:
             df.loc[:, "population"] = None
 

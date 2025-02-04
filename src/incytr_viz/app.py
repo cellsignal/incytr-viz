@@ -364,15 +364,12 @@ def load_nodes(clusters: pd.DataFrame, node_scale_factor) -> list[dict]:
 
             clusters.loc[:, "node_diameter"] = 0
             return clusters
-        min_pop = clusters[clusters["population"] > 0]["population"].min()
-        clusters.loc[:, "pop_min_ratio"] = clusters.loc[:, "population"] / min_pop
-        clusters.loc[:, "normalized_ratio"] = (
-            clusters.loc[:, "pop_min_ratio"] * node_scale_factor
-        )
+
         clusters.loc[:, "node_area"] = np.round(
-            400 * (log_base(clusters["normalized_ratio"], node_scale_factor)),
+            400 * (log_base(clusters["pop_proportion"] * 100, node_scale_factor)),
             4,
         )
+
         clusters.loc[:, "node_diameter"] = np.round(
             np.sqrt(4 * clusters["node_area"] / np.pi), 4
         )
