@@ -77,7 +77,7 @@ def create_app(pathways_file, clusters_file):
                                         label="Show Network Weights",
                                     ),
                                     dbc.Checkbox(
-                                        id="show-population-fractions",
+                                        id="show-populations",
                                         label="Show Cluster Population Sizes",
                                     ),
                                     dbc.Checkbox(
@@ -364,7 +364,6 @@ def load_nodes(clusters: pd.DataFrame, node_scale_factor) -> list[dict]:
 
             clusters.loc[:, "node_diameter"] = 0
             return clusters
-
         min_pop = clusters[clusters["population"] > 0]["population"].min()
         clusters.loc[:, "pop_min_ratio"] = clusters.loc[:, "population"] / min_pop
         clusters.loc[:, "normalized_ratio"] = (
@@ -392,7 +391,7 @@ def load_nodes(clusters: pd.DataFrame, node_scale_factor) -> list[dict]:
         elif np.isnan(node_population):
             return np.nan
         else:
-            stringified_population = f"{node_population:.4f}"
+            stringified_population = f"{node_population:.0f}"
 
         data = dict()
         data["id"] = node_type
@@ -818,14 +817,12 @@ def show_umap(
     Output("cytoscape-b", "stylesheet"),
     inputs=[
         Input("show-network-weights", "value"),
-        Input("show-population-fractions", "value"),
+        Input("show-populations", "value"),
     ],
     state=State("cytoscape-a", "stylesheet"),
     prevent_initial_call=True,
 )
-def show_network_weights_callback(
-    show_network_weights, show_population_fractions, stylesheet
-):
+def show_network_weights_callback(show_network_weights, show_populations, stylesheet):
 
     if ctx.triggered_id == "show-network-weights":
         label_value = "data(label)" if show_network_weights else ""
@@ -834,10 +831,8 @@ def show_network_weights_callback(
             if el["selector"] == "edge":
                 stylesheet[i] = {**el, "style": {**el["style"], "label": label_value}}
 
-    elif ctx.triggered_id == "show-population-fractions":
-        label_value = (
-            "data(label_with_size)" if show_population_fractions else "data(label)"
-        )
+    elif ctx.triggered_id == "show-populations":
+        label_value = "data(label_with_size)" if show_populations else "data(label)"
         for i, el in enumerate(stylesheet):
             if el["selector"] == "node":
                 stylesheet[i] = {**el, "style": {**el["style"], "label": label_value}}
