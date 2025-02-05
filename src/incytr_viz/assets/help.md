@@ -6,21 +6,21 @@ The left and right panels correspond to pathway data for the two user-provided e
 
 ### Filtering
 
-- By default, each condition panel displays pathways upregulated (by adjusted fold change) in that condition. The panel on the left (labeled with a "+" sign) shows pathways with positive fold change values, and the panel on the right shows negative fold change values. 
+- By default, each condition panel displays pathways upregulated (by adjusted fold change) in that condition. The panel on the left (labeled with a "+" sign) shows pathways with positive adj. fold change values, and the panel on the right shows negative adj. fold change values. 
 
 - Filters available include:
 
   - Sender cell type
   - Receiver cell type
   - Ligand/Receptor/EM/Target Gene
-  - "Filter any role" -- display targets with selected genes regardless of pathway role
-  - "Filter kinase relationship" -- if available, select pathways with a signaling-involed kinase (SiK) relationship between components. For example, filtering on "Receptor --> EM" displays pathways where the receptor is a predicted kinase of the effector molecule.
-
-- Filters are applied additively (a pathway must pass all filters in order to be displayed). Except for UMAP-based filtering (see below), filters are applied to both conditions. 
+  - Any role --> display pathways containing selected genes regardless of pathway role
+  - Kinase Relationship --> if available, select pathways with a signaling-involed kinase (SiK) relationship between components. For example, filtering on "Receptor --> EM" displays pathways where the receptor is a predicted kinase of the effector molecule.
+  
+- Filters are applied additively (a pathway must pass all filters in order to be displayed). Except for UMAP-based filtering, filters are applied to both conditions simultaneously. 
 
 - Most metrics are condition-independent. For example, there is one adjusted fold-change value for each pathway, and it is the sign of the value that indicates the condition in which it is upgregulated.
 
-- Signalling probability and P-value are reported separately for each condition (e.g. signalling probability). In these cases, each condition will be filtered according to its corresponding value. These metrics are suffixed with the condition name in the incytr analysis output file (e.g. SigProb_5X, SigProb_WT)
+- Some metrics (e.g. signalling probability and p-value) are reported separately for each condition. In these cases, each condition will be filtered according to its corresponding value. Condition-specific metrics are suffixed with the condition name in the incytr analysis package output (e.g. SigProb_5X, SigProb_WT)
 
 
 ### Network View
@@ -36,8 +36,7 @@ The left and right panels correspond to pathway data for the two user-provided e
 
 ### River view
 
-- The river view shows the component genese, and their roles in the pathway, for pathways passing applied filters.
-
+- The river view shows the component genes, and their roles in the pathway, for pathways passing applied filters.
 - Click a pathway component to filter results for pathways containing that gene in that role.
 - Depending on the number of unique targets passing the filter, targets may be hidden until more filters are applied.
 - In the options tab, use the "Color Sankey Flow" tab to color-code the pathways by sender cell type, receiver cell type, or by kinase-substrate relationship
@@ -46,19 +45,14 @@ The left and right panels correspond to pathway data for the two user-provided e
 
 Click "Download Current Paths" to download a CSV of pathways passing the currently selected filters. Two CSVs will download - one for each condition. 
 
-A zip archive with 3 files will be produced:
-
-- CSV of pathways passing current filters for condition A
-- CSV of pathways passing current filters for condition B
-- YAML file with the parameters/filters that produced the above files
 
 ### UMAP
 
 Users can bring their own umap data in order to filter pathways based on umap coordinates.
 
-1) Ensure each pathway in your input file has columns "umap1" and "umap2", each corresponding to that pathway's umap coordinates
-2) Run incytr, and select the "Show UMAP" option in the options tab to display umap plots for each condition
-3) Select an area of the umap plot by clicking and dragging, in order to restrict displayed pathways to those found in that subset
+1. Ensure each pathway in your input file has columns "umap1" and "umap2", each corresponding to that pathway's umap coordinates
+2. Run incytr, and select the "Show UMAP" option in the options tab to display umap plots for each condition
+3. Select an area of the umap plot by clicking and dragging, in order to restrict displayed pathways to those found in that subset
 
 - Umap filtering is condition-specific: filtering on the left/right-hand UMAP only affects the left/right-hand condition
 - The umap plots are unaffected by other filtering -- the only change that can be applied to the plot content is to zoom in/out

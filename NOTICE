@@ -242,6 +242,19 @@ typing_extensions
 Copyright (c) 1991 - 1995, Stichting Mathematisch Centrum Amsterdam,
 The Netherlands.  All rights reserved.
 
+
+tqdm
+------------------
+Copyright (c) 2013 noamraph
+
+* files: *
+  MPL-2.0 2015-2024 (c) Casper da Costa-Luis
+  [casperdcl](https://github.com/casperdcl).
+* files: tqdm/_tqdm.py
+  MIT 2016 (c) [PR #96] on behalf of Google Inc.
+* files: tqdm/_tqdm.py README.rst .gitignore
+  MIT 2013 (c) Noam Yorav-Raphael, original author.
+
 tzdata
 ------------------
 Apache Software License 2.0
