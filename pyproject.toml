@@ -22,8 +22,9 @@ dependencies = [
   "pandas",
   "plotly>=5.24.1",
   "matplotlib",
-  "gunicorn>=23.0.0",
+  "gunicorn>=23.0.0; sys_platform != 'win32'",
   "tqdm",
+  "waitress>=3.0.2; sys_platform == 'win32'",
 ]
 scripts = { "incytr-viz" = "incytr_viz.__main__:main", "incytr-viz-develop" = "incytr_viz.__main__:develop", "incytr-viz-demo" = "incytr_viz.__main__:demo" }
 

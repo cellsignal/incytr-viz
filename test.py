@@ -1,14 +1,24 @@
 import os
 import pytest
 from incytr_viz.util import PathwaysFilter, IncytrInput
+from incytr_viz.app import load_edges, load_nodes, create_app
+
+from incytr_viz.__main__ import run_wsgi
 
 
 @pytest.fixture
-def incytr_input():
-    return IncytrInput(
-        clusters_path="/home/icossentino/code/incytr-viz/tutorial/clusters.csv",
-        pathways_path="/home/icossentino/code/incytr-viz/tutorial/pathways.csv",
-    )
+def clusters():
+    return "./tests/clusters.csv"
+
+
+@pytest.fixture
+def pathways():
+    return "./tests/pathways.csv"
+
+
+@pytest.fixture
+def incytr_input(clusters, pathways):
+    return IncytrInput(clusters_path=clusters, pathways_path=pathways)
 
 
 @pytest.fixture
@@ -86,3 +96,46 @@ def test_filter_pathways(incytr_input):
     )
 
     assert filtered_a.shape[0] != filtered_b.shape[0] != len(paths)
+
+
+def test_serve_app(clusters, pathways):
+    run_wsgi(pathways=pathways, clusters=clusters)
+
+
+# def test_filter_umap():
+#     pass
+
+
+# def test_remove_afc_filter():
+#     pass
+
+
+# def test_callback_outputs():
+#     pass
+
+
+# def test_cytoscape_nodes_edges(incytr_input):
+#     clusters = incytr_input.clusters
+#     paths = incytr_input.paths
+
+#     pf = PathwaysFilter(
+#         all_paths=paths,
+#         group_a_name=incytr_input.group_a,
+#         group_b_name=incytr_input.group_b,
+#         sp_threshold=0.7,
+#         filter_afc_direction=True,
+#     )
+
+#     filtered_a = pf.filter("a", should_filter_umap=False)
+#     filtered_b = pf.filter("b", should_filter_umap=False)
+
+#     nodes_a = load_nodes(clusters, node_scale_factor=2)
+
+#     assert (
+#         filtered_a.shape[0]
+#         == paths[(paths.sigprob_5x >= 0.7) & (paths.afc > 0)].shape[0]
+#     )
+#     assert (
+#         filtered_b.shape[0]
+#         == paths[(paths.sigprob_wt >= 0.7) & (paths.afc < 0)].shape[0]
+#     )
