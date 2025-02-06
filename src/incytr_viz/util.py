@@ -78,53 +78,54 @@ def kinase_color_map():
 class IncytrInput:
 
     def __init__(self, clusters_path, pathways_path):
-        self.clusters, self.groups = IncytrInput.get_clusters(clusters_path)
+
+        try:
+            self.clusters, self.groups = IncytrInput.get_clusters(clusters_path)
+        except Exception as e:
+            raise ValueError(f"Error loading clusters file: {e}")
 
         if len(self.groups) != 2:
             raise ValueError(
                 f"Expected exactly 2 groups in cluster populations file, found {len(self.groups)}: {self.groups}"
             )
 
-        pathways_sep = parse_separator(pathways_path, "pathways")
+        try:
+            pathways_sep = parse_separator(pathways_path, "pathways")
 
-        self.raw_headers = pd.read_csv(pathways_path, nrows=0, sep=pathways_sep).columns
+            self.raw_headers = pd.read_csv(
+                pathways_path, nrows=0, sep=pathways_sep
+            ).columns
 
-        self.formatted_headers = IncytrInput.format_headers(self.raw_headers)
+            self.formatted_headers = IncytrInput.format_headers(self.raw_headers)
 
-        self.pos, self.neg = IncytrInput.assign_group_direction(
-            self.formatted_headers, self.groups
-        )
+            self.pos, self.neg = IncytrInput.assign_group_direction(
+                self.formatted_headers, self.groups
+            )
 
-        self.group_a, self.group_b = self.pos, self.neg
+            self.group_a, self.group_b = self.pos, self.neg
 
-        columns_to_keep = self.parse_columns_to_keep()
+            columns_to_keep = self.parse_columns_to_keep()
 
-        logger.info("Loading pathways............")
-        # paths = pd.read_csv(
-        #     pathways_path,
-        #     dtype=self.map_dtypes(),
-        #     usecols=columns_to_keep,
-        #     sep=pathways_sep,
-        # )
+            logger.info("Loading pathways............")
 
-        self.paths = pd.concat(
-            [
-                chunk
-                for chunk in tqdm(
-                    pd.read_csv(
-                        pathways_path,
-                        dtype=self.map_dtypes(),
-                        usecols=columns_to_keep,
-                        sep=pathways_sep,
-                        chunksize=1000,
-                    ),
-                    desc="Loading data",
-                    bar_format="{l_bar}{bar}| {n_fmt} chunks/{total_fmt} [{elapsed}]",
-                )
-            ]
-        )
-
-        print("csv loaded")
+            self.paths = pd.concat(
+                [
+                    chunk
+                    for chunk in tqdm(
+                        pd.read_csv(
+                            pathways_path,
+                            dtype=self.map_dtypes(),
+                            usecols=columns_to_keep,
+                            sep=pathways_sep,
+                            chunksize=1000,
+                        ),
+                        desc="Loading data",
+                        bar_format="{l_bar}{bar}| {n_fmt} chunks/{total_fmt} [{elapsed}]",
+                    )
+                ]
+            )
+        except Exception as e:
+            raise ValueError(f"Error loading pathways file: {e}")
 
         self.paths.columns = IncytrInput.format_headers(self.paths.columns)
 
@@ -166,6 +167,13 @@ class IncytrInput:
 
         df = pd.read_csv(fpath, dtype=clusters_dtypes, sep=sep, compression="infer")
 
+        is_na = len(df[df.isna().any(axis=1)])
+        if is_na > 0:
+            logger.warning(
+                f"Found {is_na} NA rows in cluster populations file. Dropping..."
+            )
+        df = df.dropna(axis=0, how="any")
+
         mandatory = ["type", "condition"]
         df.columns = df.columns.str.lower().str.strip()
         if not all(c in df.columns for c in mandatory):
@@ -189,6 +197,9 @@ class IncytrInput:
                 lambda x: (x / x.sum())
             )
             df.loc[:, "population"] = df["population"].fillna(0)
+            df["pop_min_ratio"] = df.groupby("group")["population"].transform(
+                lambda x: x / x[x > 0].min()
+            )
         else:
             df.loc[:, "population"] = None
 
@@ -419,9 +430,20 @@ def filter_defaults():
         "any_role_select": [],
         "kinase_select": None,
         "sigprob": 0.7,
-        "p_value": 7,  # integer p-values mapped to nonlinear scale -- see utils
+        "p_value": p_value_slider_map()[-1][
+            0
+        ],  # integer p-values mapped to nonlinear scale -- see utils
         "ppds": [-0.25, 0.25],
         "tpds": [-0.25, 0.25],
+    }
+
+
+def view_defaults():
+    return {
+        "view_radio": "network",
+        "restrict_afc": True,
+        "node_scale_factor": 2,
+        "edge_scale_factor": 1,
     }
 
 

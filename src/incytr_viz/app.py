@@ -32,6 +32,8 @@ def create_app(pathways_file, clusters_file):
 
     app.server.config["INCYTR_INPUT"] = incytr_input
 
+    defaults = {**filter_defaults(), **view_defaults()}
+
     app.layout = html.Div(
         [
             dbc.NavbarSimple(
@@ -49,7 +51,7 @@ def create_app(pathways_file, clusters_file):
                                         "value": "sankey",
                                     },
                                 ],
-                                value="network",
+                                value=defaults["view_radio"],
                                 id="view-radio",
                                 className="btn-group",
                                 inputClassName="btn btn-check",
@@ -83,12 +85,12 @@ def create_app(pathways_file, clusters_file):
                                     dbc.Checkbox(
                                         id="restrict-afc",
                                         label="Restrict on aFC direction (recommended)",
-                                        value=True,
+                                        value=defaults["restrict_afc"],
                                     ),
                                     dbc.Checkbox(
                                         id="show-umap",
                                         label="Show UMAP",
-                                        value=False,
+                                        value=incytr_input.has_umap,
                                         disabled=not incytr_input.has_umap,
                                     ),
                                     html.Div(
@@ -98,7 +100,7 @@ def create_app(pathways_file, clusters_file):
                                                 min=1.1,
                                                 max=10,
                                                 step=0.01,
-                                                value=2,
+                                                value=defaults["node_scale_factor"],
                                                 marks=None,
                                                 className="scaleFactor",
                                             ),
@@ -113,7 +115,7 @@ def create_app(pathways_file, clusters_file):
                                                 min=0.1,
                                                 max=3,
                                                 step=0.1,
-                                                value=1,
+                                                value=defaults["edge_scale_factor"],
                                                 marks=None,
                                                 className="scaleFactor",
                                             ),
@@ -121,21 +123,6 @@ def create_app(pathways_file, clusters_file):
                                         ],
                                         className="optionSlider",
                                     ),
-                                    # html.Div(
-                                    #     [
-                                    #         dcc.Slider(
-                                    #             id="label-scale-factor",
-                                    #             min=8,
-                                    #             max=24,
-                                    #             step=1,
-                                    #             value=12,
-                                    #             marks=None,
-                                    #             className="scaleFactor",
-                                    #         ),
-                                    #         html.Div("Scale Label Size"),
-                                    #     ],
-                                    #     className="optionSlider",
-                                    # ),
                                     dcc.Dropdown(
                                         id="sankey-color-flow-dropdown",
                                         placeholder="Color River Flow",
@@ -246,7 +233,11 @@ def create_app(pathways_file, clusters_file):
                                     ),
                                     className="umapContainer",
                                     id="umap-a-container",
-                                    style={"display": "none"},
+                                    style=(
+                                        {"display": "none"}
+                                        if not incytr_input.has_umap
+                                        else {}
+                                    ),
                                 ),
                                 html.Div(
                                     [
@@ -296,7 +287,11 @@ def create_app(pathways_file, clusters_file):
                                     ),
                                     className="umapContainer",
                                     id="umap-b-container",
-                                    style={"display": "none"},
+                                    style=(
+                                        {"display": "none"}
+                                        if not incytr_input.has_umap
+                                        else {}
+                                    ),
                                 ),
                                 html.Div(
                                     [
@@ -366,7 +361,7 @@ def load_nodes(clusters: pd.DataFrame, node_scale_factor) -> list[dict]:
             return clusters
 
         clusters.loc[:, "node_area"] = np.round(
-            400 * (log_base(clusters["pop_proportion"] * 100, node_scale_factor)),
+            200 * (log_base(clusters["pop_min_ratio"] * 100, node_scale_factor)),
             4,
         )
         clusters.loc[:, "node_diameter"] = np.round(
@@ -681,9 +676,8 @@ def update_figure_and_histogram(
 
             cytoscape = cytoscape_container(
                 f"cytoscape-{group_id}",
-                group_name,
-                nodes + edges,
                 show_network_weights=show_network_weights,
+                elements=nodes + edges,
             )
 
             graph_container = cytoscape
@@ -1008,3 +1002,33 @@ def toggle_modal(n1, n2, is_open):
     if n1 or n2:
         return not is_open
     return is_open
+
+
+def get_cytoscape(
+    clusters,
+    group_id,
+    group_name,
+    filtered_group_paths,
+    global_max_paths,
+    node_scale_factor,
+    edge_scale_factor,
+    show_network_weights,
+):
+    nodes = load_nodes(
+        clusters.loc[clusters["group"] == group_name],
+        node_scale_factor=node_scale_factor,
+    )
+    edges = (
+        load_edges(
+            nodes=nodes,
+            filtered_group_paths=filtered_group_paths,
+            global_max_paths=global_max_paths,
+            edge_scale_factor=edge_scale_factor,
+        ),
+    )
+
+    return cytoscape_container(
+        f"cytoscape-{group_id}",
+        show_network_weights=show_network_weights,
+        elements=nodes + edges,
+    )

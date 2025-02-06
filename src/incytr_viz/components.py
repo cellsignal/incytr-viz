@@ -10,6 +10,38 @@ from plotly.subplots import make_subplots
 from incytr_viz.util import *
 
 
+def cytoscape_stylesheet(show_network_weights):
+    return [
+        {
+            "selector": "node",
+            "style": {
+                "label": "data(label)",
+                "text-wrap": "ellipsis",
+                "text-valign": "top",
+                "text-halign": "right",
+                "font-size": "28px",
+                "height": "data(height)",
+                "width": "data(width)",
+                "backgroundColor": "data(background_color)",
+            },
+        },
+        {
+            "selector": "edge",
+            "style": {
+                "curve-style": "unbundled-bezier",
+                "target-arrow-shape": "vee",
+                "font-size": "28px",
+                "arrow-scale": ".75",
+                "label": "data(label)" if show_network_weights else "",
+                "loop-sweep": "30deg",
+                "width": "data(width)",
+                "line-color": "data(line_color)",
+                "target-arrow-color": "data(line_color)",
+            },
+        },
+    ]
+
+
 def create_hist_figure(paths, has_tpds, has_ppds, has_p_value):
 
     plot_order = [(1, 1), (1, 2), (2, 1), (2, 2)]
@@ -102,9 +134,8 @@ def umap_graph(group_id, has_umap, all_pathways):
 
 def cytoscape_container(
     id,
-    title,
+    show_network_weights,
     elements=[],
-    show_network_weights=False,
     layout_name="circle",
 ):
 
@@ -116,35 +147,9 @@ def cytoscape_container(
                 layout={"name": layout_name},
                 minZoom=0.1,
                 maxZoom=10,
-                stylesheet=[
-                    {
-                        "selector": "node",
-                        "style": {
-                            "label": "data(label)",
-                            "text-wrap": "ellipsis",
-                            "text-valign": "top",
-                            "text-halign": "right",
-                            "font-size": "28px",
-                            "height": "data(height)",
-                            "width": "data(width)",
-                            "backgroundColor": "data(background_color)",
-                        },
-                    },
-                    {
-                        "selector": "edge",
-                        "style": {
-                            "curve-style": "unbundled-bezier",
-                            "target-arrow-shape": "vee",
-                            "font-size": "28px",
-                            "arrow-scale": ".75",
-                            "label": "data(label)" if show_network_weights else "",
-                            "loop-sweep": "30deg",
-                            "width": "data(width)",
-                            "line-color": "data(line_color)",
-                            "target-arrow-color": "data(line_color)",
-                        },
-                    },
-                ],
+                stylesheet=cytoscape_stylesheet(
+                    show_network_weights=show_network_weights
+                ),
                 style={"width": "100%", "height": "900px"},
             ),
         ],
@@ -168,7 +173,7 @@ def sankey_container(
     is_empty = num_links == 0
     num_targets = len([x for x in ids if "_target" in x])
     num_effectors = len([x for x in ids if "_em" in x])
-    no_targets = num_targets == 0
+    no_targets = (num_targets == 0) and not (is_empty)
 
     def get_sankey_height(is_empty, no_targets, num_targets, num_effectors):
 
