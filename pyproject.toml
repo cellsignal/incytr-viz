@@ -30,7 +30,13 @@ scripts = { "incytr-viz" = "incytr_viz.__main__:main", "incytr-viz-develop" = "i
 
 
 [project.optional-dependencies]
-test = ["pytest>=7.3.1", "pytest-cov>=4.0.0", "black>=23.1.0", "flake8>=6.0.0"]
+test = [
+  "pytest>=7.3.1",
+  "pytest-cov>=4.0.0",
+  "black>=23.1.0",
+  "flake8>=6.0.0",
+  "pytest-mock",
+]
 
 
 [project.urls]
