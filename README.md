@@ -1,5 +1,7 @@
 # Incytr Visualization
 
+![Short Demo](readme.gif)
+
 ## Install
 
 #### PIP
