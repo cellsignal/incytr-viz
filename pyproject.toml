@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 name = "incytr_viz"
 version = "0.0.1"
 authors = [{ name = "Ian Cossentino", email = "ian.cossentino@cellsignal.com" }]
-description = "A browser-based tool to visualize and interact with signaling pathways returned by the Incytr program."
+description = "A browser-based tool to visualize and interact with signaling pathways returned InCytr."
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
@@ -26,7 +26,7 @@ dependencies = [
   "tqdm",
   "waitress>=3.0.2; sys_platform == 'win32'",
 ]
-scripts = { "incytr-viz" = "incytr_viz.__main__:main", "incytr-viz-develop" = "incytr_viz.__main__:develop", "incytr-viz-demo" = "incytr_viz.__main__:demo" }
+scripts = { "incytr-viz" = "incytr_viz.__main__:main", "incytr-viz-demo" = "incytr_viz.__main__:demo" }
 
 
 [project.optional-dependencies]

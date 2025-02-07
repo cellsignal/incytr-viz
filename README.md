@@ -2,6 +2,7 @@
 
 ## Install
 
+#### PIP
 Requires Python >= 3.10
 
 *It is recommended to install this program in a virtual environment using tools such as [venv](https://docs.python.org/3/library/venv.html) or [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html)
@@ -10,11 +11,17 @@ Requires Python >= 3.10
 ```pip install --upgrade incytr-viz```
 
 
+#### From Source
+
+1) Clone repository and cd into repo directory
+2) ```pip install .```
+
+
 ## Demo
 
-This will download small demo files from [Zenodo](https://zenodo.org/records/14775408) drawn from the 5XFAD Alzheimer's model dataset and run the program automatically.
+This will download small demo files from [Zenodo](https://zenodo.org/records/14775408) drawn from the 5XFAD Alzheimer's model dataset referenced in the manuscript and run the program automatically.
 
-1) Run ```incytr-viz-demo``` in your console (no arguments required). If this does not work for you, you can download the file ```incytr_tutorial.zip``` manually from (TBD zenodo repository link), unzip the file, and proceed with the quickstart instructions below
+1) Run ```incytr-viz-demo``` in your console (no arguments required). If this does not work for you, you can download the file ```incytr_tutorial.zip``` manually from [Zenodo](https://zenodo.org/records/14775408), unzip the file, and proceed with the quickstart instructions below
 
 2) After the pathways have loaded, navigate to http://127.0.0.1:8000/ in your web browser. Instructions on using the tool can be found in the "Help" section on the loaded page.
 
