@@ -450,7 +450,7 @@ def view_defaults():
 def parse_umap_filter_data(umap_json_str):
     if umap_json_str:
         out = json.loads(umap_json_str)
-        if out.get("xaxis.range[0]"):
+        if out.get("xaxis.range[0]") or out.get("yaxis.range[0]"):
             return out
     return {}
 

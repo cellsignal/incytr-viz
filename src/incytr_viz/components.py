@@ -445,7 +445,7 @@ def filter_container(sender, receiver, em, target, ligand, receptor):
                 [
                     dcc.Dropdown(
                         id="any-role-select",
-                        placeholder="Filter Any Role",
+                        placeholder="Filter Gene",
                         multi=True,
                         clearable=True,
                         options=all_molecules,
@@ -470,6 +470,7 @@ def filter_container(sender, receiver, em, target, ligand, receptor):
                         id="umap-select-a",
                         disabled=False,
                         options=[],
+                        value=None,
                         className="filter",
                         style={"display": "none"},
                     ),
@@ -477,6 +478,7 @@ def filter_container(sender, receiver, em, target, ligand, receptor):
                         id="umap-select-b",
                         disabled=False,
                         options=[],
+                        value=None,
                         className="filter",
                         style={"display": "none"},
                     ),
@@ -536,7 +538,7 @@ def slider_container(
             max=pval_map[-1][0],
             step=1,
             value=filter_defaults()["p_value"],
-            marks={str(x[0]): x[1] for x in pval_map},
+            marks={str(x[0]): str(x[1]) for x in pval_map},
             disabled=not has_p_value,
             tooltip={"style": {"display": "none"}},
             className="slider" if has_p_value else "slider disabledSlider",

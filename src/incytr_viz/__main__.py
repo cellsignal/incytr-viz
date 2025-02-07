@@ -7,7 +7,7 @@ import zipfile
 
 import requests
 
-from incytr_viz.app import create_app
+from incytr_viz.app import create_dash_app
 from incytr_viz.util import create_logger
 
 logger = create_logger(__name__)
@@ -58,7 +58,7 @@ def develop():
     CLUSTERS = args.clusters
 
     logger.info("Running Incytr Viz using gunicorn web server")
-    app = create_app(pathways_file=PATHWAYS, clusters_file=CLUSTERS)
+    app = create_dash_app(pathways_file=PATHWAYS, clusters_file=CLUSTERS)
 
     app.run(debug=True)
 
@@ -72,16 +72,15 @@ def demo():
         zenodo_url: The URL of the zip file on Zenodo.
         extract_dir: The directory to extract the files to. Defaults to "incytr_viz_demo".
 
-    Returns:
-        A list of filepaths of the unzipped files, or None if an error occurs.
+    Returns: None
     """
+    zenodo_url = (
+        "https://zenodo.org/records/14775408/files/incytr_viz_tutorial.zip?download=1"
+    )
 
-    # Example usage:
-    zenodo_url = "https://zenodo.org/api/records/14775408/draft/files/incytr_viz_tutorial.zip/content?download=1&token=eyJhbGciOiJIUzUxMiIsImlhdCI6MTczODI2OTE0MywiZXhwIjoxNzQwNzAwNzk5fQ.eyJpZCI6IjM3MjkwMjhhLTQ4ZDktNDYyOC1hMDc1LThiNjMxZGQ3MDJiNyIsImRhdGEiOnt9LCJyYW5kb20iOiI0NjI1NWFkNWI2NGMyYTc1OTkyMWY0MDc1NjlhNmU2NCJ9.pR2eHubISH-4aC8ozbBbDBAdxKM7EJ9mGSi7lGt6C_oYo5reSe24ADS2hSyw08zwf5eKtq5mYC7w-Bi1zTDK-g"  # Replace with the actual Zenodo URL
     extract_dir = "incytr_viz_demo"
 
     try:
-        # 1. Download the zip file
         print("Downloading the demo zip file from Zenodo...")
         response = requests.get(zenodo_url, stream=True)
         response.raise_for_status()
@@ -92,10 +91,9 @@ def demo():
         time.sleep(0.5)
         with zipfile.ZipFile(io.BytesIO(response.content)) as z:
             file_paths = []
-            for file_info in z.infolist():  # Iterate through each file in the archive
-                # Sanitize file name to avoid path traversal vulnerabilities
-                filename = os.path.basename(file_info.filename)  # extract the file name
-                if filename:  # if the file name is not empty
+            for file_info in z.infolist():
+                filename = os.path.basename(file_info.filename)
+                if filename:
                     filepath = os.path.join(extract_dir, filename)
                     with open(filepath, "wb") as f:
                         f.write(z.read(file_info))
@@ -116,7 +114,7 @@ def demo():
     except zipfile.BadZipFile as e:
         print(f"Error unzipping file: {e}")
         return None
-    except Exception as e:  # Catch other potential errors (e.g., file I/O)
+    except Exception as e:
         print(f"An unexpected error occurred: {e}")
         return None
 

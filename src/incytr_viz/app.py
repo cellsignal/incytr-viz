@@ -21,7 +21,7 @@ from incytr_viz.util import *
 logger = create_logger(__name__)
 
 
-def create_app(pathways_file, clusters_file):
+def create_dash_app(pathways_file, clusters_file):
     app = Dash(
         __name__,
         suppress_callback_exceptions=True,
@@ -321,7 +321,11 @@ def create_app(pathways_file, clusters_file):
         className="app",
     )
 
-    return app.server
+    return app
+
+
+def create_app(pathways_file, clusters_file):
+    return create_dash_app(pathways_file, clusters_file).server
 
 
 def load_nodes(clusters: pd.DataFrame, node_scale_factor) -> list[dict]:
@@ -649,8 +653,12 @@ def update_figure_and_histogram(
         pval_threshold=incytr_input.has_p_value and slider_values.get("p-value"),
     )
 
-    a_pathways = pf.filter("a", should_filter_umap=bool(filter_umap_a))
-    b_pathways = pf.filter("b", should_filter_umap=bool(filter_umap_b))
+    a_pathways = pf.filter(
+        "a", should_filter_umap=incytr_input.has_umap and bool(filter_umap_a)
+    )
+    b_pathways = pf.filter(
+        "b", should_filter_umap=incytr_input.has_umap and bool(filter_umap_b)
+    )
 
     def _get_group_figures(
         filtered_group_paths: pd.DataFrame,
@@ -759,15 +767,15 @@ def _relayout_umap(relayoutData):
         'yaxis.range[1]': 9.59742380103187
     }
     """
-    if relayoutData and "xaxis.range[0]" in relayoutData:
+    if relayoutData:
         return json.dumps(relayoutData)
     else:
-        return None
+        return
 
 
 @callback(
     Output("umap-select-a", "value"),
-    inputs=Input("umap-graph-a", "relayoutData"),
+    Input("umap-graph-a", "relayoutData"),
     prevent_initial_call=True,
 )
 def relayout_umap_a(
@@ -778,7 +786,7 @@ def relayout_umap_a(
 
 @callback(
     Output("umap-select-b", "value"),
-    inputs=Input("umap-graph-b", "relayoutData"),
+    Input("umap-graph-b", "relayoutData"),
     prevent_initial_call=True,
 )
 def relayout_umap_b(
