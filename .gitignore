@@ -1,0 +1,10 @@
+.vscode
+data
+local
+build
+**/__pycache__
+**/.env
+!**/.gitkeep
+**/*.egg-info
+**/.pypirc
+pyrightconfig.json
