@@ -6,7 +6,7 @@ The left and right panels correspond to pathway data for the two user-provided e
 
 ### Filtering
 
-- By default, each condition panel displays pathways upregulated (by adjusted fold change "aFC") in that condition. The panel on the left (labeled with a "+") corresponds to the condition with positive aFC values, and the panel on the right with negative aFC values. This can be disabled in the options tab (uncheck 'Restrict on aFC direction')
+- By default, each condition panel displays pathways upregulated (by adjusted fold change "aFC") in that condition. The panel on the left (labeled with a "+") corresponds to the condition with positive aFC values, and the panel on the right with negative aFC values. This base filter can be disabled in the options tab (uncheck 'Restrict on aFC direction')
 
 - Filters available include:
 
@@ -17,6 +17,7 @@ The left and right panels correspond to pathway data for the two user-provided e
   - Kinase interaction --> if available, select pathways with a signaling-involed kinase (SiK) relationship between components. For example, filtering on "Receptor --> EM" displays pathways where the receptor is a predicted kinase of the effector molecule (as reported in the SiK_R_of_EM column of the pathways file, if available).
   
 
+
 - Filters are applied additively (a pathway must pass all filters in order to be displayed). Except for UMAP-based filtering, filters are applied to both conditions simultaneously. 
 
 - Some metrics (e.g. signalling probability and p-value) are reported separately for each condition. In these cases, each panel will be filtered according to the relevant column for that condition (e.g. SigProb_5X or SigProb_WT).
@@ -26,9 +27,20 @@ The left and right panels correspond to pathway data for the two user-provided e
 
 - The network view shows the number of 4-step networks occurring between various cell types, subject to the applied filter.
 
-- By default, node area is logarithmically (log2) proportional to the cluster's population share within the total cell population for the condition, and edge widths are linearly proportional to the raw number of pathways the edge represents. Node and edge sizing can be adjusted in the options tab for visual clarity, as datasets vary significantly. These are intended as guidelines -- for exact data, please select 'Show network weights' and/or 'Show cluster population sizes' in the options tab.
 
-- Click on an edge to display its component pathways in the river view, filtered on the relevant sender and receiver cell populations
+![Filter Pathways](assets/filter.gif)
+
+
+- Nodes and edges are scaled via the following:
+    - Nodes: Node area is scaled logarithmically according to their proportion of the total cell population for a condition. The node scale factor in the options tab controls the log base (default 2)
+    - Edges: Edge widths are exponentially proportional to the number of comprising pathways. The edge scale factor in the options tab controls the exponent (default 1, i.e. linear)
+    - For exact numbers, please enable network/edge labelling in the options tab  
+
+
+- Click on an edge to display its component pathways in the river view, filtered on the edge's source and target cell populations
+
+
+![Click Edge](assets/click.gif)
 
 
 
@@ -36,8 +48,13 @@ The left and right panels correspond to pathway data for the two user-provided e
 
 - Displays the ligand/receptor/EM/target gene components of the 4-step networks
 - Click on a node in the pathway to filter for pathways containing that gene in the same role
+
+![River Node Filter](assets/river.gif)
+
 - Depending on the number of unique targets passing the filter, targets may be hidden until additional filters are applied.
 - In the options tab, use the "Color Sankey Flow" tab to color-code the pathways by sender cell type, receiver cell type, or by kinase-substrate relationship
+
+![River Color](assets/color.gif)
 
 ### Downloading Data
 
@@ -46,14 +63,17 @@ Click "Download Current Paths" to download a CSV of pathways passing the current
 
 ### UMAP
 
-Users can append their own umap data to the pathway data in order to filter on umap coordinates.
+Users can append their own umap data to the pathway input file in order to filter on umap coordinates.
 
-1. Ensure each pathway in your input file has columns "umap1" and "umap2", each corresponding to that pathway's umap coordinates
+1. Include columns "umap1" and "umap2" in your pathways input file, each corresponding to that pathway's umap coordinates
 2. Run incytr, and select the "Show UMAP" option in the options tab to display umap plots for each condition
 3. Selecting an region of the umap plot will restrict displayed pathways to those found in that region
 
+![UMAP Filter](assets/umap.gif)
+
 - UMAP filtering is condition-specific: filtering on the left/right-hand UMAP only affects the left/right-hand panel, allowing two different UMAP regions to be compared.
 - All points remain on the UMAP plot regardless of pathway filters applied
+- UMAP filtering may affect styling on the other condition's panel. This is due to the global scaling of edge widths to allow for easy comparison across conditions. However, it should only affect the underlying edge weights of one condition
 
 
 ### Troubleshooting

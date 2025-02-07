@@ -103,6 +103,10 @@ def create_dash_app(pathways_file, clusters_file):
                                                 value=defaults["node_scale_factor"],
                                                 marks=None,
                                                 className="scaleFactor",
+                                                tooltip={
+                                                    "always_visible": True,
+                                                    "placement": "bottom",
+                                                },
                                             ),
                                             html.Div("Scale Network Nodes"),
                                         ],
@@ -118,6 +122,10 @@ def create_dash_app(pathways_file, clusters_file):
                                                 value=defaults["edge_scale_factor"],
                                                 marks=None,
                                                 className="scaleFactor",
+                                                tooltip={
+                                                    "always_visible": True,
+                                                    "placement": "bottom",
+                                                },
                                             ),
                                             html.Div("Scale Network Edges"),
                                         ],
@@ -149,7 +157,11 @@ def create_dash_app(pathways_file, clusters_file):
                             dbc.ModalHeader(
                                 dbc.ModalTitle("Incytr Data Visualization")
                             ),
-                            dbc.ModalBody(dcc.Markdown(children=get_help_file())),
+                            dbc.ModalBody(
+                                dcc.Markdown(
+                                    children=get_help_file(), style={"fontSize": "18px"}
+                                )
+                            ),
                             dbc.ModalFooter(
                                 dbc.Button(
                                     "Close",
@@ -365,7 +377,7 @@ def load_nodes(clusters: pd.DataFrame, node_scale_factor) -> list[dict]:
             return clusters
 
         clusters.loc[:, "node_area"] = np.round(
-            200 * (log_base(clusters["pop_min_ratio"] * 100, node_scale_factor)),
+            600 * (log_base(clusters["pop_min_ratio"], node_scale_factor) + 1),
             4,
         )
         clusters.loc[:, "node_diameter"] = np.round(
